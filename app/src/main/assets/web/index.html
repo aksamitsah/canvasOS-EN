@@ -1,0 +1,248 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#f2f2f7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
+<title>canvasOS</title>
+<style>
+  :root {
+    --bg: #f2f2f7; --card: #fff; --label: #000; --secondary: rgba(60,60,67,.6);
+    --sep: rgba(60,60,67,.18); --segment: #fff; --tint: #007aff; --fill: rgba(118,118,128,.12); --danger: #ff3b30;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #000; --card: #1c1c1e; --label: #fff; --secondary: rgba(235,235,245,.6);
+      --sep: rgba(84,84,88,.6); --segment: #636366; --tint: #0a84ff; --fill: rgba(118,118,128,.24); --danger: #ff453a;
+    }
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0 auto; background: var(--bg); color: var(--label); max-width: 720px;
+    font: 17px/1.4 -apple-system, BlinkMacSystemFont, "PingFang SC", "HarmonyOS Sans SC", "MiSans", system-ui, sans-serif;
+    padding: env(safe-area-inset-top) 16px calc(32px + env(safe-area-inset-bottom));
+  }
+  header { padding: 28px 4px 4px; }
+  h1 { font-size: 32px; font-weight: 700; margin: 0; }
+  header p { margin: 4px 0 0; color: var(--secondary); font-size: 15px; }
+  h2 { font-size: 13px; font-weight: 500; color: var(--secondary); margin: 28px 4px 8px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chips button, .seg button {
+    appearance: none; border: 0; font: inherit; font-size: 15px; font-weight: 500; color: var(--label);
+    background: var(--card); padding: 9px 14px; border-radius: 20px;
+  }
+  .chips button[aria-pressed="true"] { background: var(--tint); color: #fff; }
+  .seg { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; padding: 2px; border-radius: 10px; background: var(--fill); }
+  .seg.three { grid-template-columns: 1fr 1fr 1fr; }
+  .seg button { background: transparent; border-radius: 8px; padding: 9px 0; }
+  .seg button[aria-pressed="true"] { background: var(--segment); font-weight: 600; box-shadow: 0 1px 4px rgba(0,0,0,.12); }
+  .primary {
+    display: block; width: 100%; padding: 15px; border: 0; border-radius: 14px;
+    background: var(--tint); color: #fff; font: inherit; font-weight: 600; text-align: center;
+  }
+  .primary[disabled] { opacity: .6; }
+  textarea {
+    width: 100%; min-height: 110px; padding: 12px; border: 0; border-radius: 12px; resize: vertical;
+    background: var(--card); color: var(--label); font: 15px/1.4 ui-monospace, Menlo, monospace;
+  }
+  .hint { color: var(--secondary); font-size: 13px; margin: 8px 4px 0; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; margin-top: 12px; }
+  .ph { position: relative; }
+  .ph img { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 10px; background: var(--fill); }
+  .ph button {
+    position: absolute; top: 6px; right: 6px; width: 26px; height: 26px; border: 0; border-radius: 50%;
+    background: rgba(0,0,0,.55); color: #fff; font-size: 15px; line-height: 26px; padding: 0;
+  }
+  .empty { color: var(--secondary); font-size: 15px; padding: 4px; }
+  .toast {
+    position: fixed; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom)); transform: translate(-50%, 20px);
+    background: rgba(30,30,30,.92); color: #fff; padding: 10px 18px; border-radius: 22px; font-size: 15px;
+    opacity: 0; transition: opacity .2s, transform .3s; pointer-events: none;
+  }
+  .toast.on { opacity: 1; transform: translate(-50%, 0); }
+</style>
+</head>
+<body>
+<header>
+  <h1>canvasOS</h1>
+  <p>{{DEVICE}} · Modifiez ici, le téléviseur suit aussitôt</p>
+</header>
+
+<h2>Fond d'écran de l'accueil</h2>
+<div class="chips" id="backgrounds"></div>
+
+<h2>Économiseur d'écran</h2>
+<div class="seg" id="saver">
+  <button data-mode="photos">Photos</button>
+  <button data-mode="aerial">Vues aériennes</button>
+</div>
+<p class="hint">Les vues aériennes de l'Apple TV sont lues en ligne depuis les serveurs d'Apple (environ 15–20 Mbit/s) ; si elles ne se chargent pas, les photos reprennent. Les photos suivent la source de fond d'écran choisie ci-dessus.</p>
+
+<h2>Animation de démarrage</h2>
+<div class="seg three" id="intro">
+  <button data-mode="off">Désactivée</button>
+  <button data-mode="boot">Au démarrage</button>
+  <button data-mode="wake">Démarrage et réveil</button>
+</div>
+<p style="margin-top:12px"><label class="primary" id="pickIntro">Importer une vidéo d'animation<input type="file" id="introFile" accept="video/*" hidden></label></p>
+<p class="hint" id="introHint"></p>
+<div class="seg" id="introSource" style="margin-top:12px">
+  <button data-source="video">Vidéo importée</button>
+  <button data-source="wordmark">Logo canvasOS</button>
+</div>
+
+<h2>Fond des réglages</h2>
+<label class="primary" id="pickBackdrop">Importer un fond pour les réglages<input type="file" id="backdropFile" accept="image/*" hidden></label>
+<p class="hint" id="backdropHint"></p>
+
+<h2>Icône des réglages</h2>
+<label class="primary" id="pickIcon">Importer une icône<input type="file" id="iconFile" accept="image/*" hidden></label>
+<p class="hint" id="iconHint"></p>
+
+<h2>Mes photos</h2>
+<label class="primary" id="pick">Choisir des photos à importer<input type="file" id="file" accept="image/*" multiple hidden></label>
+<p class="hint">Après l'importation, le fond d'écran passe sur « Mes photos ». Le téléviseur enregistre les photos en 1920×1080.</p>
+<div class="grid" id="mine"></div>
+
+<h2>Liens d'images personnalisés</h2>
+<textarea id="links" placeholder="Un lien par ligne, par exemple&#10;https://example.com/wallpaper.jpg&#10;https://une-api-d-images-aleatoires/api"></textarea>
+<p class="hint">L'adresse d'une image, une API d'images aléatoires qui renvoie une nouvelle image à chaque fois, ou une page / un JSON qui liste des adresses d'images. Le téléviseur les récupère une fois par jour et garde quelques images par lien.</p>
+<p style="margin-top:12px"><button class="primary" id="save">Enregistrer et récupérer</button></p>
+<div class="grid" id="custom"></div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const base = location.pathname.replace(/\/?$/, '/');
+let state = null;
+const $ = id => document.getElementById(id);
+
+function toast(msg) {
+  const t = $('toast'); t.textContent = msg; t.classList.add('on');
+  clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove('on'), 2200);
+}
+
+async function post(path, data) {
+  const r = await fetch(base + path, { method: 'POST', body: new URLSearchParams(data) });
+  if (!r.ok) throw new Error(await r.text());
+  render(await r.json());
+}
+
+function photos(el, source, names) {
+  el.innerHTML = '';
+  if (!names.length) { el.innerHTML = '<div class="empty">Aucune pour l\'instant</div>'; return; }
+  for (const n of names) {
+    const d = document.createElement('div'); d.className = 'ph';
+    const img = document.createElement('img'); img.loading = 'lazy'; img.src = base + 'thumb/' + source + '/' + n;
+    const b = document.createElement('button'); b.textContent = '✕'; b.title = 'Supprimer';
+    b.onclick = () => post('api/delete', { source, id: n }).then(() => toast('Supprimée'));
+    d.append(img, b); el.append(d);
+  }
+}
+
+function render(s) {
+  state = s;
+  const bg = $('backgrounds'); bg.innerHTML = '';
+  for (const o of [...s.sources, ...s.themes]) {
+    const b = document.createElement('button'); b.textContent = o.label;
+    b.setAttribute('aria-pressed', s.background === o.id);
+    b.onclick = () => post('api/background', { id: o.id }).then(() => toast('Fond d\'écran : ' + o.label));
+    bg.append(b);
+  }
+  document.querySelectorAll('#saver button').forEach(b => {
+    b.setAttribute('aria-pressed', s.screensaver === b.dataset.mode);
+    b.onclick = () => post('api/screensaver', { mode: b.dataset.mode }).then(() => toast('Économiseur : ' + b.textContent));
+  });
+  document.querySelectorAll('#intro button').forEach(b => {
+    b.setAttribute('aria-pressed', s.intro === b.dataset.mode);
+    b.onclick = () => post('api/intro', { mode: b.dataset.mode }).then(() => toast('Animation de démarrage : ' + b.textContent));
+  });
+  document.querySelectorAll('#introSource button').forEach(b => {
+    b.setAttribute('aria-pressed', s.introSource === b.dataset.source);
+    b.onclick = () => post('api/intro/source', { source: b.dataset.source }).then(() => toast('Contenu de l\'animation : ' + b.textContent));
+  });
+  if (s.backdrop) {
+    $('backdropHint').innerHTML = 'Les réglages utilisent cette image ; sur le téléviseur, vous pouvez revenir au fond standard dans les réglages. <a href="#" id="backdropDel">Supprimer cette image</a>';
+    $('backdropDel').onclick = e => { e.preventDefault(); post('api/backdrop/delete', {}).then(() => toast('Supprimée')); };
+  } else {
+    $('backdropHint').textContent = 'Le fond de toute la page des réglages : une image 16:9 en paysage, avec le sujet (par exemple un téléviseur) à gauche et la droite libre pour les réglages.';
+  }
+  if (s.icon) {
+    $('iconHint').innerHTML = 'L\'accueil et les réglages utilisent cette image. <a href="#" id="iconDel">Revenir à l\'engrenage</a>';
+    $('iconDel').onclick = e => { e.preventDefault(); post('api/icon/delete', {}).then(() => toast('Icône par défaut rétablie')); };
+  } else {
+    $('iconHint').textContent = 'L\'icône « Réglages de l\'accueil » sur l\'accueil et la grande image à gauche des réglages ; idéalement une image 16:9 en paysage.';
+  }
+  const hint = $('introHint');
+  if (s.introVideo) {
+    hint.innerHTML = 'Importée (' + (s.introVideo / 1048576).toFixed(1).replace('.', ',') + ' Mo). <a href="#" id="introDel">Supprimer</a>';
+    $('introDel').onclick = e => { e.preventDefault(); post('api/intro/delete', {}).then(() => toast('Vidéo d\'animation supprimée')); };
+  } else {
+    hint.textContent = 'Idéalement une courte vidéo qui se termine sur un logo sur fond noir : le logo s\'agrandit et ouvre l\'accueil. Sans vidéo, le logo canvasOS s\'affiche.';
+  }
+  if (document.activeElement !== $('links')) $('links').value = s.links;
+  photos($('mine'), 'mine', s.mine);
+  photos($('custom'), 'custom', s.custom);
+}
+
+$('file').onchange = async e => {
+  const files = [...e.target.files]; if (!files.length) return;
+  const pick = $('pick'); pick.firstChild.textContent = 'Importation de ' + files.length + ' photo(s)…';
+  try {
+    const fd = new FormData();
+    files.forEach((f, i) => fd.append('photo' + (i || ''), f, f.name));
+    const r = await fetch(base + 'api/upload', { method: 'POST', body: fd });
+    const s = await r.json(); render(s);
+    toast(s.added ? s.added + ' photo(s) importée(s)' : 'Aucune image utilisable');
+  } catch (err) { toast('Échec de l\'importation : ' + err.message); }
+  pick.firstChild.textContent = 'Choisir des photos à importer'; e.target.value = '';
+};
+
+$('introFile').onchange = async e => {
+  const f = e.target.files[0]; if (!f) return;
+  const pick = $('pickIntro'); pick.firstChild.textContent = 'Importation…';
+  try {
+    const fd = new FormData(); fd.append('video', f, f.name);
+    const r = await fetch(base + 'api/intro/upload', { method: 'POST', body: fd });
+    const s = await r.json(); render(s);
+    toast(s.ok ? 'Importée : prévisualisez-la dans les réglages du téléviseur' : 'Le téléviseur ne peut pas lire ce fichier');
+  } catch (err) { toast('Échec de l\'importation : ' + err.message); }
+  pick.firstChild.textContent = 'Importer une vidéo d\'animation'; e.target.value = '';
+};
+
+$('backdropFile').onchange = async e => {
+  const f = e.target.files[0]; if (!f) return;
+  try {
+    const fd = new FormData(); fd.append('backdrop', f, f.name);
+    const s = await (await fetch(base + 'api/backdrop/upload', { method: 'POST', body: fd })).json(); render(s);
+    toast(s.ok ? 'C\'est fait : visible en ouvrant les réglages' : 'Image inutilisable');
+  } catch (err) { toast('Échec de l\'importation : ' + err.message); }
+  e.target.value = '';
+};
+
+$('iconFile').onchange = async e => {
+  const f = e.target.files[0]; if (!f) return;
+  try {
+    const fd = new FormData(); fd.append('icon', f, f.name);
+    const s = await (await fetch(base + 'api/icon/upload', { method: 'POST', body: fd })).json(); render(s);
+    toast(s.ok ? 'C\'est fait : visible en revenant à l\'accueil' : 'Image inutilisable');
+  } catch (err) { toast('Échec de l\'importation : ' + err.message); }
+  e.target.value = '';
+};
+
+$('save').onclick = async () => {
+  await post('api/links', { links: $('links').value });
+  toast(state.links ? 'Enregistré : le téléviseur récupère les images' : 'Liens effacés');
+  // Pictures arrive over the next half minute or so.
+  let n = 0; const t = setInterval(async () => {
+    if (++n > 10) return clearInterval(t);
+    render(await (await fetch(base + 'api/state')).json());
+  }, 4000);
+};
+
+fetch(base + 'api/state').then(r => r.json()).then(render).catch(() => toast('Téléviseur injoignable : scannez à nouveau le code'));
+</script>
+</body>
+</html>

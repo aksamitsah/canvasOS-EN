@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024" role="img" aria-labelledby="title desc">
+  <title id="title">canvasOS app icon</title>
+  <desc id="desc">A satin-silver open ring, a lowercase c, on a glossy black rounded-square app icon.</desc>
+  <defs>
+    <linearGradient id="base" x1="0" y1="0" x2="0.92" y2="1">
+      <stop offset="0" stop-color="#262728"/>
+      <stop offset=".32" stop-color="#101112"/>
+      <stop offset=".75" stop-color="#060708"/>
+      <stop offset="1" stop-color="#131416"/>
+    </linearGradient>
+    <radialGradient id="rimlight" cx=".49" cy="-.04" r=".9">
+      <stop offset="0" stop-color="#ffffff" stop-opacity=".21"/>
+      <stop offset=".20" stop-color="#ffffff" stop-opacity=".075"/>
+      <stop offset=".60" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="cornerShade" cx=".48" cy=".50" r=".70">
+      <stop offset=".43" stop-color="#000000" stop-opacity="0"/>
+      <stop offset="1" stop-color="#000000" stop-opacity=".48"/>
+    </radialGradient>
+    <linearGradient id="silver" x1="0.09" y1="0.02" x2=".86" y2="1">
+      <stop offset="0" stop-color="#fffefa"/>
+      <stop offset=".22" stop-color="#f3f1ee"/>
+      <stop offset=".51" stop-color="#c6c5c3"/>
+      <stop offset=".77" stop-color="#98999c"/>
+      <stop offset="1" stop-color="#747679"/>
+    </linearGradient>
+    <linearGradient id="sheen" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#fff" stop-opacity=".37"/>
+      <stop offset=".32" stop-color="#fff" stop-opacity=".02"/>
+      <stop offset=".75" stop-color="#15181c" stop-opacity=".12"/>
+      <stop offset="1" stop-color="#000" stop-opacity=".23"/>
+    </linearGradient>
+    <filter id="tileShadow" x="-10%" y="-10%" width="120%" height="125%" color-interpolation-filters="sRGB">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="6" result="blur"/>
+      <feOffset in="blur" dx="2" dy="9" result="offset"/>
+      <feFlood flood-color="#000000" flood-opacity=".75" result="dark"/>
+      <feComposite in="dark" in2="offset" operator="in" result="shadow"/>
+      <feMerge><feMergeNode in="shadow"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <clipPath id="squircle"><rect width="1024" height="1024" rx="224"/></clipPath>
+  </defs>
+
+  <!-- Premium black icon tile, with transparent outside corners -->
+  <g clip-path="url(#squircle)">
+    <rect width="1024" height="1024" fill="url(#base)"/>
+    <rect width="1024" height="1024" fill="url(#rimlight)"/>
+    <rect width="1024" height="1024" fill="url(#cornerShade)"/>
+    <rect x="2" y="2" width="1020" height="1020" rx="222" fill="none" stroke="#ffffff" stroke-opacity=".055" stroke-width="3"/>
+  </g>
+
+  <!-- An open ring, cut on the right: the c of canvasOS. -->
+  <g filter="url(#tileShadow)">
+    <path id="c-ring" d="M667.6 356.4A220 220 0 1 0 667.6 667.6" fill="none" stroke="url(#silver)" stroke-width="124" stroke-linecap="round"/>
+  </g>
+
+</svg>

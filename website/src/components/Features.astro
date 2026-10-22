@@ -1,0 +1,159 @@
+---
+import { shots } from "../data/site";
+import type { Copy, Locale } from "../data/lang";
+
+interface Props {
+  copy: Copy;
+  locale: Locale;
+}
+
+const { copy, locale } = Astro.props;
+const f = copy.features;
+
+/* Feature sections. Each one uses an authentic capture; nothing is fabricated. */
+const items = [
+  {
+    num: "01",
+    kicker: "LIQUID GLASS DOCK",
+    title: locale === "zh" ? "Un verre qui s'enfonce, des icônes qui flottent" : "A dock that sinks into the picture",
+    body:
+      locale === "zh"
+        ? "La première rangée d'apps repose sur une plaque de verre posée en bas de l'écran ; la suivante ne laisse voir que son bord. Appuyez sur Bas pour afficher toutes les apps ; le reste du temps, l'écran appartient au fond d'écran."
+        : "The first row sits on a sunken glass plate; the next row shows only its top edge. Press Down to reveal every app, or leave the screen to the wallpaper.",
+    bullets:
+      locale === "zh"
+        ? [
+            "5 colonnes d'icônes arrondies en 16:9, qui s'agrandissent, s'inclinent et projettent une ombre au focus",
+            "Appui long pour modifier, puis déplacez les icônes vers le Dock ou n'importe où avec les flèches",
+            "Flou, réfraction des bords et reflets colorés sont précalculés pour chaque fond : le défilement ne sollicite pas davantage le GPU",
+          ]
+        : [
+            "Five 16:9 rounded tiles that scale and tilt with a soft shadow on focus",
+            "Long-press to edit, then move tiles into the dock with the D-pad",
+            "Blur, edge refraction and highlights are precomputed per wallpaper on the CPU",
+          ],
+    img: shots.home,
+    alt:
+      locale === "zh"
+        ? "Capture réelle du Dock en verre liquide : cinq icônes d'apps sur une plaque de verre, avec réfraction et reflets sur les bords."
+        : "Liquid-glass dock with five app tiles on a Sony BRAVIA.",
+    caption: locale === "zh" ? "Accueil · capture réelle sur Sony BRAVIA" : "Home screen · Sony BRAVIA capture",
+    flip: false,
+  },
+  {
+    num: "02",
+    kicker: "TOP SHELF",
+    title: locale === "zh" ? "Sélectionnez une app, le haut de l'écran prend vie" : "Focus an app and the top half starts living",
+    body:
+      locale === "zh"
+        ? "Quand le focus se pose sur certaines apps du Dock, la moitié haute de l'écran fait défiler leur contenu : directs en cours, vidéos tendance, et non une affiche figée."
+        : "For supported dock apps, the upper half cycles through what is actually on: live rooms and trending videos, not a static poster.",
+    bullets:
+      locale === "zh"
+        ? ["云视听小电视 : vidéos tendance de Bilibili", "Douyu : les directs les plus populaires du moment", "Contenus issus des API web publiques des deux services, sans connexion à un compte"]
+        : [
+            "Bilibili trending videos through the 云视听小电视 TV app",
+            "Live rooms on Douyu",
+            "Read from the services' public web endpoints; no account needed",
+          ],
+    img: shots.shelf,
+    alt:
+      locale === "zh"
+        ? "Capture réelle du Top Shelf : en haut, l'image et le titre d'une vidéo tendance de Bilibili ; en bas, le Dock en verre."
+        : "Top Shelf showing a Bilibili video above the dock.",
+    caption: locale === "zh" ? "Top Shelf · vidéos tendance de 云视听小电视" : "Top Shelf · Bilibili trending",
+    flip: true,
+  },
+  {
+    num: "03",
+    kicker: "CONTROL CENTER",
+    title: locale === "zh" ? "Une pression sur Retour, et le Centre de contrôle apparaît" : "One Back press away",
+    body:
+      locale === "zh"
+        ? "Pas de panneau d'un seul bloc, juste des boutons en verre liquide qui flottent séparément. Derrière, l'accueil flouté en temps réel ; devant, les commandes dont vous avez vraiment besoin."
+        : "No enclosing panel — just floating liquid-glass controls over a live blur of the wallpaper.",
+    bullets:
+      locale === "zh"
+        ? [
+            "Réseau, veille, extinction, redémarrage, libération de la mémoire, Cadre photo, Réglages",
+            "Luminosité, volume et Sources HDMI n'apparaissent que si la TV les prend en charge",
+            "Android 12+ partage une couche de flou GPU ; les systèmes plus anciens échantillonnent le fond d'écran",
+          ]
+        : [
+            "Network, standby, power, restart, memory, photo frame, settings",
+            "Brightness, volume and HDMI input appear only where the TV exposes them",
+            "Android 12+ reuses a shared GPU blur layer; older systems sample the wallpaper",
+          ],
+    img: shots.cc,
+    alt:
+      locale === "zh"
+        ? "Capture réelle du Centre de contrôle : à droite flottent les commandes en verre liquide extinction, veille, réseau, luminosité, volume et Sources."
+        : "Frosted Control Center with power, network, brightness and volume controls.",
+    caption: locale === "zh" ? "Centre de contrôle · boutons de verre flottants" : "Control Center · floating glass controls",
+    flip: false,
+  },
+  {
+    num: "04",
+    kicker: "WALLPAPER & FRAME",
+    title: locale === "zh" ? "Quand la TV se tait, elle devient une fenêtre" : "When the TV is quiet, make it a window",
+    body:
+      locale === "zh"
+        ? "Paysages du jour Bing, sélection tout public de Wallhaven, photos envoyées depuis un téléphone, vos propres liens d'images ou un dégradé de couleur. Changement toutes les 15 minutes à une fois par jour."
+        : "Bing daily landscapes, all-ages Wallhaven favourites, photos uploaded from a phone, your own image links, or a colour gradient — rotating every 15 minutes to once a day.",
+    bullets:
+      locale === "zh"
+        ? ["Le Cadre photo se déplace et zoome lentement, et l'heure change régulièrement de place pour ménager les écrans OLED", "Il peut aussi afficher les films aériens de l'Apple TV (voir plus haut)", "Défini comme économiseur d'écran système, il démarre après 1 à 30 minutes d'inactivité de la télécommande"]
+        : [
+            "The frame pans and zooms slowly, moving the clock to protect OLED panels",
+            "Optionally switch the content to Apple TV aerial films (see above)",
+            "Set it as the system screensaver after 1–30 minutes of idle time",
+          ],
+    img: shots.grid,
+    alt:
+      locale === "zh"
+        ? "Capture réelle de la grille de toutes les apps : plusieurs rangées d'icônes 16:9 sur le fond d'écran."
+        : "All-apps grid capture over the wallpaper.",
+    caption: locale === "zh" ? "Toutes les apps · grille" : "All apps · grid layout",
+    flip: true,
+  },
+];
+---
+<section class="section" id="features">
+  <div class="wrap">
+    <div class="section-head center reveal">
+      <p class="eyebrow">{f.eyebrow}</p>
+      <h2>{f.title}</h2>
+      <p class="lede">{f.lede}</p>
+    </div>
+
+    {items.map((item) => (
+      <article class:list={["feature reveal", { "is-flipped": item.flip }]}>
+        <div class="feature-copy">
+          <p class="feature-kicker"><span class="num">{item.num}</span>{item.kicker}</p>
+          <h3>{item.title}</h3>
+          <p>{item.body}</p>
+          <ul class="feature-list">
+            {item.bullets.map((b) => <li>{b}</li>)}
+          </ul>
+        </div>
+        <figure class="feature-media">
+          <div class="tv-frame">
+            <div class="tv-screen">
+              <img
+                src={item.img.src}
+                srcset={`${item.img.small} 640w, ${item.img.src} 1280w`}
+                sizes="(max-width: 899px) 92vw, 52vw"
+                width="1280"
+                height="720"
+                loading="lazy"
+                decoding="async"
+                alt={item.alt}
+              />
+            </div>
+          </div>
+          <figcaption>{item.caption}</figcaption>
+        </figure>
+      </article>
+    ))}
+  </div>
+</section>
