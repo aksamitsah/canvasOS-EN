@@ -40,7 +40,7 @@ import time
 
 PORT = 6553
 SERVE_PORT = 8765
-PACKAGE = "com.leslie.tvhome"
+PACKAGE = "com.getisolated.canvasos"
 LABEL = "canvasOS"
 VERSION = "100"  # only shown by the TV; the APK's own versionCode is what gets installed
 

@@ -138,7 +138,7 @@ export const zh = {
       prereq:
         "Avant de commencer : l'ordinateur et la TV sont sur le même réseau local ; le débogage ADB est activé sur la TV ; à la première connexion, la TV demande « Autoriser le débogage USB ? » : cochez « Toujours autoriser ». L'ordinateur a besoin des Android SDK Platform-Tools.",
       shellNote:
-        "Chaque commande existe en deux versions : choisissez d'abord votre système ci-dessus. Sous Windows PowerShell, le téléchargement passe automatiquement par curl.exe et python3 devient python ; macOS / Linux utilisent curl et python3 fournis par le système. Les commandes n'utilisent pas de variables et le nom du paquet est toujours écrit com.leslie.tvhome : vous pouvez donc en copier une partie et l'exécuter telle quelle.",
+        "Chaque commande existe en deux versions : choisissez d'abord votre système ci-dessus. Sous Windows PowerShell, le téléchargement passe automatiquement par curl.exe et python3 devient python ; macOS / Linux utilisent curl et python3 fournis par le système. Les commandes n'utilisent pas de variables et le nom du paquet est toujours écrit com.getisolated.canvasos : vous pouvez donc en copier une partie et l'exécuter telle quelle.",
       shellLabels: { posix: "macOS / Linux", powershell: "Windows PowerShell" },
       placeholderNote:
         "Dans les exemples, 192.168.x.x est une valeur fictive : remplacez-le par l'IP réelle de la TV. Le PIN de l'étape d'enregistrement BRAVIA est le code à quatre chiffres affiché à l'écran de la TV ; remplacez-le comme indiqué.",
@@ -241,7 +241,7 @@ export const zh = {
             {
               title: "Vérifier que la protection fonctionne",
               cmd: C.tclCheck,
-              note: "La sortie doit contenir `com.leslie.tvhome/com.leslie.tvhome.HomeGuardService` et la dernière ligne doit être `com.leslie.tvhome/.HomeActivity`.",
+              note: "La sortie doit contenir `com.getisolated.canvasos/com.getisolated.canvasos.HomeGuardService` et la dernière ligne doit être `com.getisolated.canvasos/.HomeActivity`.",
             },
           ],
         },
@@ -300,9 +300,9 @@ export const zh = {
             },
             {
               title: "Accorder les autorisations que seul ADB peut donner",
-              cmd: `adb -s 192.168.x.x:5555 shell pm grant com.leslie.tvhome android.permission.WRITE_SECURE_SETTINGS
-adb -s 192.168.x.x:5555 shell cmd notification allow_listener com.leslie.tvhome/com.leslie.tvhome.RevivalListener
-adb -s 192.168.x.x:5555 shell appops set com.leslie.tvhome SYSTEM_ALERT_WINDOW allow`,
+              cmd: `adb -s 192.168.x.x:5555 shell pm grant com.getisolated.canvasos android.permission.WRITE_SECURE_SETTINGS
+adb -s 192.168.x.x:5555 shell cmd notification allow_listener com.getisolated.canvasos/com.getisolated.canvasos.RevivalListener
+adb -s 192.168.x.x:5555 shell appops set com.getisolated.canvasos SYSTEM_ALERT_WINDOW allow`,
             },
             {
               title: "Si la touche Accueil ramène encore au lanceur d'origine",
@@ -517,7 +517,6 @@ adb -s 192.168.x.x:5555 shell appops set com.leslie.tvhome SYSTEM_ALERT_WINDOW a
         {
           title: "Projet",
           links: [
-            { href: brand.readme, label: "README" },
             { href: brand.issues, label: "Signaler un problème" },
             { href: brand.notices, label: "Mentions tierces" },
           ],

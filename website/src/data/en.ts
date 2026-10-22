@@ -137,7 +137,7 @@ export const en = {
     prereq:
       "Before you start: the TV is on the same network as the computer, ADB debugging is enabled, and the first connection shows “Allow USB debugging?” — tick “Always allow”. The computer needs Android SDK Platform-Tools.",
     shellNote:
-      "Every snippet has two forms — pick your system above. Windows PowerShell uses curl.exe instead of the curl alias and python instead of python3; macOS / Linux use the system curl and python3. No snippet relies on a shell variable and the package name is always written as com.leslie.tvhome in full, so a partial copy still runs.",
+      "Every snippet has two forms — pick your system above. Windows PowerShell uses curl.exe instead of the curl alias and python instead of python3; macOS / Linux use the system curl and python3. No snippet relies on a shell variable and the package name is always written as com.getisolated.canvasos in full, so a partial copy still runs.",
     shellLabels: { posix: "macOS / Linux", powershell: "Windows PowerShell" },
     placeholderNote:
       "192.168.x.x is a placeholder for your TV's IP address. In the BRAVIA step, PIN is the four-digit code shown on the TV; type it in place of the placeholder.",
@@ -221,7 +221,7 @@ export const en = {
           {
             title: "Check the guard is running",
             cmd: C.tclCheck,
-            note: "The output should list `com.leslie.tvhome/com.leslie.tvhome.HomeGuardService`, and the last line should be `com.leslie.tvhome/.HomeActivity`.",
+            note: "The output should list `com.getisolated.canvasos/com.getisolated.canvasos.HomeGuardService`, and the last line should be `com.getisolated.canvasos/.HomeActivity`.",
           },
         ],
       },
@@ -263,9 +263,9 @@ export const en = {
           { title: "Install and set as home", cmd: C.stockInstall, note: "Windows PowerShell: use `curl.exe`." },
           {
             title: "Grant what only ADB can grant",
-            cmd: `adb -s 192.168.x.x:5555 shell pm grant com.leslie.tvhome android.permission.WRITE_SECURE_SETTINGS
-adb -s 192.168.x.x:5555 shell cmd notification allow_listener com.leslie.tvhome/com.leslie.tvhome.RevivalListener
-adb -s 192.168.x.x:5555 shell appops set com.leslie.tvhome SYSTEM_ALERT_WINDOW allow`,
+            cmd: `adb -s 192.168.x.x:5555 shell pm grant com.getisolated.canvasos android.permission.WRITE_SECURE_SETTINGS
+adb -s 192.168.x.x:5555 shell cmd notification allow_listener com.getisolated.canvasos/com.getisolated.canvasos.RevivalListener
+adb -s 192.168.x.x:5555 shell appops set com.getisolated.canvasos SYSTEM_ALERT_WINDOW allow`,
           },
           {
             title: "If Home still returns to the stock launcher",
@@ -449,7 +449,6 @@ adb -s 192.168.x.x:5555 shell appops set com.leslie.tvhome SYSTEM_ALERT_WINDOW a
       {
         title: "Project",
         links: [
-          { href: brand.readme, label: "README" },
           { href: brand.issues, label: "Issues" },
           { href: brand.notices, label: "Third-party notices" },
         ],

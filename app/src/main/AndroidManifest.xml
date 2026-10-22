@@ -113,7 +113,7 @@
             android:exported="true"
             android:permission="android.permission.WRITE_SECURE_SETTINGS">
             <intent-filter>
-                <action android:name="com.leslie.tvhome.CONFIG" />
+                <action android:name="com.getisolated.canvasos.CONFIG" />
             </intent-filter>
         </receiver>
 

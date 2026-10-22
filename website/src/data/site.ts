@@ -20,13 +20,12 @@ export const brand = {
   apkGuard:
     "https://github.com/getisolated/canvasOS/releases/latest/download/canvasOS-guard.apk",
   agents: "https://github.com/getisolated/canvasOS/blob/main/AGENTS.md",
-  readme: "https://github.com/getisolated/canvasOS/blob/main/README.md",
   issues: "https://github.com/getisolated/canvasOS/issues",
   notices:
     "https://github.com/getisolated/canvasOS/blob/main/THIRD_PARTY_NOTICES.md",
   tcast:
     "https://raw.githubusercontent.com/getisolated/canvasOS/main/tools/tcast-push.py",
-  pkg: "com.leslie.tvhome",
+  pkg: "com.getisolated.canvasos",
   tvIp: "192.168.x.x", // documented placeholder: replace with the TV's IP
 } as const;
 

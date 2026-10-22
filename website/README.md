@@ -77,7 +77,7 @@ public/404.html         static 404 served by Cloudflare Pages
 - **The aerial screensaver** is shown as a labelled motion illustration. No
   fabricated aerial frame is claimed to be a real capture; the photo frame next
   to it *is* a real capture.
-- **Commands have two OS variants.** `com.leslie.tvhome` is always written in
+- **Commands have two OS variants.** `com.getisolated.canvasos` is always written in
   full, so no snippet depends on a shell variable. The install section has one
   PowerShell / macOS·Linux switch that swaps every block (and what the copy
   button copies). The only variable-bearing lines are the Sony BRAVIA `BODY`

@@ -48,7 +48,7 @@ adb -s <TV_IP>:5555 shell settings get secure screensaver_components
 adb -s <TV_IP>:5555 shell settings get secure enabled_accessibility_services
 ```
 
-Notez l'activité d'accueil actuelle (le lanceur d'origine), l'économiseur d'écran actuel et les services d'accessibilité : il vous les faudra pour annuler l'installation. Dites à l'utilisateur de quelles fonctions il disposera (voir le tableau de compatibilité dans README.md). La section 9 explique comment adapter l'app quand quelque chose ne marche pas.
+Notez l'activité d'accueil actuelle (le lanceur d'origine), l'économiseur d'écran actuel et les services d'accessibilité : il vous les faudra pour annuler l'installation. Dites à l'utilisateur de quelles fonctions il disposera. La section 9 explique comment adapter l'app quand quelque chose ne marche pas.
 
 ## 3. Installer
 
@@ -64,7 +64,7 @@ gh release download --repo getisolated/canvasOS --pattern canvasOS.apk
 adb -s <TV_IP>:5555 install -r canvasOS.apk
 ```
 
-**Signature : désinstaller avant de mettre à jour.** Les APK sont compilés par GitHub Actions et signés avec la clé debug jetable du runner : chaque version a une signature différente. Si une version précédente de canvasOS est déjà installée, `adb install -r` échoue avec `INSTALL_FAILED_UPDATE_INCOMPATIBLE`. Il faut alors d'abord `adb -s <TV_IP>:5555 uninstall com.leslie.tvhome`, ce qui efface les réglages et les autorisations de l'app : demandez l'accord de l'utilisateur avant, puis refaites l'étape 4, et l'utilisateur devra de nouveau autoriser le débogage local (étape 6). Avant de désinstaller, désactivez la protection comme indiqué dans la section « Désinstaller ».
+**Signature : désinstaller avant de mettre à jour.** Les APK sont compilés par GitHub Actions et signés avec la clé debug jetable du runner : chaque version a une signature différente. Si une version précédente de canvasOS est déjà installée, `adb install -r` échoue avec `INSTALL_FAILED_UPDATE_INCOMPATIBLE`. Il faut alors d'abord `adb -s <TV_IP>:5555 uninstall com.getisolated.canvasos`, ce qui efface les réglages et les autorisations de l'app : demandez l'accord de l'utilisateur avant, puis refaites l'étape 4, et l'utilisateur devra de nouveau autoriser le débogage local (étape 6). Avant de désinstaller, désactivez la protection comme indiqué dans la section « Désinstaller ».
 
 **Si l'installation échoue avec `INSTALL_FAILED_VERIFICATION_FAILURE`** (TCL : son vérificateur refuse toute installation par adb), installez plutôt la version guard via l'« Interaction multi-écrans » (多屏互动, T-Cast) de TCL. Il faut Python 3 et le script `tools/tcast-push.py` du dépôt (dans le clone local, ou récupéré avec `gh`) :
 
@@ -81,7 +81,7 @@ adb -s <TV_IP>:5555 push canvasOS-guard.apk /sdcard/Download/canvasOS.apk
 adb -s <TV_IP>:5555 shell am start -n com.dangbeimarket/.ui.apkmanager.ApkManagerActivity   # si 当贝市场 (Dangbei Market) est installé
 ```
 
-Demandez ensuite à l'utilisateur de choisir canvasOS dans le gestionnaire de paquets de Dangbei (ou avec n'importe quel gestionnaire de fichiers du téléviseur) et de l'installer. Vérifiez le résultat avec `adb shell pm path com.leslie.tvhome`.
+Demandez ensuite à l'utilisateur de choisir canvasOS dans le gestionnaire de paquets de Dangbei (ou avec n'importe quel gestionnaire de fichiers du téléviseur) et de l'installer. Vérifiez le résultat avec `adb shell pm path com.getisolated.canvasos`.
 
 Si GitHub est inaccessible, compilez depuis les sources : clonez le dépôt (https://github.com/getisolated/canvasOS), puis `./gradlew assembleStandardRelease assembleGuardRelease` (nécessite JDK 17 et un SDK Android ; renseignez `sdk.dir` dans `local.properties`). Les APK se trouvent dans `app/build/outputs/apk/standard/release/app-standard-release.apk` et `app/build/outputs/apk/guard/release/app-guard-release.apk`. Une version compilée localement a elle aussi une signature différente des Releases : même règle de désinstallation que ci-dessus.
 
@@ -90,14 +90,14 @@ Si GitHub est inaccessible, compilez depuis les sources : clonez le dépôt (htt
 Version standard :
 
 ```sh
-adb -s <TV_IP>:5555 shell cmd package set-home-activity com.leslie.tvhome/.HomeActivity
+adb -s <TV_IP>:5555 shell cmd package set-home-activity com.getisolated.canvasos/.HomeActivity
 adb -s <TV_IP>:5555 shell input keyevent KEYCODE_HOME
 ```
 
 Accordez ensuite ce que seul adb peut accorder. C'est nécessaire sur tout téléviseur dont le système réserve la touche Accueil à son propre lanceur (Xiaomi, TCL, la plupart des firmwares chinois), et sans effet ailleurs :
 
 ```sh
-P=com.leslie.tvhome
+P=com.getisolated.canvasos
 adb -s <TV_IP>:5555 shell pm grant $P android.permission.WRITE_SECURE_SETTINGS
 adb -s <TV_IP>:5555 shell cmd notification allow_listener $P/$P.RevivalListener
 adb -s <TV_IP>:5555 shell appops set $P SYSTEM_ALERT_WINDOW allow
@@ -115,7 +115,7 @@ adb -s <TV_IP>:5555 shell appops set $P APP_ASSOC_START allow     # TCL uniqueme
 Si l'étape 5 montre que le lanceur d'origine revient, activez la protection de l'accueil (section 10). Sur Xiaomi, demandez aussi s'il faut garder ADB activé : Xiaomi désactive ADB à chaque sortie de veille, ce qui rend impossibles les mises à jour ultérieures par adb tant que l'utilisateur ne le réactive pas dans les réglages.
 
 ```sh
-adb -s <TV_IP>:5555 shell am broadcast -a com.leslie.tvhome.CONFIG -n com.leslie.tvhome/.ConfigReceiver --ez guard true --ez keep_adb true
+adb -s <TV_IP>:5555 shell am broadcast -a com.getisolated.canvasos.CONFIG -n com.getisolated.canvasos/.ConfigReceiver --ez guard true --ez keep_adb true
 # affiche data="guard=true keep_adb=true secure_settings=true"
 ```
 
@@ -181,12 +181,12 @@ Signalez à l'utilisateur qu'ils existent ; ne les modifiez que s'il le demande.
 - Entrées HDMI sur l'écran d'accueil : Centre de contrôle → Source → Afficher sur l'accueil….
 - Apps conservées lors du nettoyage de la mémoire (Apps à conserver).
 - Horloge (Format de l'heure, Horloge), animation de sélection (Effet de sélection), style du Centre de contrôle (Style du Centre de contrôle). Les deux derniers sont sur Auto par défaut, ce qui choisit l'aspect le plus léger sur les téléviseurs peu puissants.
-- Animation de démarrage, désactivée par défaut. L'app ne contient aucune vidéo : l'utilisateur en importe une depuis la page ouverte par le QR code, ou vous la poussez avec `adb push <vidéo> /sdcard/Android/data/com.leslie.tvhome/files/intro.mp4`. Ne téléchargez pas pour l'utilisateur un clip protégé par une marque. Il en va de même pour une icône de réglages personnalisée (`files/settings_icon.png`) et un fond pour la page des réglages (`files/settings_bg.jpg`, une image 16:9 avec son sujet à gauche), qui peuvent aussi être importés depuis la page du téléphone.
+- Animation de démarrage, désactivée par défaut. L'app ne contient aucune vidéo : l'utilisateur en importe une depuis la page ouverte par le QR code, ou vous la poussez avec `adb push <vidéo> /sdcard/Android/data/com.getisolated.canvasos/files/intro.mp4`. Ne téléchargez pas pour l'utilisateur un clip protégé par une marque. Il en va de même pour une icône de réglages personnalisée (`files/settings_icon.png`) et un fond pour la page des réglages (`files/settings_bg.jpg`, une image 16:9 avec son sujet à gauche), qui peuvent aussi être importés depuis la page du téléphone.
 
 Chacun de ces réglages peut aussi être modifié par adb, par exemple :
 
 ```sh
-adb -s <TV_IP>:5555 shell am broadcast -a com.leslie.tvhome.CONFIG -n com.leslie.tvhome/.ConfigReceiver   --ez clock_24 true --es clock_style corner --es focus_style auto --es cc_style auto --es intro boot --ez intro_sound true
+adb -s <TV_IP>:5555 shell am broadcast -a com.getisolated.canvasos.CONFIG -n com.getisolated.canvasos/.ConfigReceiver   --ez clock_24 true --es clock_style corner --es focus_style auto --es cc_style auto --es intro boot --ez intro_sound true
 # clock_style corner|large|off · focus_style / cc_style auto|tvos|simple / auto|glass|panel · intro off|boot|wake
 # intro_source video|wordmark (la vidéo importée, ou le logo canvasOS)
 # --ei wake_delay <ms> (intro=wake : écran noir avant l'animation à la sortie de veille, 5000 par défaut ; les dalles OLED s'allument tard)
@@ -202,7 +202,7 @@ Ne le faites que si l'utilisateur le demande, ou s'il est d'accord après que vo
 - Le curseur de volume bouge mais le son ne change pas, par exemple quand l'audio passe par un amplificateur en ARC.
 - La ligne Source indique « Sources illisibles », ou choisir une entrée HDMI ne fait rien.
 
-Ces trois fonctions se trouvent dans le paquet [`tv/`](app/src/main/java/com/leslie/tvhome/tv/), avec un adaptateur par marque :
+Ces trois fonctions se trouvent dans le paquet [`tv/`](app/src/main/java/com/getisolated/canvasos/tv/), avec un adaptateur par marque :
 
 ```
 tv/
@@ -224,7 +224,7 @@ Une nouvelle marque, c'est un nouveau `<Marque>Adapter.kt` qui hérite d'`Androi
 ### 9.1 Préparer une compilation
 
 - Clonez https://github.com/getisolated/canvasOS (dépôt privé : `gh repo clone getisolated/canvasOS` avec un compte qui y a accès). Il faut JDK 17+ (`java -version`) et un SDK Android avec `platforms;android-36` et `build-tools` (installez-les avec `sdkmanager`). Mettez `sdk.dir=<chemin>` dans `local.properties`. Compilez avec `./gradlew assembleStandardRelease` (ou `assembleGuardRelease` pour TCL).
-- Votre version est signée avec la clé debug de cet ordinateur, différente de celle de l'APK de la Release installé. `adb install -r` échouera avec `INSTALL_FAILED_UPDATE_INCOMPATIBLE`. Demandez à l'utilisateur avant de faire d'abord `adb uninstall com.leslie.tvhome` : cela efface les réglages et les autorisations de l'app, et ensuite vous devez refaire l'étape 4 et l'utilisateur doit de nouveau autoriser le débogage local (étape 6).
+- Votre version est signée avec la clé debug de cet ordinateur, différente de celle de l'APK de la Release installé. `adb install -r` échouera avec `INSTALL_FAILED_UPDATE_INCOMPATIBLE`. Demandez à l'utilisateur avant de faire d'abord `adb uninstall com.getisolated.canvasos` : cela efface les réglages et les autorisations de l'app, et ensuite vous devez refaire l'étape 4 et l'utilisateur doit de nouveau autoriser le débogage local (étape 6).
 
 ### 9.2 Trouver ce que propose le téléviseur
 
@@ -239,7 +239,7 @@ Travaillez depuis adb. Avant d'écrire quoi que ce soit, notez chaque valeur lue
 ### 9.3 Implémenter et vérifier
 
 - Écrivez l'adaptateur de la marque dans `tv/` et ajoutez-le à `TvControls.brands`. Si `brightness()` renvoie un `Level(value, min, max)` non nul, le curseur apparaît ; `setBrightness` est alors appelé avec des valeurs dans cette plage. Toutes ces fonctions sauf les deux intents s'exécutent sur un thread d'arrière-plan : les E/S bloquantes ne posent pas de problème. Les tuiles de sources épinglées appellent `setInput` avec des uri enregistrées auparavant : gardez stable le format d'uri d'une marque.
-- Écrire des réglages : les réglages secure et global peuvent être écrits directement une fois `WRITE_SECURE_SETTINGS` accordée (étape 4 ; vérifiez avec `Guard.hasSecureSettings`). Pour la table system, accordez `WRITE_SETTINGS` avec `adb shell appops set com.leslie.tvhome WRITE_SETTINGS allow`, ou exécutez la commande via l'adb local de l'app, `LocalAdb.shell(ctx, "settings put …")` dans `Cleaner.kt`, qui fonctionne une fois que l'utilisateur a autorisé le débogage local.
+- Écrire des réglages : les réglages secure et global peuvent être écrits directement une fois `WRITE_SECURE_SETTINGS` accordée (étape 4 ; vérifiez avec `Guard.hasSecureSettings`). Pour la table system, accordez `WRITE_SETTINGS` avec `adb shell appops set com.getisolated.canvasos WRITE_SETTINGS allow`, ou exécutez la commande via l'adb local de l'app, `LocalAdb.shell(ctx, "settings put …")` dans `Cleaner.kt`, qui fonctionne une fois que l'utilisateur a autorisé le débogage local.
 - Compilez, installez, ouvrez le Centre de contrôle (touche Retour sur l'écran d'accueil) et faites une `screencap`. Allez jusqu'au curseur avec les touches directionnelles, en vérifiant d'abord l'élément sélectionné (étape 6). Relisez ensuite la valeur de la même manière qu'en 9.2 pour confirmer le changement.
 
 ### 9.4 Terminer
@@ -263,9 +263,9 @@ canvasOS gère cela sans root, et sans rien désactiver ni désinstaller :
 Activez-la avec les autorisations de l'étape 4 et la diffusion `CONFIG`, ou sur le téléviseur dans Réglages → Protection de l'accueil (qui s'accorde les autorisations via l'adb local une fois l'étape 6 faite). Puis vérifiez :
 
 ```sh
-adb -s <TV_IP>:5555 shell settings get secure enabled_accessibility_services   # contient com.leslie.tvhome/com.leslie.tvhome.HomeGuardService
+adb -s <TV_IP>:5555 shell settings get secure enabled_accessibility_services   # contient com.getisolated.canvasos/com.getisolated.canvasos.HomeGuardService
 adb -s <TV_IP>:5555 shell input keyevent KEYCODE_HOME; sleep 2
-adb -s <TV_IP>:5555 shell dumpsys activity activities | grep -m1 ResumedActivity  # com.leslie.tvhome/.HomeActivity
+adb -s <TV_IP>:5555 shell dumpsys activity activities | grep -m1 ResumedActivity  # com.getisolated.canvasos/.HomeActivity
 adb -s <TV_IP>:5555 logcat -d -s canvasOSGuard                                     # ce qu'a fait la protection, et pourquoi
 ```
 
@@ -277,7 +277,7 @@ Si rien ne marche, dites-le clairement à l'utilisateur : le système de ce tél
 
 ## 11. Facultatif : supprimer des apps préinstallées
 
-Uniquement sur demande. Le menu d'appui long de canvasOS peut supprimer les apps préinstallées qui apparaissent sur l'écran d'accueil (Supprimer l'app ; voir le README), et les restaurer depuis Réglages de l'accueil → Apps préinstallées supprimées. Pour celles qui ne tournent qu'en arrière-plan (services de publicité, de push ou de suivi sans icône), listez-les avec `pm list packages -s`, identifiez chacune par son libellé et son chemin, et proposez une liste à l'utilisateur. Expliquez chaque entrée et demandez avant de supprimer quoi que ce soit.
+Uniquement sur demande. Le menu d'appui long de canvasOS peut supprimer les apps préinstallées qui apparaissent sur l'écran d'accueil (Supprimer l'app), et les restaurer depuis Réglages de l'accueil → Apps préinstallées supprimées. Pour celles qui ne tournent qu'en arrière-plan (services de publicité, de push ou de suivi sans icône), listez-les avec `pm list packages -s`, identifiez chacune par son libellé et son chemin, et proposez une liste à l'utilisateur. Expliquez chaque entrée et demandez avant de supprimer quoi que ce soit.
 
 - Supprimez avec `adb shell pm uninstall -k --user 0 <paquet>`. Restaurez avec `adb shell cmd package install-existing <paquet>`. Donnez les deux commandes à l'utilisateur.
 - Ne supprimez jamais les réglages, les lanceurs, la méthode de saisie, le lecteur / tuner TV / `tvinput`, l'interface système, la mise à jour, les services Google Play, ni rien que vous ne savez pas identifier. Sur les téléviseurs chinois, conservez aussi les services de licence (« 播控 » comme `com.newtv.*`, CIBN, ce qui touche à ktcp). Sans eux, les apps vidéo sous licence ne lisent plus rien.
@@ -288,9 +288,9 @@ Uniquement sur demande. Le menu d'appui long de canvasOS peut supprimer les apps
 Désactivez d'abord la protection, pour que la liste d'accessibilité revienne à sa valeur d'origine (celle notée à l'étape 2), et remettez l'économiseur d'origine si le cadre photo était devenu l'économiseur :
 
 ```sh
-adb -s <TV_IP>:5555 shell am broadcast -a com.leslie.tvhome.CONFIG -n com.leslie.tvhome/.ConfigReceiver --ez guard false --ez keep_adb false
+adb -s <TV_IP>:5555 shell am broadcast -a com.getisolated.canvasos.CONFIG -n com.getisolated.canvasos/.ConfigReceiver --ez guard false --ez keep_adb false
 adb -s <TV_IP>:5555 shell settings put secure screensaver_components <valeur d'origine>
-adb -s <TV_IP>:5555 uninstall com.leslie.tvhome
+adb -s <TV_IP>:5555 uninstall com.getisolated.canvasos
 ```
 
 Le téléviseur revient à son lanceur d'origine. Si vous avez désactivé un lanceur à l'étape 5, réactivez-le avec `pm enable <paquet>`.

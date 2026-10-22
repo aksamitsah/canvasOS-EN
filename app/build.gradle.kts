@@ -3,11 +3,11 @@ plugins {
 }
 
 android {
-    namespace = "com.leslie.tvhome"
+    namespace = "com.getisolated.canvasos"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.leslie.tvhome"
+        applicationId = "com.getisolated.canvasos"
         minSdk = 28
         targetSdk = 31
         versionCode = 8
