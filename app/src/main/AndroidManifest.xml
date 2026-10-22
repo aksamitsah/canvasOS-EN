@@ -4,6 +4,8 @@
 
     <uses-feature android:name="android.software.leanback" android:required="false" />
     <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
+    <!-- The Bluetooth permissions below would otherwise make the feature mandatory; a TV without it just hides the capsule. -->
+    <uses-feature android:name="android.hardware.bluetooth" android:required="false" />
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
@@ -18,11 +20,26 @@
     <!-- Granted over adb (AGENTS.md step 4) or through local adb from 主屏幕设置, never asked on screen:
          - WRITE_SECURE_SETTINGS: switch the home guard back on after the firmware switched it off,
            keep ADB debugging on, keep the photo frame as the screensaver, Xiaomi backlight.
-         - SYSTEM_ALERT_WINDOW: Android's exemption for opening the home screen right after boot. -->
+         - SYSTEM_ALERT_WINDOW: Android's exemption for opening the home screen right after boot; also,
+           only when the user turns notification banners on, showing them over the app in front. -->
     <uses-permission
         android:name="android.permission.WRITE_SECURE_SETTINGS"
         tools:ignore="ProtectedPermissions" />
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    <!-- The sleep timer's alarm (SleepTimer). Granted at install for an app of this target version;
+         where Android refuses it, the timer falls back to an inexact alarm. -->
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <!-- The Top Shelf (Shelf.kt): the Watch Next programs and preview channels other apps publish to
+         TvProvider, which answers them to the system's home and to holders of this permission only.
+         TvProvider defines it as a runtime ("dangerous") permission: granted over adb (AGENTS.md
+         step 4) or through local adb (Guard.grantViaLocalAdb), never asked on screen. -->
+    <uses-permission android:name="android.permission.READ_TV_LISTINGS" />
+    <!-- The Bluetooth capsule of the Control Center (Bluetooth.kt): lists the paired devices and connects or
+         disconnects the audio ones. Android 12 split these in two: BLUETOOTH_CONNECT is asked on screen the
+         first time the capsule is pressed, or granted over adb (AGENTS.md step 4). Nothing is scanned. -->
+    <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:maxSdkVersion="30" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
 
     <application
         android:name=".App"
@@ -61,6 +78,16 @@
             </intent-filter>
         </activity>
 
+        <!-- The first-launch assistant: HomeActivity opens it on a fresh install until it is finished. -->
+        <activity
+            android:name=".OnboardingActivity"
+            android:configChanges="keyboard|keyboardHidden|navigation"
+            android:exported="false"
+            android:launchMode="singleTop"
+            android:screenOrientation="landscape"
+            android:theme="@style/Theme.TVHome"
+            android:windowSoftInputMode="stateAlwaysHidden|adjustPan" />
+
         <activity
             android:name=".FrameActivity"
             android:excludeFromRecents="true"
@@ -81,6 +108,11 @@
 
         <service
             android:name=".KeeperService"
+            android:exported="false" />
+
+        <!-- The sleep timer's alarm; only the app's own PendingIntent reaches it. -->
+        <receiver
+            android:name=".SleepReceiver"
             android:exported="false" />
 
         <receiver
@@ -130,6 +162,12 @@
                 android:resource="@xml/home_guard" />
         </service>
 
+        <!-- Notification listener: Android binds it again after the firmware kills canvasOS, which
+             brings the home guard back (Guard.kt), and it lets canvasOS list media sessions (the
+             package and playback state, for the memory cleanup; with "Lecture en cours" on, also the
+             title, artist and artwork). It reads no notification, unless the user turns banners on
+             (Réglages → Lecture et notifications) for apps they choose: then only those apps' title
+             and text, shown 6 seconds and never stored. Approved over adb (AGENTS.md step 4). -->
         <service
             android:name=".RevivalListener"
             android:exported="true"

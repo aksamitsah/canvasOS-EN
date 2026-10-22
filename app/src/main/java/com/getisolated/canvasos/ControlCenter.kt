@@ -16,6 +16,7 @@ import android.graphics.PorterDuffXfermode
 import android.graphics.RectF
 import android.graphics.Shader
 import android.graphics.drawable.Drawable
+import android.os.SystemClock
 import android.view.Gravity
 import android.view.KeyEvent
 import android.view.View
@@ -23,6 +24,7 @@ import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
+import android.widget.Toast
 import com.getisolated.canvasos.tv.Input
 import com.getisolated.canvasos.tv.Level
 import com.getisolated.canvasos.tv.TvControls
@@ -158,19 +160,46 @@ class ControlCenter(private val home: HomeActivity, private val host: FrameLayou
     private val brightness: Slider
     private val volume: Slider
     private val inputModule: GlassButton
+    /** "Lecture" ([Prefs.nowPlaying]): what a media session plays; gone while nothing plays or is paused. */
+    private val nowModule: GlassButton
+    private val nowReader = NowPlaying.Reader(ctx, ctx.dp(40))
+    private var now: NowPlaying? = null
+    private var nowReading = false
     private val networkModule: GlassButton
+    private val sleepModule: GlassButton
+    private val weatherModule: GlassButton
+    private val bluetoothModule: GlassButton
     private var inputs: List<Input> = emptyList()
     private var volumeTarget = "speaker"
     private val status = ctx.text(11f, Color.argb(190, 255, 255, 255))
     private val focusables = ArrayList<View>()
     private val io = Executors.newSingleThreadExecutor()
     private val tv = TvControls(ctx)
+
+    // ---- Bluetooth: the profile services are slow, so they get their own thread and a slower clock ----
+    private val bt = Executors.newSingleThreadExecutor()
+    private var btState = Bluetooth.State.NONE
+    private var btDevices: List<Bluetooth.Device> = emptyList()
+    /** "Connexion…" while a connect or disconnect is under way, shown in place of the summary. */
+    private var btPending: String? = null
+    private var btBusy = false
+    private var btCheckedAt = 0L
+    private var btAsked = false
+    /** Below 1 only when the panel is taller than the screen; see [fitScale]. */
+    private var restScale = 1f
+
     private val ticker = object : Runnable {
         override fun run() {
             followVolume()
+            updateSleep()
+            updateNowPlaying()
+            refreshBluetooth(force = false)
             host.postDelayed(this, 2_000)
         }
     }
+
+    // Declared before init, which arms it.
+    private val sleepWarning = Runnable { warnSleep() }
 
     private fun followVolume() {
         if (!isOpen) return
@@ -189,16 +218,18 @@ class ControlCenter(private val home: HomeActivity, private val host: FrameLayou
         val power = GlassButton("Éteindre", R.drawable.ic_power, Shape.TILE) {
             confirm("Éteindre", "Le téléviseur s'éteint complètement. Rallumez-le avec le bouton marche/arrêt de la télécommande.") { Cleaner.shutdown(ctx) }
         }
-        top.addView(power, LinearLayout.LayoutParams(0, cell * 2 + gap, 1f).apply { marginEnd = gap })
+        // The tile is narrower than it is tall so the capsules have room for an IP address (about
+        // 55 to 75 dp at their subtitle size) and "Dans 27 min": at half the panel each had 54 dp.
+        top.addView(power, LinearLayout.LayoutParams(0, cell * 2 + gap, 0.8f).apply { marginEnd = gap })
         val right = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL; clipChildren = false }
         networkModule = GlassButton("Réseau", R.drawable.ic_wifi, Shape.CAPSULE, accent = Color.rgb(48, 222, 239)) {
             close()
             runCatching { ctx.startActivity(tv.wifiIntent()) }
         }
         right.addView(networkModule, LinearLayout.LayoutParams(-1, cell))
-        right.addView(GlassButton("Veille", R.drawable.ic_moon, Shape.CAPSULE) { needAdb { close(); Cleaner.sleep(ctx) } },
-            LinearLayout.LayoutParams(-1, cell).apply { topMargin = gap })
-        top.addView(right, LinearLayout.LayoutParams(0, -2, 1f))
+        sleepModule = GlassButton("Veille", R.drawable.ic_moon, Shape.CAPSULE) { needAdb { close(); sleepSheet() } }
+        right.addView(sleepModule, LinearLayout.LayoutParams(-1, cell).apply { topMargin = gap })
+        top.addView(right, LinearLayout.LayoutParams(0, -2, 1.2f))
         panel.addView(top)
 
         val utilities = LinearLayout(ctx).apply { orientation = LinearLayout.HORIZONTAL; clipChildren = false }
@@ -228,6 +259,30 @@ class ControlCenter(private val home: HomeActivity, private val host: FrameLayou
         panel.addView(volume, LinearLayout.LayoutParams(-1, ctx.dp(38)).apply { topMargin = gap })
         inputModule = GlassButton("Source", R.drawable.ic_input, Shape.CAPSULE) { pickInput() }
         panel.addView(inputModule, LinearLayout.LayoutParams(-1, cell).apply { topMargin = gap })
+        // OK plays or pauses; left and right skip, handled here so they never move focus.
+        nowModule = GlassButton("Lecture", R.drawable.ic_music, Shape.CAPSULE) {
+            now?.let { n -> io.execute { n.playPause() } }
+            host.postDelayed({ updateNowPlaying() }, 500)
+        }
+        nowModule.visibility = View.GONE
+        nowModule.setOnKeyListener { _, code, e ->
+            if (code != KeyEvent.KEYCODE_DPAD_LEFT && code != KeyEvent.KEYCODE_DPAD_RIGHT) return@setOnKeyListener false
+            val n = now
+            if (e.action == KeyEvent.ACTION_DOWN && e.repeatCount == 0 && n != null) {
+                val dir = if (code == KeyEvent.KEYCODE_DPAD_RIGHT) 1 else -1
+                Motion.bump(nowModule, dir, 0)
+                io.execute { if (dir > 0) n.next() else n.previous() }
+                host.postDelayed({ updateNowPlaying() }, 700)
+            }
+            true
+        }
+        panel.addView(nowModule, LinearLayout.LayoutParams(-1, cell).apply { topMargin = gap })
+        weatherModule = GlassButton("Météo", R.drawable.ic_wx_partly_cloudy, Shape.CAPSULE) { weatherSheet() }
+        panel.addView(weatherModule, LinearLayout.LayoutParams(-1, cell).apply { topMargin = gap })
+        // Hidden until the first refresh finds a Bluetooth adapter: a TV without one never shows it.
+        bluetoothModule = GlassButton("Bluetooth", R.drawable.ic_bluetooth, Shape.CAPSULE) { bluetoothPressed() }
+        bluetoothModule.visibility = View.GONE
+        panel.addView(bluetoothModule, LinearLayout.LayoutParams(-1, cell).apply { topMargin = gap })
         panel.addView(status, LinearLayout.LayoutParams(-1, -2).apply { topMargin = ctx.dp(10) })
         // The host clips the panel to its bounds; the padding is room for focused controls to grow into.
         val room = ctx.dp(16)
@@ -239,6 +294,8 @@ class ControlCenter(private val home: HomeActivity, private val host: FrameLayou
             if (l != oldL || t != oldT || r != oldR || b != oldB) refreshGlass()
         }
         panel.post { refresh() }
+        // A timer started before this screen was recreated still owes its one-minute warning.
+        armSleepWarning()
         host.viewTreeObserver.addOnGlobalFocusChangeListener { _, now ->
             if (isOpen && now != null && focusables.contains(now)) glowAt(now)
         }
@@ -491,13 +548,20 @@ class ControlCenter(private val home: HomeActivity, private val host: FrameLayou
     ) : LinearLayout(ctx) {
         // Capsules and circles clamp this to half their height.
         private val glass = glassFor(this, ctx.dp(if (shape == Shape.TILE) 24 else 100).toFloat())
-        private val glyph = ImageView(ctx)
-        val title = ctx.text(12.5f, weight = 600).apply { text = label; maxLines = 1 }
+        val glyph = ImageView(ctx)
+        val title = ctx.text(12.5f, weight = 600).apply {
+            text = label
+            maxLines = 1
+            ellipsize = android.text.TextUtils.TruncateAt.END
+        }
         val sub = ctx.text(10.5f, Color.argb(205, 255, 255, 255), weight = 500).apply {
             visibility = GONE
             maxLines = 1
             ellipsize = android.text.TextUtils.TruncateAt.END
         }
+        /** A new glyph, such as the weather's; it keeps its colour. */
+        fun setIcon(res: Int) = glyph.setImageResource(res)
+
         init {
             id = View.generateViewId()
             contentDescription = label
@@ -719,12 +783,13 @@ class ControlCenter(private val home: HomeActivity, private val host: FrameLayou
         panel.visibility = View.VISIBLE
         panel.alpha = 0f
         panel.translationX = ctx.dp(24).toFloat()
-        panel.scaleX = 0.97f
-        panel.scaleY = 0.97f
+        restScale = fitScale()
+        panel.scaleX = 0.97f * restScale
+        panel.scaleY = 0.97f * restScale
         panel.pivotX = panel.width - panel.paddingRight.toFloat()
         panel.pivotY = panel.paddingTop.toFloat()
         scrim.animate().alpha(1f).setDuration(220).start()
-        panel.animate().alpha(1f).translationX(0f).scaleX(1f).scaleY(1f).setDuration(320)
+        panel.animate().alpha(1f).translationX(0f).scaleX(restScale).scaleY(restScale).setDuration(320)
             .setInterpolator(Motion.ease).setUpdateListener { if (glassStyle) invalidateSurfaces() }.start()
         memButton.requestFocus()
         host.removeCallbacks(ticker)
@@ -738,7 +803,7 @@ class ControlCenter(private val home: HomeActivity, private val host: FrameLayou
         brightness.finishAnimation()
         volume.finishAnimation()
         scrim.animate().alpha(0f).setDuration(180).start()
-        panel.animate().alpha(0f).translationX(ctx.dp(24).toFloat()).scaleX(0.97f).scaleY(0.97f).setDuration(200)
+        panel.animate().alpha(0f).translationX(ctx.dp(24).toFloat()).scaleX(0.97f * restScale).scaleY(0.97f * restScale).setDuration(200)
             .setUpdateListener { if (glassStyle) invalidateSurfaces() }
             .withEndAction {
                 host.removeView(scrim)
@@ -753,12 +818,14 @@ class ControlCenter(private val home: HomeActivity, private val host: FrameLayou
         isOpen = false
         host.removeCallbacks(ticker)
         host.removeCallbacks(resample)
+        host.removeCallbacks(sleepWarning)
         panel.animate().cancel()
         scrim.animate().cancel()
         glowTween.cancel()
         blur = null
         blurShader = null
         io.shutdown()
+        bt.shutdownNow()
     }
 
     fun refocus() {
@@ -767,14 +834,21 @@ class ControlCenter(private val home: HomeActivity, private val host: FrameLayou
 
     fun refresh() {
         if (destroyed) return
-        status.text = if (prefs.adbAuthorized) "" else "Débogage local non autorisé : extinction, veille et nettoyage complet indisponibles"
+        // Only when nothing more pressing is said: the update hint comes second.
+        status.text = if (!prefs.adbAuthorized) "Débogage local non autorisé : extinction, veille et nettoyage complet indisponibles"
+        else Updater.pending(prefs)?.let { "canvasOS $it disponible : Réglages → Mise à jour" }.orEmpty()
         status.visibility = if (status.text.isEmpty()) View.GONE else View.VISIBLE
-        val cm = ctx.getSystemService(android.net.ConnectivityManager::class.java)
-        val caps = runCatching { cm.getNetworkCapabilities(cm.activeNetwork) }.getOrNull()
-        val wired = caps?.hasTransport(android.net.NetworkCapabilities.TRANSPORT_ETHERNET) == true
-        networkModule.title.text = if (wired) "Ethernet" else "Wi-Fi"
-        networkModule.sub.text = if (caps == null) "Déconnecté" else "Connecté"
+        // The address is the subtitle by itself: "Connecté · 192.168.1.20" does not fit the capsule,
+        // and what a computer needs to reach the TV (AGENTS.md steps 0 and 1) is the address.
+        networkModule.title.text = (if (Net.isWired(ctx)) "Ethernet" else "Wi-Fi") + (Net.ssid(ctx)?.let { " · $it" } ?: "")
+        networkModule.sub.text = if (!Net.isConnected(ctx)) "Déconnecté" else Net.lanAddress(ctx) ?: "Connecté"
         networkModule.sub.visibility = View.VISIBLE
+        updateSleep()
+        updateWeather()
+        updateNowPlaying()
+        updateBluetooth()
+        // On opening, always; otherwise (the home screen coming back to the front) only to find the adapter.
+        if (isOpen || btCheckedAt == 0L) refreshBluetooth(force = true)
         if (refreshing) return
         refreshing = true
         io.execute {
@@ -822,13 +896,345 @@ class ControlCenter(private val home: HomeActivity, private val host: FrameLayou
         home.showSheet(sheet)
     }
 
+    /**
+     * The Météo capsule, from the forecast the home screen keeps ([Weather.cached]); a quick
+     * preference read, safe on the UI thread. Gone while the weather is off.
+     */
+    private fun updateWeather() {
+        val on = prefs.weather
+        weatherModule.visibility = if (on) View.VISIBLE else View.GONE
+        if (!on) return
+        val f = Weather.cached(ctx)
+        val place = prefs.weatherPlace
+        // Unchanged text and glyph are left alone, so reopening does not relayout and redraw the glass.
+        fun TextView.show(t: String) { if (text.toString() != t) text = t }
+        weatherModule.title.show(if (place.isEmpty()) "Météo" else "Météo · $place")
+        weatherModule.sub.show(when {
+            f != null -> Weather.summary(f)
+            !Net.isConnected(ctx) -> "Hors connexion"
+            else -> "Pas encore de prévisions"
+        })
+        weatherModule.sub.visibility = View.VISIBLE
+        val icon = if (f != null) Weather.icon(f) else R.drawable.ic_wx_partly_cloudy
+        if (weatherModule.tag != icon) { weatherModule.setIcon(icon); weatherModule.tag = icon }
+    }
+
+    /** Five days of forecast, read from the kept answer: nothing is fetched here. */
+    private fun weatherSheet() {
+        val f = Weather.cached(ctx)
+        close()
+        val place = prefs.weatherPlace
+        val sheet = Sheet(host).title(if (place.isEmpty()) "Météo" else "Météo à $place")
+        // Open-Meteo's data is CC BY 4.0: credited wherever the forecast is shown in full.
+        val credit = "Prévisions : Open-Meteo.com"
+        val where = if (prefs.weatherAuto) "\nLieu détecté d'après l'adresse IP du téléviseur ; choisissez une autre ville depuis la page téléphone (onglet Réglages)." else ""
+        if (f == null) {
+            sheet.message("Les prévisions s'afficheront ici dès que le téléviseur les aura reçues ; il lui faut pour cela une connexion à Internet.\n$credit")
+        } else {
+            sheet.message(credit + where)
+            Weather.upcoming(f).take(5).forEach { sheet.line(Weather.dayLine(it)) }
+        }
+        sheet.button("OK") {}
+        home.showSheet(sheet)
+    }
+
+    /**
+     * The Lecture capsule: the sessions are read off the UI thread (on open, on return home, then
+     * every 2 s while open) and the capsule changes only when what it shows changed.
+     */
+    private fun updateNowPlaying() {
+        if (destroyed) return
+        if (!prefs.nowPlaying) { showNow(null); return }
+        if (nowReading) return
+        nowReading = true
+        io.execute {
+            val n = runCatching { nowReader.read() }.getOrNull()
+            host.post {
+                nowReading = false
+                if (!destroyed) showNow(if (prefs.nowPlaying) n else null)
+            }
+        }
+    }
+
+    /**
+     * The panel's resting scale: 1 unless its capsules stack taller than the screen (about 540 dp
+     * on a 1080p TV that runs at 320 dpi, once the weather and Bluetooth capsules are both shown),
+     * in which case it shrinks to fit, from its top right corner, rather than cut off the last one.
+     */
+    private fun fitScale(): Float {
+        if (host.height <= 0 || panel.height <= 0) return 1f
+        val top = panel.top + panel.paddingTop
+        val content = panel.height - panel.paddingTop - panel.paddingBottom
+        val room = host.height - ctx.dp(16) - top
+        return if (content <= room || room <= 0) 1f else (room.toFloat() / content).coerceIn(0.7f, 1f)
+    }
+
+    // ---- Bluetooth ------------------------------------------------------------------
+
+    /** The Bluetooth capsule's subtitle, from what the last refresh found: formatting only, safe on the UI thread. */
+    private fun updateBluetooth() {
+        val state = btState
+        bluetoothModule.visibility = if (state == Bluetooth.State.NONE) View.GONE else View.VISIBLE
+        if (state == Bluetooth.State.NONE) return
+        val text = btPending ?: when (state) {
+            Bluetooth.State.NEEDS_PERMISSION -> "Autorisation requise"
+            Bluetooth.State.OFF -> "Désactivé"
+            else -> Bluetooth.summary(btDevices)
+        }
+        // Unchanged text is left alone, so the 2 s ticker does not relayout and redraw the glass.
+        if (bluetoothModule.sub.text.toString() != text) bluetoothModule.sub.text = text
+        bluetoothModule.sub.visibility = View.VISIBLE
+    }
+
+    /**
+     * Reads the paired devices on the Bluetooth thread. The profile services take a moment to bind
+     * and are not cheap, so the 2 s ticker only gets here every [BT_REFRESH_MS]; opening the panel
+     * ([force]) always does.
+     */
+    private fun refreshBluetooth(force: Boolean) {
+        if (destroyed) return
+        val now = SystemClock.elapsedRealtime()
+        if (btBusy || (!force && now - btCheckedAt < BT_REFRESH_MS)) return
+        btBusy = true
+        btCheckedAt = now
+        bt.execute {
+            var state = Bluetooth.State.NONE
+            var list = emptyList<Bluetooth.Device>()
+            try {
+                state = Bluetooth.state(ctx)
+                if (state == Bluetooth.State.READY) list = Bluetooth.devices(ctx)
+            } catch (e: Throwable) {
+                // A broken Bluetooth stack must not take the Control Center with it.
+            }
+            host.post {
+                btBusy = false
+                if (destroyed) return@post
+                btState = state
+                btDevices = list
+                updateBluetooth()
+            }
+        }
+    }
+
+    private fun showNow(n: NowPlaying?) {
+        val old = now
+        now = n
+        if (n == null) {
+            if (nowModule.visibility == View.GONE) return
+            // Focus must not vanish with the capsule.
+            if (nowModule.hasFocus()) inputModule.requestFocus()
+            nowModule.visibility = View.GONE
+            return
+        }
+        if (n.sameAs(old) && nowModule.visibility == View.VISIBLE) return
+        nowModule.title.text = n.title
+        nowModule.contentDescription = n.title
+        nowModule.sub.text = n.sub
+        nowModule.sub.visibility = View.VISIBLE
+        if (old == null || old.art !== n.art || nowModule.visibility != View.VISIBLE) showArt(n.art)
+        nowModule.visibility = View.VISIBLE
+    }
+
+    /** The artwork as a disc set in the capsule's rounded end, or the note glyph without one. */
+    private fun showArt(art: Bitmap?) {
+        val glyph = nowModule.glyph
+        if (art != null) glyph.setImageDrawable(NowPlaying.Disc(art)) else glyph.setImageResource(R.drawable.ic_music)
+        val size = ctx.dp(if (art != null) 35 else 20)
+        val lp = glyph.layoutParams as LinearLayout.LayoutParams
+        if (lp.width != size) {
+            lp.width = size
+            lp.height = size
+            lp.marginEnd = ctx.dp(if (art != null) 8 else 9)
+            glyph.layoutParams = lp
+            // Concentric with the capsule's end: (47 - 35) / 2 = 6 dp all around.
+            nowModule.setPadding(ctx.dp(if (art != null) 6 else 13), 0, ctx.dp(10), 0)
+        }
+    }
+
+    private fun bluetoothPressed() {
+        when {
+            btState == Bluetooth.State.NONE -> {}
+            // Checked afresh: it may have been granted over adb since the last refresh.
+            !Bluetooth.hasPermission(ctx) -> if (btAsked) bluetoothDenied() else {
+                btAsked = true
+                // The panel stays open behind Android's dialog; it shows the result when it returns.
+                home.requestBluetoothPermission()
+            }
+            // Granted since the last refresh (over adb): read the devices first, the list is empty.
+            btState == Bluetooth.State.NEEDS_PERMISSION -> refreshBluetooth(force = true)
+            else -> { close(); bluetoothSheet() }
+        }
+    }
+
+    /** From [HomeActivity.onRequestPermissionsResult]. */
+    fun onBluetoothPermission(granted: Boolean) {
+        if (destroyed) return
+        refreshBluetooth(force = true)
+        if (!granted) bluetoothDenied()
+    }
+
+    /** Android's dialog was refused or never appeared (some firmwares skip it): the same permission can come through local adb. */
+    private fun bluetoothDenied() {
+        close()
+        home.showSheet(Sheet(host).title("Bluetooth non autorisé")
+            .message("canvasOS a besoin de l'autorisation « Appareils à proximité » pour afficher vos appareils Bluetooth et en connecter un. Elle ne sert à rien d'autre : le téléviseur ne cherche aucun appareil.")
+            .button("Autoriser avec le débogage local") { needAdb { grantBluetooth() } }
+            .button("Annuler") {})
+    }
+
+    private fun grantBluetooth() {
+        bt.execute {
+            LocalAdb.shell(ctx, "pm grant ${ctx.packageName} ${Bluetooth.PERMISSION}", 10_000)
+            host.post { refreshBluetooth(force = true) }
+        }
+    }
+
+    /**
+     * The paired devices. Audio ones connect or disconnect on a press; controllers, remotes and
+     * the rest show their state only, as a controller connects itself when it is switched on.
+     */
+    private fun bluetoothSheet() {
+        val devices = btDevices
+        // The sheet has no scrolling: five devices and its two buttons fill the screen.
+        val shown = devices.take(BT_SHEET_MAX)
+        val sheet = Sheet(host).title("Bluetooth")
+        sheet.message(when {
+            btState == Bluetooth.State.OFF -> "Le Bluetooth du téléviseur est désactivé. Activez-le dans les réglages du téléviseur."
+            devices.isEmpty() -> "Aucun appareil associé. Associez-en un depuis les réglages Bluetooth du téléviseur."
+            devices.any { it.kind == Bluetooth.Kind.CONTROLLER && !it.connected } -> "Allumez la manette : elle se reconnecte seule."
+            else -> null
+        })
+        for (d in shown.filter { it.kind == Bluetooth.Kind.AUDIO }) {
+            sheet.button(Bluetooth.status(d), R.drawable.ic_bluetooth) { toggleBluetooth(d) }
+        }
+        for (d in shown.filter { it.kind != Bluetooth.Kind.AUDIO }) sheet.line(Bluetooth.status(d))
+        if (devices.size > shown.size) sheet.line("… et ${devices.size - shown.size} autres appareils associés")
+        sheet.button("Associer un appareil…") { pairBluetooth() }
+        sheet.button("Annuler") {}
+        home.showSheet(sheet)
+    }
+
+    /** Opens the TV's own Bluetooth settings: pairing (and the PIN, if any) is theirs. */
+    private fun pairBluetooth() {
+        runCatching { ctx.startActivity(Bluetooth.settingsIntent(ctx, tv.settingsIntent())) }
+    }
+
+    /**
+     * Connects or disconnects [d]. The call returns at once and the link follows a few seconds
+     * later, so the capsule reads "Connexion…" until the new state is seen (or 12 s pass).
+     */
+    private fun toggleBluetooth(d: Bluetooth.Device) {
+        val connecting = !d.connected
+        btPending = if (connecting) "Connexion…" else "Déconnexion…"
+        btBusy = true
+        updateBluetooth()
+        bt.execute {
+            val asked = try {
+                if (connecting) Bluetooth.connect(ctx, d) else Bluetooth.disconnect(ctx, d)
+            } catch (e: Throwable) { false }
+            var list: List<Bluetooth.Device>? = null
+            try {
+                var waited = 0
+                while (asked && waited < 8) {
+                    Thread.sleep(1_500)
+                    waited++
+                    list = Bluetooth.devices(ctx)
+                    if (list.firstOrNull { it.address == d.address }?.connected == connecting) break
+                }
+            } catch (e: Throwable) {
+                // Interrupted by destroy(): nothing left to update.
+            }
+            host.post {
+                btBusy = false
+                btPending = null
+                if (destroyed) return@post
+                list?.let { btDevices = it }
+                btCheckedAt = SystemClock.elapsedRealtime()
+                updateBluetooth()
+                if (!asked) bluetoothUnavailable(d, connecting)
+            }
+        }
+    }
+
+    /** The firmware keeps its Bluetooth connect and disconnect from apps: the TV's own settings can still do it. */
+    private fun bluetoothUnavailable(d: Bluetooth.Device, connecting: Boolean) {
+        if (!home.hasWindowFocus()) return
+        home.showSheet(Sheet(host).title(if (connecting) "Connexion impossible" else "Déconnexion impossible")
+            .message("Ce téléviseur ne laisse pas canvasOS ${if (connecting) "connecter" else "déconnecter"} « ${d.label} ». Faites-le depuis les réglages Bluetooth du téléviseur.")
+            .button("Réglages Bluetooth") { pairBluetooth() }
+            .button("OK") {})
+    }
+
+    /** The Veille capsule's subtitle: time left on the sleep timer, nothing when none is running. */
+    private fun updateSleep() {
+        val left = SleepTimer.remainingMs(ctx)
+        val sub = sleepModule.sub
+        val text = if (left > 0) "Dans " + SleepTimer.span(left) else ""
+        // Polled every 2 s: an unchanged subtitle must not relayout and redraw the glass.
+        if (sub.text.toString() != text) sub.text = text
+        sub.visibility = if (left > 0) View.VISIBLE else View.GONE
+    }
+
+    /** The Veille capsule: sleep now, or after a delay. Behind [needAdb], as the sleep key is sent through local adb. */
+    private fun sleepSheet() {
+        val left = SleepTimer.remainingMs(ctx)
+        val sheet = Sheet(host).title("Veille").message(null)
+        sheet.button("Maintenant") {
+            // Going to sleep by hand ends the timer: it would otherwise put the TV back to sleep after the next wake.
+            stopSleepTimer(announce = false)
+            Cleaner.sleep(ctx)
+        }
+        for (minutes in listOf(15, 30, 60, 90)) {
+            sheet.button("Dans " + SleepTimer.span(minutes * 60_000L)) { startSleepTimer(minutes) }
+        }
+        if (left > 0) sheet.button("Annuler le minuteur (reste ${SleepTimer.span(left)})") { stopSleepTimer() }
+        sheet.button("Annuler") {}
+        home.showSheet(sheet)
+    }
+
+    private fun startSleepTimer(minutes: Int) {
+        SleepTimer.schedule(ctx, minutes)
+        armSleepWarning()
+        updateSleep()
+        Toast.makeText(ctx, "Veille dans " + SleepTimer.span(minutes * 60_000L), Toast.LENGTH_SHORT).show()
+    }
+
+    private fun stopSleepTimer(announce: Boolean = true) {
+        SleepTimer.cancel(ctx)
+        host.removeCallbacks(sleepWarning)
+        updateSleep()
+        if (announce) Toast.makeText(ctx, "Minuteur de veille annulé", Toast.LENGTH_SHORT).show()
+    }
+
+    /** Schedules the one-minute warning for the timer in force; nothing when there is none. */
+    private fun armSleepWarning() {
+        host.removeCallbacks(sleepWarning)
+        val left = SleepTimer.remainingMs(ctx)
+        if (left > 0) host.postDelayed(sleepWarning, (left - SleepTimer.WARN_MS).coerceAtLeast(0L))
+    }
+
+    /** Only when this home screen is what the user is looking at: an app in front is left alone. */
+    private fun warnSleep() {
+        val left = SleepTimer.remainingMs(ctx)
+        if (destroyed || left <= 0 || !home.hasWindowFocus()) return
+        // Cancelling comes first: a press by mistake then keeps the TV on instead of switching it off.
+        val sheet = Sheet(host).title("Veille dans une minute")
+            .message("Le téléviseur va se mettre en veille. Annulez le minuteur pour continuer.")
+            .button("Annuler le minuteur") { stopSleepTimer() }
+            .button("OK") {}
+        home.showSheet(sheet)
+        // The sheet must not wait around for the next wake-up once the TV has gone to sleep.
+        host.postDelayed({ sheet.dismiss() }, left)
+    }
+
     private fun cleanNow() {
         status.text = "Libération de la mémoire…"
         status.visibility = View.VISIBLE
         Thread {
             val r = Cleaner.clean(ctx.applicationContext)
             host.post {
-                status.text = "${r.freedMb} Mo libérés" + if (r.viaAdb) "" else " (cache uniquement)"
+                // "312 Mo libérés · 4 apps fermées · 2 en cours d'utilisation épargnées", or "(cache uniquement)" without adb.
+                status.text = r.summary()
             }
         }.start()
     }
@@ -844,5 +1250,12 @@ class ControlCenter(private val home: HomeActivity, private val host: FrameLayou
         home.showSheet(Sheet(host).title("$title ?").message(msg)
             .button(title) { action() }
             .button("Annuler") {})
+    }
+
+    private companion object {
+        /** The profile services are not cheap: the panel's 2 s ticker reads them this often at most. */
+        const val BT_REFRESH_MS = 10_000L
+        /** Devices listed in the sheet; it does not scroll. */
+        const val BT_SHEET_MAX = 5
     }
 }

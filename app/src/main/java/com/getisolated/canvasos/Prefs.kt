@@ -20,7 +20,21 @@ object Device {
 
 /** All user settings in one place. */
 class Prefs(ctx: Context) {
-    private val sp: SharedPreferences = ctx.getSharedPreferences("tvhome", Context.MODE_PRIVATE)
+    // Kept for defaults that follow the TV (the clock format); never an Activity, so no leak.
+    private val appCtx: Context = ctx.applicationContext ?: ctx
+    private val sp: SharedPreferences = ctx.getSharedPreferences(Profiles.STORE, Context.MODE_PRIVATE)
+
+    /**
+     * The current profile's home grid ([Profiles]): its order, hidden apps, folders, names, pinned
+     * inputs and background. The main profile's is the main store itself, so a TV without profiles
+     * reads exactly what it always did; another profile's is a store of its own. Only those keys come
+     * through here: every other setting belongs to the TV, whoever is watching.
+     */
+    private val grid: SharedPreferences
+        get() = store(currentProfile)
+
+    private fun store(profile: String): SharedPreferences =
+        if (profile == Profiles.MAIN) sp else appCtx.getSharedPreferences(Profiles.storeName(profile), Context.MODE_PRIVATE)
 
     /** Show the default profile portrait beside the home-screen clock and controls. */
     var showAvatar: Boolean
@@ -28,12 +42,12 @@ class Prefs(ctx: Context) {
         set(v) = sp.edit().putBoolean("show_avatar", v).apply()
 
     var order: List<String>
-        get() = sp.getString("order", "")!!.split(',').filter { it.isNotEmpty() }
-        set(v) = sp.edit().putString("order", v.joinToString(",")).apply()
+        get() = grid.getString("order", "")!!.split(',').filter { it.isNotEmpty() }
+        set(v) = grid.edit().putString("order", v.joinToString(",")).apply()
 
     var hidden: Set<String>
-        get() = sp.getStringSet("hidden", emptySet())!!.toSet()
-        set(v) = sp.edit().putStringSet("hidden", v).apply()
+        get() = grid.getStringSet("hidden", emptySet())!!.toSet()
+        set(v) = grid.edit().putStringSet("hidden", v).apply()
 
     /** Packages that memory cleanup never stops (casting receivers etc.). */
     var keep: Set<String>
@@ -64,13 +78,13 @@ class Prefs(ctx: Context) {
 
     /** One of [Backgrounds.THEMES] keys, or a rotating photo source: "daily" (Bing) or "anime" (Wallhaven). */
     var background: String
-        get() = sp.getString("background", "daily")!!
-        set(v) = sp.edit().putString("background", v).apply()
+        get() = grid.getString("background", "daily")!!
+        set(v) = grid.edit().putString("background", v).apply()
 
     /** Minutes between background photo changes. */
     var wallMinutes: Int
-        get() = sp.getInt("wall_minutes", 30)
-        set(v) = sp.edit().putInt("wall_minutes", v).apply()
+        get() = grid.getInt("wall_minutes", 30)
+        set(v) = grid.edit().putInt("wall_minutes", v).apply()
 
     /** Seconds each photo stays up in the photo frame. */
     var frameSeconds: Int
@@ -127,12 +141,12 @@ class Prefs(ctx: Context) {
 
     /** TV inputs pinned to the home grid, as [InputTile.key] strings. */
     var pinnedInputs: Set<String>
-        get() = sp.getStringSet("pinned_inputs", emptySet())!!.toSet()
-        set(v) = sp.edit().putStringSet("pinned_inputs", v).apply()
+        get() = grid.getStringSet("pinned_inputs", emptySet())!!.toSet()
+        set(v) = grid.edit().putStringSet("pinned_inputs", v).apply()
 
-    /** 24-hour clock ("14:05") instead of "2:05 PM". */
+    /** 24-hour clock ("14:05") instead of "2:05 PM"; follows the TV's own setting until the user picks one. */
     var clock24: Boolean
-        get() = sp.getBoolean("clock_24", false)
+        get() = sp.getBoolean("clock_24", android.text.format.DateFormat.is24HourFormat(appCtx))
         set(v) = sp.edit().putBoolean("clock_24", v).apply()
 
     /** [CLOCK_CORNER] (small, top right), [CLOCK_LARGE] (date and a large clock top left, as before v1.9) or [CLOCK_OFF]. */
@@ -192,6 +206,216 @@ class Prefs(ctx: Context) {
         get() = sp.getLong("intro_boot", 0L)
         set(v) = sp.edit().putLong("intro_boot", v).apply()
 
+    /**
+     * The secret in the phone page's address ([PhoneServer]), made on first use and kept, so a phone
+     * that opened the page once can come back; replaced only by "Régénérer le code".
+     */
+    var phoneToken: String
+        get() = sp.getString("phone_token", null) ?: synchronized(Prefs::class.java) {
+            // apply() updates the in-memory map at once, so a second caller here sees the first token.
+            sp.getString("phone_token", null) ?: PhoneApi.newToken().also { sp.edit().putString("phone_token", it).apply() }
+        }
+        set(v) = sp.edit().putString("phone_token", v).apply()
+
+    /** The phone page listens on the local network (started by [KeeperService]); off, it does not answer at all. */
+    var phoneServer: Boolean
+        get() = sp.getBoolean("phone_server", true)
+        set(v) = sp.edit().putBoolean("phone_server", v).apply()
+
+    /**
+     * "Récents": an app that opens successfully moves to the front of the grid (the default, as in
+     * every version so far). Off ("Fixe"): the order set with "Modifier l'accueil" is never touched,
+     * as on tvOS.
+     */
+    var dockRecents: Boolean
+        get() = sp.getBoolean("dock_recents", true)
+        set(v) = sp.edit().putBoolean("dock_recents", v).apply()
+
+    /** When the sleep timer ([SleepTimer]) puts the TV in standby, in epoch milliseconds; 0 = no timer. */
+    var sleepAt: Long
+        get() = sp.getLong("sleep_at", 0L)
+        set(v) = sp.edit().putLong("sleep_at", v).apply()
+
+    /** Packages the last memory cleanup closed, comma-separated ([Cleaner.Result.closed]); listed in Réglages → Dernier nettoyage. */
+    var lastCleanClosed: String
+        get() = sp.getString("last_clean_closed", "")!!
+        set(v) = sp.edit().putString("last_clean_closed", v).apply()
+
+    /** Weather beside the clock and in the Control Center ([Weather]); off, nothing is fetched. */
+    var weather: Boolean
+        get() = sp.getBoolean("weather", true)
+        set(v) = sp.edit().putBoolean("weather", v).apply()
+
+    /** Where the weather is for; null until chosen (phone page, CONFIG) or guessed from the public address. */
+    var weatherLat: Double?
+        get() = sp.getString("weather_lat", null)?.toDoubleOrNull()
+        set(v) = sp.edit().putString("weather_lat", v?.toString()).apply()
+
+    var weatherLon: Double?
+        get() = sp.getString("weather_lon", null)?.toDoubleOrNull()
+        set(v) = sp.edit().putString("weather_lon", v?.toString()).apply()
+
+    /** The place's name as shown ("Paris"); empty until there is one. */
+    var weatherPlace: String
+        get() = sp.getString("weather_place", "")!!
+        set(v) = sp.edit().putString("weather_place", v).apply()
+
+    /** The place was guessed from the TV's public address (ip-api.com), not chosen: shown as "(détecté)". */
+    var weatherAuto: Boolean
+        get() = sp.getBoolean("weather_auto", false)
+        set(v) = sp.edit().putBoolean("weather_auto", v).apply()
+
+    /** The last forecast fetched, with when and for where ([Weather.encodeCache]); empty before the first. */
+    var weatherCache: String
+        get() = sp.getString("weather_cache", "")!!
+        set(v) = sp.edit().putString("weather_cache", v).apply()
+    /**
+     * "Lecture en cours": the Control Center shows what a media session is playing (title, artist,
+     * artwork) with play/pause and skip ([NowPlaying]). Off by default: it reads session metadata.
+     */
+    var nowPlaying: Boolean
+        get() = sp.getBoolean("now_playing", false)
+        set(v) = sp.edit().putBoolean("now_playing", v).apply()
+
+    /** tvOS-style banners for the notifications of [bannerApps] ([Banners]). Off by default: it reads notifications. */
+    var banners: Boolean
+        get() = sp.getBoolean("banners", false)
+        set(v) = sp.edit().putBoolean("banners", v).apply()
+
+    /** The only packages whose notifications [Banners] reads (title and text), when [banners] is on. */
+    var bannerApps: Set<String>
+        get() = sp.getStringSet("banner_apps", emptySet())!!.toSet()
+        set(v) = sp.edit().putStringSet("banner_apps", v).apply()
+    /**
+     * The user's own TMDB key (v3 API key or v4 read token) for the Top Shelf's popular titles on
+     * Netflix, Prime Video… ([ShelfFeeds.SERVICES]); "" = none. Kept on the TV only, never shown back.
+     */
+    var tmdbKey: String
+        get() = sp.getString("tmdb_key", "")!!
+        set(v) = sp.edit().putString("tmdb_key", v.trim()).apply()
+
+    /** When [Updater] last asked GitHub for the latest Release (epoch ms), whatever the answer; 0 = never. Paces the daily check in [KeeperService]. */
+    var updateCheckedAt: Long
+        get() = sp.getLong("update_checked_at", 0L)
+        set(v) = sp.edit().putLong("update_checked_at", v).apply()
+
+    /** The newer version the last check found ("1.2.0"), or "" when up to date or unknown; [Updater.pending] drops it once installed. */
+    var updateAvailable: String
+        get() = sp.getString("update_available", "")!!
+        set(v) = sp.edit().putString("update_available", v).apply()
+
+    /** The user's names for grid apps, a JSON object package → name ([Labels]); [AppRepo.allApps] applies them. */
+    var labels: String
+        get() = grid.getString("labels", "")!!
+        set(v) = grid.edit().putString("labels", v).apply()
+
+    /** The name the user gave [pkg], or null when it keeps its own. */
+    fun label(pkg: String): String? = Labels.decode(labels)[pkg]
+
+    /** Renames [pkg]; null or blank gives it back its own name. */
+    fun setLabel(pkg: String, label: String?) { labels = Labels.with(labels, pkg, label) }
+
+    /**
+     * The home grid's folders, a JSON array of {id, name, apps} ([Folders]). A folder is a grid entry
+     * ([Folders.key]) placed by [order]; its apps leave the grid ([AppRepo.orderedVisible]).
+     */
+    var folders: String
+        get() = grid.getString("folders", "")!!
+        set(v) = grid.edit().putString("folders", v).apply()
+
+    fun folderList(): List<Folder> = Folders.decode(folders)
+
+    /** Applies one [Folders] edit to the saved folders. */
+    fun editFolders(edit: (List<Folder>) -> List<Folder>) { folders = Folders.encode(edit(folderList())) }
+
+    /** The profiles, a JSON array of {id, name, color, restricted} ([Profiles]); the main profile is there even when not listed. */
+    var profiles: String
+        get() = sp.getString("profiles", "")!!
+        set(v) = sp.edit().putString("profiles", v).apply()
+
+    /** Every profile, the main one first. */
+    fun profileList(): List<Profile> = Profiles.decode(profiles)
+
+    /** Applies one [Profiles] edit (rename, colour, restricted) to the saved profiles. */
+    fun editProfiles(edit: (List<Profile>) -> List<Profile>) { profiles = Profiles.encode(edit(profileList())) }
+
+    /** The id of the profile whose grid the home screen shows; one that no longer exists reads as [Profiles.MAIN]. */
+    var currentProfile: String
+        get() {
+            val id = sp.getString("current_profile", Profiles.MAIN)!!
+            return if (id == Profiles.MAIN) id else Profiles.resolve(profileList(), id)
+        }
+        set(v) = sp.edit().putString("current_profile", v).apply()
+
+    fun current(): Profile = profileList().let { Profiles.byId(it, currentProfile) ?: it.first() }
+
+    /** The profile on screen is a restricted ("Profil enfant") one: some things then ask for the PIN. */
+    val restricted: Boolean get() = current().restricted
+
+    /** SHA-256 of a per-TV salt and the PIN ([Profiles.hashPin]); "" = no PIN. The PIN itself is never kept. */
+    var profilePin: String
+        get() = sp.getString("profile_pin", "")!!
+        set(v) = sp.edit().putString("profile_pin", v).apply()
+
+    val hasPin: Boolean get() = profilePin.isNotEmpty()
+
+    /** Sets the PIN; null or "" removes it. The caller checks [Profiles.validPin]. */
+    fun setPin(pin: String?) {
+        if (pin.isNullOrEmpty()) { profilePin = ""; return }
+        val salt = sp.getString("profile_pin_salt", null) ?: Profiles.newSalt().also { sp.edit().putString("profile_pin_salt", it).apply() }
+        profilePin = Profiles.hashPin(salt, pin)
+    }
+
+    fun checkPin(pin: String): Boolean = Profiles.pinMatches(profilePin, sp.getString("profile_pin_salt", "")!!, pin)
+
+    /**
+     * A new profile at the end of the list. Its grid starts empty, so the default order applies,
+     * with the main profile's background; a store left over under the same id is wiped first.
+     */
+    fun addProfile(name: String?, restricted: Boolean = false): Profile {
+        val list = profileList()
+        val id = Profiles.newId(list.map { it.id })
+        val e = store(id).edit().clear()
+        sp.getString("background", null)?.let { e.putString("background", it) }
+        if (sp.contains("wall_minutes")) e.putInt("wall_minutes", sp.getInt("wall_minutes", 30))
+        e.apply()
+        Profiles.clearPhoto(appCtx, id)
+        val next = Profiles.add(list, id, name, restricted)
+        profiles = Profiles.encode(next)
+        return Profiles.byId(next, id)!!
+    }
+
+    /** Deletes profile [id], its grid and its photo; false when it cannot go ([Profiles.canDelete]). */
+    fun deleteProfile(id: String): Boolean {
+        val list = profileList()
+        if (!Profiles.canDelete(list, id, currentProfile)) return false
+        store(id).edit().clear().apply()
+        Profiles.clearPhoto(appCtx, id)
+        profiles = Profiles.encode(Profiles.delete(list, id, currentProfile))
+        return true
+    }
+
+    /** Makes [id] the profile on screen; false when there is no such profile. The PIN is the caller's business. */
+    fun switchProfile(id: String): Boolean {
+        if (Profiles.byId(profileList(), id) == null) return false
+        currentProfile = id
+        return true
+    }
+
+    /**
+     * The first-launch assistant ([OnboardingActivity]) is over. With nothing saved yet it is worked
+     * out once and saved: a TV updated from 1.0.0 (a grid order, local debugging authorized, or the
+     * home screen shown before) counts as set up, so only a fresh install gets the assistant.
+     */
+    var setupDone: Boolean
+        get() {
+            if (sp.contains("setup_done")) return sp.getBoolean("setup_done", false)
+            val before = !sp.getString("order", null).isNullOrEmpty() || adbAuthorized || sp.contains("home_in_front")
+            sp.edit().putBoolean("setup_done", before).apply()
+            return before
+        }
+        set(v) = sp.edit().putBoolean("setup_done", v).apply()
+
     companion object {
         const val SAVER_PHOTOS = "photos"
         const val SAVER_AERIAL = "aerial"
@@ -210,31 +434,71 @@ class Prefs(ctx: Context) {
         const val INTRO_VIDEO = "video"
         const val INTRO_WORDMARK = "wordmark"
 
+        /**
+         * Apps that serve in the background, so memory cleanup must not stop them. Adding one here is
+         * enough: [keep] merges it into a list the user saved earlier, once (and never again after
+         * they remove it).
+         */
         val DEFAULT_KEEP = setOf(
             "com.dangbei.screencast",
             "com.weekd.miracastreceiver",
             "com.xiaodianshi.tv.yst",
             "dev.vodik7.atvtoolsserver",
+            "com.spotify.tv.android",                 // Spotify Connect: the phone plays through the TV
+            "com.plexapp.android",                    // Plex player, also a cast target
+            "com.plexapp.mediaserver.smb",            // Plex Media Server on the TV itself
+            "com.tailscale.ipn",                      // a VPN that dies as soon as it is stopped
+            "io.homeassistant.companion.android",     // sensors and notifications reach Home Assistant from here
+            "com.adguard.android",                    // DNS / ad filtering for the whole TV
         )
 
         /** The defaults from before new ones were tracked; a list saved then has already seen these. */
         private val KEEP_UNTRACKED = setOf("com.dangbei.screencast", "com.xiaodianshi.tv.yst", "dev.vodik7.atvtoolsserver")
 
-        /** Initial grid order on first run; everything else follows alphabetically. */
+        /**
+         * Initial grid order on first run; everything else follows alphabetically. First the Western
+         * streaming, music, media-server and tool apps, then the Chinese apps this launcher was first
+         * written for, and the TV's own settings last. Only installed apps show up, so a long list
+         * costs nothing. A package must appear once: [AppRepo.orderedVisible] ranks by the last index.
+         */
         val DEFAULT_ORDER = listOf(
+            // Streaming and TV
+            "com.netflix.ninja",
+            "com.google.android.youtube.tv",
+            "com.amazon.amazonvideo.livingroom",
+            "com.disney.disneyplus",
+            "com.canal.android.canal",
+            "tv.molotov.app",
+            "tv.arte.plus7",
+            "fr.francetv.apps",                       // à vérifier
+            "com.apple.atve.androidtv.appletv",
+            "com.wbd.stream",
+            "com.cbs.ott",
+            "com.crunchyroll.crunchyroid",
+            // Music
+            "com.spotify.tv.android",
+            "deezer.android.tv",
+            // Media servers and players
+            "com.plexapp.android",
+            "org.jellyfin.androidtv",
+            "org.xbmc.kodi",
+            "org.videolan.vlc",
+            "com.teamsmart.videomanager.tv",
+            "com.liskovsoft.smarttubetv.beta",
+            // Live and game streaming
+            "tv.twitch.android.app",
+            "com.limelight",
+            "com.valvesoftware.steamlink",
+            // Chinese apps
             "com.xiaodianshi.tv.yst",
             "com.ktcp.video",
             "com.starcor.mango",
-            "com.liskovsoft.smarttubetv.beta",
             "com.douyu.xl.douyutv",
             "com.huya.nftv",
             "com.fongmi.android.tv",
             "com.github.tvbox.osc.tk",
-            "org.xbmc.kodi",
             "com.quark.yun.tv",
             "com.dangbei.screencast",
-            "tv.twitch.android.app",
-            "com.limelight",
             "com.limelight.qiin",
             "com.android.tv.settings",
         )

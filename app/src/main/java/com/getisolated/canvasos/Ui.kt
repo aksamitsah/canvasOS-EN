@@ -13,9 +13,13 @@ import android.view.ViewGroup
 import android.view.ViewOutlineProvider
 import android.view.animation.DecelerateInterpolator
 import android.view.animation.OvershootInterpolator
+import android.view.inputmethod.EditorInfo
+import android.view.inputmethod.InputMethodManager
+import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
+import android.widget.ScrollView
 import android.widget.TextView
 
 fun Context.dp(v: Number): Int = (v.toFloat() * resources.displayMetrics.density + 0.5f).toInt()
@@ -135,6 +139,8 @@ const val FONT_BOLD = "sans-serif-medium"
 object Fonts {
     private val cache = HashMap<Int, Typeface>()
 
+    /** Any thread: the phone page's server draws profile avatars too. */
+    @Synchronized
     fun inter(ctx: Context, weight: Int): Typeface = cache.getOrPut(weight) {
         try {
             Typeface.Builder(ctx.assets, "inter.ttf")
@@ -158,10 +164,15 @@ fun Context.text(sizeSp: Float, color: Int = Color.WHITE, bold: Boolean = false,
 
 /**
  * A pill button in tvOS style: translucent when idle, solid white with
- * dark text and a slight lift when focused.
+ * dark text and a slight lift when focused. [iconRes] is a glyph tinted with the text; [picture]
+ * (a profile's avatar) is shown larger and as it is.
  */
-class PillButton(ctx: Context, label: String, iconRes: Int? = null, val onClick: () -> Unit) : LinearLayout(ctx) {
-    private val tv = ctx.text(17f, bold = true).apply { text = label }
+class PillButton(ctx: Context, label: String, iconRes: Int? = null, picture: android.graphics.drawable.Drawable? = null, val onClick: () -> Unit) : LinearLayout(ctx) {
+    private val tv = ctx.text(17f, bold = true).apply {
+        text = label
+        maxLines = 1
+        ellipsize = android.text.TextUtils.TruncateAt.END
+    }
     private val icon: ImageView? = iconRes?.let { ImageView(ctx).apply { setImageResource(it) } }
     private val idle = rounded(Color.argb(46, 255, 255, 255), dp(14).toFloat())
     private val focus = rounded(Color.WHITE, dp(14).toFloat())
@@ -174,6 +185,9 @@ class PillButton(ctx: Context, label: String, iconRes: Int? = null, val onClick:
         background = idle
         setPadding(dp(24), 0, dp(24), 0)
         icon?.let { addView(it, LayoutParams(dp(22), dp(22)).apply { marginEnd = dp(10) }) }
+        picture?.let { d ->
+            addView(ImageView(ctx).apply { setImageDrawable(d) }, LayoutParams(dp(PICTURE_DP), dp(PICTURE_DP)).apply { marginEnd = dp(12) })
+        }
         addView(tv)
         setOnClickListener { onClick() }
         setOnFocusChangeListener { _, f ->
@@ -182,6 +196,13 @@ class PillButton(ctx: Context, label: String, iconRes: Int? = null, val onClick:
             icon?.setColorFilter(if (f) Color.BLACK else Color.WHITE)
             tweenScale(if (f) 1.06f else 1f, 160, z = if (f) dp(10).toFloat() else 0f)
         }
+    }
+
+    fun setLabel(label: CharSequence) { tv.text = label }
+
+    companion object {
+        /** Side of a [picture], in dp: most of the 52 dp pill, like the account pictures in tvOS's lists. */
+        const val PICTURE_DP = 36
     }
 }
 
@@ -203,19 +224,34 @@ class Sheet(private val host: FrameLayout) {
         orientation = LinearLayout.VERTICAL
         gravity = Gravity.CENTER_HORIZONTAL
     }
+    /**
+     * Scrolls the stack when it is taller than the screen (a list of apps to pick); the focused
+     * button is scrolled into view. The padding is room for a focused button's zoom and lift: the
+     * stack may draw into it, and the sheet clips the whole at the padding's edge.
+     */
+    private val scroll = ScrollView(ctx).apply {
+        isVerticalScrollBarEnabled = false
+        overScrollMode = View.OVER_SCROLL_NEVER
+        clipToPadding = false
+        clipChildren = false
+        val pad = ctx.dp(SCROLL_PAD)
+        setPadding(pad, pad, pad, pad)
+        addView(col)
+    }
     private val title = ctx.text(28f, bold = true).apply { gravity = Gravity.CENTER }
     private val message = ctx.text(16f, Color.argb(180, 255, 255, 255)).apply {
         gravity = Gravity.CENTER
         setLineSpacing(0f, 1.25f)
     }
     private var onDismiss: (() -> Unit)? = null
+    private var field: EditText? = null
 
     init {
         col.addView(title)
         col.addView(message, LinearLayout.LayoutParams(ctx.dp(520), ViewGroup.LayoutParams.WRAP_CONTENT).apply {
             topMargin = ctx.dp(12); bottomMargin = ctx.dp(28)
         })
-        root.addView(col, FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.CENTER))
+        root.addView(scroll, FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.CENTER))
         root.setOnKeyListener { _, code, e ->
             if (code == KeyEvent.KEYCODE_BACK && e.action == KeyEvent.ACTION_UP) { dismiss(); true } else false
         }
@@ -227,12 +263,111 @@ class Sheet(private val host: FrameLayout) {
         message.visibility = if (m.isNullOrEmpty()) View.GONE else View.VISIBLE
     }
 
-    fun button(label: String, icon: Int? = null, keepOpen: Boolean = false, action: () -> Unit) = apply {
-        val b = PillButton(ctx, label, icon) {
+    fun button(label: String, icon: Int? = null, keepOpen: Boolean = false, action: () -> Unit) = button(label, icon, null, keepOpen, action)
+
+    /** A button with a picture before its label, such as a profile's avatar ([PillButton.PICTURE_DP] square, not tinted). */
+    fun button(label: String, picture: android.graphics.drawable.Drawable, keepOpen: Boolean = false, action: () -> Unit) =
+        button(label, null, picture, keepOpen, action)
+
+    private fun button(label: String, icon: Int?, picture: android.graphics.drawable.Drawable?, keepOpen: Boolean, action: () -> Unit) = apply {
+        val b = PillButton(ctx, label, icon, picture) {
             if (!keepOpen) dismiss()
             action()
         }
         col.addView(b, LinearLayout.LayoutParams(ctx.dp(420), ctx.dp(52)).apply { topMargin = ctx.dp(12) })
+    }
+
+    /**
+     * A button that ticks itself on and off ("✓  " before [label]) and leaves the sheet open, for
+     * picking several things from a list; [changed] gets the new state.
+     */
+    fun toggle(label: String, on: Boolean, icon: Int? = null, changed: (Boolean) -> Unit) = apply {
+        var state = on
+        fun shown() = if (state) "✓  $label" else label
+        lateinit var b: PillButton
+        b = PillButton(ctx, shown(), icon) {
+            state = !state
+            b.setLabel(shown())
+            changed(state)
+        }
+        col.addView(b, LinearLayout.LayoutParams(ctx.dp(420), ctx.dp(52)).apply { topMargin = ctx.dp(12) })
+    }
+
+    /**
+     * A button that steps through [values] in place ("Couleur : Bleu", then "Couleur : Vert"…) and
+     * leaves the sheet open; [changed] gets the new index.
+     */
+    fun cycle(label: String, values: List<String>, index: Int, changed: (Int) -> Unit) = apply {
+        var at = index.coerceIn(0, values.size - 1)
+        lateinit var b: PillButton
+        b = PillButton(ctx, "$label : ${values[at]}") {
+            at = (at + 1) % values.size
+            b.setLabel("$label : ${values[at]}")
+            changed(at)
+        }
+        col.addView(b, LinearLayout.LayoutParams(ctx.dp(420), ctx.dp(52)).apply { topMargin = ctx.dp(12) })
+    }
+
+    /** A plain, non-focusable line of text in the stack, such as one day of a forecast; added in call order with the buttons. */
+    fun line(text: String) = apply {
+        val t = ctx.text(18f, Color.argb(225, 255, 255, 255)).apply {
+            this.text = text
+            gravity = Gravity.CENTER
+        }
+        col.addView(t, LinearLayout.LayoutParams(ctx.dp(420), ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = ctx.dp(10) })
+    }
+
+    /**
+     * A text field prefilled with [initial], then OK and Annuler: [done] gets the text on OK or on the
+     * keyboard's Done key. The TV's on-screen keyboard does the typing; it opens with the sheet, which
+     * then sits high on the screen so the field stays above the keyboard (the home screen does not resize).
+     * [inputType] picks the keyboard (a number pad for a PIN); a password variation hides what is typed.
+     */
+    fun input(
+        initial: String,
+        hint: String? = null,
+        inputType: Int = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_FLAG_CAP_SENTENCES,
+        maxLength: Int = Labels.MAX,
+        done: (String) -> Unit,
+    ) = apply {
+        val r = ctx.dp(14).toFloat()
+        val idle = rounded(Color.argb(46, 255, 255, 255), r)
+        val focused = rounded(Color.argb(72, 255, 255, 255), r).apply { setStroke(ctx.dp(3), Color.WHITE) }
+        val f = EditText(ctx).apply {
+            this.inputType = inputType
+            isSingleLine = true
+            // setSingleLine swaps the password mask setInputType put on for a single-line one.
+            if (isPassword(inputType)) transformationMethod = android.text.method.PasswordTransformationMethod.getInstance()
+            // Landscape keyboards go full screen by default and hide the sheet; this one keeps it in view.
+            imeOptions = EditorInfo.IME_ACTION_DONE or EditorInfo.IME_FLAG_NO_EXTRACT_UI or EditorInfo.IME_FLAG_NO_FULLSCREEN
+            filters = arrayOf(android.text.InputFilter.LengthFilter(maxLength))
+            textSize = 20f
+            typeface = Fonts.inter(ctx, 500)
+            includeFontPadding = false
+            setTextColor(Color.WHITE)
+            setHintTextColor(Color.argb(110, 255, 255, 255))
+            highlightColor = Color.argb(90, 255, 255, 255)
+            if (android.os.Build.VERSION.SDK_INT >= 29) textCursorDrawable = rounded(Color.WHITE, 0f).apply { setSize(ctx.dp(2), 0) }
+            this.hint = hint
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(ctx.dp(20), 0, ctx.dp(20), 0)
+            background = idle
+            setText(initial)
+            setSelection(text.length)
+            setOnFocusChangeListener { _, has -> background = if (has) focused else idle }
+            // Only the keyboard's action: a remote whose OK sends Enter would otherwise confirm the name unchanged.
+            setOnEditorActionListener { _, id, _ ->
+                if (id == EditorInfo.IME_ACTION_DONE) { dismiss(); done(text.toString()); true } else false
+            }
+        }
+        field = f
+        col.addView(f, LinearLayout.LayoutParams(ctx.dp(420), ctx.dp(56)).apply { topMargin = ctx.dp(12); bottomMargin = ctx.dp(8) })
+        button("OK") { done(f.text.toString()) }
+        button("Annuler") {}
+        (scroll.layoutParams as FrameLayout.LayoutParams).apply {
+            gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
+            topMargin = ctx.dp(56 - SCROLL_PAD)
+        }
     }
 
     fun onDismiss(f: () -> Unit) = apply { onDismiss = f }
@@ -240,7 +375,11 @@ class Sheet(private val host: FrameLayout) {
     fun show(): Sheet {
         host.addView(root, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
         root.animate().alpha(1f).setDuration(180).start()
-        (0 until col.childCount).map { col.getChildAt(it) }.firstOrNull { it is PillButton }?.requestFocus()
+        val f = field
+        if (f != null) {
+            f.requestFocus()
+            f.postDelayed({ if (f.hasFocus()) ctx.getSystemService(InputMethodManager::class.java)?.showSoftInput(f, 0) }, 200)
+        } else (0 until col.childCount).map { col.getChildAt(it) }.firstOrNull { it is PillButton }?.requestFocus()
         return this
     }
 
@@ -248,6 +387,7 @@ class Sheet(private val host: FrameLayout) {
 
     fun dismiss() {
         if (!isShowing) return
+        field?.let { ctx.getSystemService(InputMethodManager::class.java)?.hideSoftInputFromWindow(it.windowToken, 0) }
         root.animate().alpha(0f).setDuration(140).withEndAction {
             host.removeView(root)
             onDismiss?.invoke()
@@ -256,4 +396,15 @@ class Sheet(private val host: FrameLayout) {
 
     /** Back is delivered to the focused child, so buttons forward it here. */
     fun handlesBack(): Boolean { dismiss(); return true }
+
+    private companion object {
+        const val SCROLL_PAD = 24
+
+        fun isPassword(type: Int): Boolean {
+            val cls = type and android.text.InputType.TYPE_MASK_CLASS
+            val variation = type and android.text.InputType.TYPE_MASK_VARIATION
+            return (cls == android.text.InputType.TYPE_CLASS_NUMBER && variation == android.text.InputType.TYPE_NUMBER_VARIATION_PASSWORD) ||
+                (cls == android.text.InputType.TYPE_CLASS_TEXT && variation == android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD)
+        }
+    }
 }

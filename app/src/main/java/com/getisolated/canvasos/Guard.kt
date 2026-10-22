@@ -17,6 +17,7 @@ import android.os.Process
 import android.os.SystemClock
 import android.provider.Settings
 import android.service.notification.NotificationListenerService
+import android.service.notification.StatusBarNotification
 import android.util.Log
 import android.view.KeyEvent
 import android.view.accessibility.AccessibilityEvent
@@ -39,9 +40,10 @@ import com.getisolated.canvasos.tv.XiaomiAdapter
  * The pieces:
  * 1. [HomeGuardService], an accessibility service that brings canvasOS back the moment the stock
  *    launcher comes to the front. It sees window changes only, never screen content.
- * 2. [RevivalListener], a notification listener that reads no notifications. Android rebinds a
- *    listener about half a second after its process is killed, which restarts canvasOS; canvasOS then
- *    switches the guard back on, which needs WRITE_SECURE_SETTINGS.
+ * 2. [RevivalListener], a notification listener. Android rebinds a listener about half a second
+ *    after its process is killed, which restarts canvasOS; canvasOS then switches the guard back on,
+ *    which needs WRITE_SECURE_SETTINGS. It reads no notification unless the user turns on banners
+ *    ([Banners]) for apps they choose, and then only those apps' title and text.
  * 3. WRITE_SECURE_SETTINGS and the listener approval come from adb (a computer, AGENTS.md) or from
  *    the TV's own adb through [LocalAdb] ([grantViaLocalAdb]).
  *
@@ -81,16 +83,20 @@ object Guard {
     /**
      * What a computer would grant over adb, done through the TV's own adb instead. Blocking.
      * The two TCL app ops let canvasOS start at boot there (TclAppBootManager refuses third-party
-     * apps otherwise); other firmwares don't know them and refuse, which is fine.
+     * apps otherwise); other firmwares don't know them and refuse, which is fine. READ_TV_LISTINGS
+     * (the Top Shelf's Watch Next and channels, [Shelf]) is refused where TvProvider is missing.
      */
     fun grantViaLocalAdb(ctx: Context): Boolean {
         val p = ctx.packageName
         val script = listOf(
             "pm grant $p ${Manifest.permission.WRITE_SECURE_SETTINGS}",
+            // The Bluetooth capsule's runtime permission on Android 12+; unknown (and harmless) before.
+            "pm grant $p ${Bluetooth.PERMISSION}",
             "cmd notification allow_listener $p/$p.RevivalListener",
             "appops set $p SYSTEM_ALERT_WINDOW allow",
             "appops set $p APP_AUTO_START allow",
             "appops set $p APP_ASSOC_START allow",
+            "pm grant $p ${Shelf.READ_TV_LISTINGS}",
         ).joinToString("; ") + "; echo done"
         LocalAdb.shell(ctx, script, 10_000) ?: return false
         return hasSecureSettings(ctx)
@@ -362,7 +368,13 @@ class HomeGuardService : AccessibilityService() {
 /**
  * Brings the guard back after the firmware kills canvasOS. Android drops a force-stopped app's
  * accessibility services for good, but keeps a notification listener approved and binds it again
- * shortly after its process dies. No notification is read or touched.
+ * shortly after its process dies. Being an approved listener also lets [MediaSessions] see which
+ * app is playing (package name and playback state; with "Lecture en cours" on, [NowPlaying] also
+ * reads the title, artist and artwork).
+ *
+ * No notification is read or touched, except when the user turns on banners ([Prefs.banners]):
+ * then the notifications of the apps they picked ([Prefs.bannerApps]), and only those, are read
+ * for their title and text, shown 6 seconds and never stored. Every other one is let go unread.
  */
 class RevivalListener : NotificationListenerService() {
     override fun onListenerConnected() {
@@ -370,6 +382,11 @@ class RevivalListener : NotificationListenerService() {
         Guard.ensure(this)
         runCatching { KeeperService.start(this) }
         Handler(Looper.getMainLooper()).postDelayed({ Guard.rebindIfStalled(this) }, 5_000)
+    }
+
+    /** Returns at once unless banners are on and the app is one the user picked. */
+    override fun onNotificationPosted(sbn: StatusBarNotification) {
+        runCatching { Banners.onPosted(this, sbn) }
     }
 }
 
@@ -390,6 +407,7 @@ class ConfigReceiver : BroadcastReceiver() {
         i.getStringExtra("focus_style")?.let { prefs.focusStyle = it }
         i.getStringExtra("clock_style")?.let { prefs.clockStyle = it }
         if (i.hasExtra("clock_24")) prefs.clock24 = i.getBooleanExtra("clock_24", false)
+        if (i.hasExtra("dock_recents")) prefs.dockRecents = i.getBooleanExtra("dock_recents", true)
         i.getStringExtra("intro")?.let { prefs.intro = it; prefs.introBoot = Intro.bootStamp(c) }
         i.getStringExtra("intro_source")?.let { prefs.introSource = it }
         i.getStringExtra("background")?.takeIf { it in Wallpapers.SOURCES || it in Backgrounds.THEMES }?.let {
@@ -400,9 +418,52 @@ class ConfigReceiver : BroadcastReceiver() {
         if (i.hasExtra("own_icon")) prefs.ownIcon = i.getBooleanExtra("own_icon", true)
         if (i.hasExtra("intro_sound")) prefs.introSound = i.getBooleanExtra("intro_sound", true)
         if (i.hasExtra("wake_delay")) prefs.wakeDelay = i.getIntExtra("wake_delay", 5000)
+        // The Top Shelf's TMDB key; an empty string removes it. Never echoed back, only whether there is one.
+        i.getStringExtra("tmdb_key")?.let { Shelf.setTmdbKey(c, it) }
+        if (i.hasExtra("phone_server")) {
+            prefs.phoneServer = i.getBooleanExtra("phone_server", true)
+            // KeeperService applies it; Android 12 may refuse to start a foreground service from here.
+            runCatching { KeeperService.start(c) }.onFailure { PhoneServer.ensure(c) }
+        }
         Guard.ensure(c)
         resultData = "guard=${prefs.guard} keep_adb=${prefs.keepAdb} secure_settings=${Guard.hasSecureSettings(c)} " +
             "background=${prefs.background} cc_style=${prefs.ccStyle} focus_style=${prefs.focusStyle} clock_style=${prefs.clockStyle} clock_24=${prefs.clock24} " +
-            "intro=${prefs.intro} intro_source=${prefs.introSource} wake_delay=${prefs.wakeDelay} own_icon=${prefs.ownIcon} settings_bg=${prefs.settingsBg} low_end=${Device.isLowEnd(c)}"
+            "intro=${prefs.intro} intro_source=${prefs.introSource} wake_delay=${prefs.wakeDelay} own_icon=${prefs.ownIcon} settings_bg=${prefs.settingsBg} low_end=${Device.isLowEnd(c)} " +
+            "phone_server=${prefs.phoneServer} dock_recents=${prefs.dockRecents} " +
+            "tmdb_key=${if (prefs.tmdbKey.isNotEmpty()) "set" else "unset"}"
+        // Lecture en cours and banners (Réglages → Lecture et notifications); both need the listener.
+        if (i.hasExtra("now_playing")) prefs.nowPlaying = i.getBooleanExtra("now_playing", false)
+        if (i.hasExtra("banners")) prefs.banners = i.getBooleanExtra("banners", false)
+        i.getStringExtra("banner_apps")?.let { list ->
+            prefs.bannerApps = list.split(',').map { it.trim() }.filter { it.isNotEmpty() }.toSet()
+        }
+        resultData += " now_playing=${prefs.nowPlaying} banners=${prefs.banners} banner_apps=${prefs.bannerApps.sorted().joinToString(",")} " +
+            "listener=${Banners.listenerGranted(c)} overlay=${Settings.canDrawOverlays(c)}"
+        // Asks GitHub for the latest Release now (a few seconds at most) and says what it found.
+        if (i.getBooleanExtra("check_update", false)) resultData += " update=${Updater.checkForConfig(c)}"
+        // Profiles (Réglages → Profils). No PIN over adb: the computer is trusted, and it is how a forgotten PIN goes.
+        i.getStringExtra("profile_add")?.trim()?.takeIf { it.isNotEmpty() }?.let { name ->
+            val kid = i.getBooleanExtra("profile_restricted", false)
+            val found = Profiles.byName(prefs.profileList(), name)
+            // Run twice, the same command makes one profile; profile_restricted then sets it on the one there is.
+            if (found == null) prefs.addProfile(name, kid)
+            else if (i.hasExtra("profile_restricted")) prefs.editProfiles { Profiles.setRestricted(it, found.id, kid) }
+        }
+        i.getStringExtra("profile")?.let { name ->
+            val p = Profiles.byName(prefs.profileList(), name)
+            if (p == null) resultData += " profile_unknown=\"$name\""
+            // The home screen shows it at once (HomeActivity.tileReceiver).
+            else if (p.id != prefs.currentProfile && prefs.switchProfile(p.id)) AppRepo.notifyChanged(c, null)
+        }
+        i.getStringExtra("profile_pin")?.let { pin ->
+            val v = pin.trim().removeSurrounding("'")
+            if (v.isEmpty()) prefs.setPin(null) else if (Profiles.validPin(v)) prefs.setPin(v) else resultData += " profile_pin=invalid"
+        }
+        resultData += " profile=\"${Profiles.displayName(prefs.current())}\" profile_id=${prefs.currentProfile} profiles=${prefs.profileList().size} pin=${if (prefs.hasPin) "set" else "unset"}"
+        // Read only: the first-launch assistant is done on the TV, with the remote; nothing here skips it.
+        resultData += " setup_done=${prefs.setupDone}"
+        // Must stay last: a weather_city is looked up over the network, so this may call goAsync(),
+        // after which resultData can only be set through the pending result (Weather.config does).
+        Weather.config(this, c, i)
     }
 }

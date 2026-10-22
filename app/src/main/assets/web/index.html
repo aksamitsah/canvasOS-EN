@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="referrer" content="no-referrer">
 <meta name="theme-color" content="#f2f2f7" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
 <title>canvasOS</title>
@@ -10,11 +11,13 @@
   :root {
     --bg: #f2f2f7; --card: #fff; --label: #000; --secondary: rgba(60,60,67,.6);
     --sep: rgba(60,60,67,.18); --segment: #fff; --tint: #007aff; --fill: rgba(118,118,128,.12); --danger: #ff3b30;
+    --bar: rgba(249,249,249,.94); --idle: #8e8e93; --warn: #ff9500;
   }
   @media (prefers-color-scheme: dark) {
     :root {
       --bg: #000; --card: #1c1c1e; --label: #fff; --secondary: rgba(235,235,245,.6);
       --sep: rgba(84,84,88,.6); --segment: #636366; --tint: #0a84ff; --fill: rgba(118,118,128,.24); --danger: #ff453a;
+      --bar: rgba(22,22,23,.94); --idle: #8d8d93; --warn: #ff9f0a;
     }
   }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -22,7 +25,7 @@
   body {
     margin: 0 auto; background: var(--bg); color: var(--label); max-width: 720px;
     font: 17px/1.4 -apple-system, BlinkMacSystemFont, "PingFang SC", "HarmonyOS Sans SC", "MiSans", system-ui, sans-serif;
-    padding: env(safe-area-inset-top) 16px calc(32px + env(safe-area-inset-bottom));
+    padding: env(safe-area-inset-top) 16px calc(96px + env(safe-area-inset-bottom));
   }
   header { padding: 28px 4px 4px; }
   h1 { font-size: 32px; font-weight: 700; margin: 0; }
@@ -42,7 +45,8 @@
     display: block; width: 100%; padding: 15px; border: 0; border-radius: 14px;
     background: var(--tint); color: #fff; font: inherit; font-weight: 600; text-align: center;
   }
-  .primary[disabled] { opacity: .6; }
+  .primary[disabled], .primary.busy { opacity: .6; }
+  .primary.busy { pointer-events: none; }
   textarea {
     width: 100%; min-height: 110px; padding: 12px; border: 0; border-radius: 12px; resize: vertical;
     background: var(--card); color: var(--label); font: 15px/1.4 ui-monospace, Menlo, monospace;
@@ -57,19 +61,159 @@
   }
   .empty { color: var(--secondary); font-size: 15px; padding: 4px; }
   .toast {
-    position: fixed; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom)); transform: translate(-50%, 20px);
+    position: fixed; left: 50%; bottom: calc(84px + env(safe-area-inset-bottom)); transform: translate(-50%, 20px);
     background: rgba(30,30,30,.92); color: #fff; padding: 10px 18px; border-radius: 22px; font-size: 15px;
+    width: max-content; max-width: calc(100vw - 32px); text-align: center; z-index: 20;
     opacity: 0; transition: opacity .2s, transform .3s; pointer-events: none;
   }
   .toast.on { opacity: 1; transform: translate(-50%, 0); }
+
+  /* Tabs, iOS style: a translucent bar at the bottom. */
+  .tabbar {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 10; display: flex; justify-content: center;
+    padding: 6px 8px calc(6px + env(safe-area-inset-bottom)); background: var(--bar);
+    -webkit-backdrop-filter: saturate(180%) blur(20px); backdrop-filter: saturate(180%) blur(20px);
+    border-top: .5px solid var(--sep);
+  }
+  .tabbar button {
+    flex: 1; max-width: 160px; appearance: none; border: 0; background: none; color: var(--idle); padding: 2px 0;
+    font: inherit; font-size: 10px; font-weight: 500; display: flex; flex-direction: column; align-items: center; gap: 2px;
+  }
+  .tabbar button[aria-selected="true"] { color: var(--tint); }
+  .tabbar svg { width: 26px; height: 26px; }
+  svg { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  svg .f { fill: currentColor; }
+
+  .note {
+    margin: 16px 0 0; padding: 12px 14px; border-radius: 12px; background: var(--card); font-size: 15px;
+    box-shadow: inset 4px 0 0 var(--warn);
+  }
+
+  /* The remote. Sent on click (no delay with a device-width viewport); the press shows at once. */
+  .k {
+    appearance: none; border: 0; font: inherit; color: var(--label); background: var(--card);
+    touch-action: manipulation; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    transition: transform .12s, background-color .12s;
+  }
+  .k.on { transform: scale(.93); background-color: var(--fill); }
+  .k svg { width: 22px; height: 22px; flex: none; }
+  .dpad {
+    position: relative; width: min(270px, 74vw); aspect-ratio: 1; margin: 20px auto 0; border-radius: 50%;
+    background: var(--card); box-shadow: 0 1px 3px rgba(0,0,0,.08);
+  }
+  .dpad .k { position: absolute; width: 34%; height: 32%; border-radius: 24px; background-color: transparent; color: var(--secondary); }
+  .dpad .k.on { background-color: var(--fill); color: var(--label); }
+  .dpad .k svg { width: 30px; height: 30px; }
+  .dpad .up { top: 1%; left: 33%; }
+  .dpad .down { bottom: 1%; left: 33%; }
+  .dpad .left { left: 1%; top: 34%; }
+  .dpad .right { right: 1%; top: 34%; }
+  .dpad .ok {
+    top: 32%; left: 32%; width: 36%; height: 36%; border-radius: 50%;
+    background-color: var(--fill); color: var(--label); font-size: 19px; font-weight: 600;
+  }
+  .dpad .ok.on { background-color: var(--tint); color: #fff; }
+  .keys { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 16px; }
+  .keys.five { grid-template-columns: repeat(5, 1fr); }
+  .keys .k { border-radius: 14px; padding: 13px 4px; font-size: 15px; font-weight: 500; min-height: 50px; }
+  .type input {
+    width: 100%; padding: 13px 14px; border: 0; border-radius: 12px; background: var(--card); color: var(--label);
+    font: inherit; outline-color: var(--tint);
+  }
+  .pair { display: grid; grid-template-columns: 2fr 1fr; gap: 10px; margin-top: 10px; }
+  .pair .k { border-radius: 14px; font-weight: 600; }
+  /* Weather: the cities found, as an inset list. */
+  .results { margin-top: 10px; border-radius: 12px; overflow: hidden; background: var(--card); }
+  .results:empty { display: none; }
+  .results button {
+    display: block; width: 100%; appearance: none; border: 0; border-bottom: .5px solid var(--sep); background: none;
+    color: var(--label); font: inherit; text-align: left; padding: 11px 14px;
+  }
+  .results button:last-child { border-bottom: 0; }
+  .results small { display: block; color: var(--secondary); font-size: 13px; }
+  .results .empty { padding: 11px 14px; }
+  #weatherQuery { -webkit-appearance: none; appearance: none; }
+
+  /* Apps tab: one card per app, the tile on the left, the name editable in place. */
+  .apps { border-radius: 12px; overflow: hidden; background: var(--card); }
+  .apps:empty { display: none; }
+  .app {
+    display: grid; grid-template-columns: 112px minmax(0, 1fr); gap: 10px 12px; align-items: center;
+    padding: 12px; border-bottom: .5px solid var(--sep);
+  }
+  .app:last-child { border-bottom: 0; }
+  .app img { display: block; width: 112px; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 8px; background: var(--fill); }
+  .app input {
+    width: 100%; min-width: 0; padding: 8px 10px; margin: 0; border: 0; border-radius: 8px; background: var(--fill);
+    color: var(--label); font: inherit; font-weight: 600; outline-color: var(--tint); -webkit-appearance: none; appearance: none;
+  }
+  .app small { display: block; color: var(--secondary); font-size: 13px; margin: 4px 2px 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .app small:empty { display: none; }
+  .app .acts { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 8px; }
+  .app .acts button, .app .acts label {
+    appearance: none; border: 0; font: inherit; font-size: 14px; font-weight: 500; line-height: 1.2;
+    color: var(--tint); background: var(--fill); padding: 7px 12px; border-radius: 16px; cursor: pointer;
+  }
+  .app .acts .busy { opacity: .5; pointer-events: none; }
+  .app.off img, .app.off input { opacity: .45; }
+
+  /* Profiles: the avatar as the TV draws it, the name, then its actions. */
+  .app.profile { grid-template-columns: 56px minmax(0, 1fr); }
+  .app.profile img { width: 56px; aspect-ratio: 1; border-radius: 50%; object-fit: cover; }
+  .app.profile b { display: block; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  footer { color: var(--secondary); font-size: 13px; margin: 36px 4px 0; padding-top: 14px; border-top: .5px solid var(--sep); }
 </style>
 </head>
 <body>
 <header>
-  <h1>canvasOS</h1>
+  <h1 id="title">canvasOS</h1>
   <p>{{DEVICE}} · Modifiez ici, le téléviseur suit aussitôt</p>
 </header>
 
+<section class="tab" data-tab="telecommande" id="tab-telecommande" role="tabpanel" aria-label="Télécommande">
+  <p class="note adbNote" hidden>Pour la télécommande, autorisez une fois le débogage local sur le téléviseur : Réglages de l'accueil → Débogage local, puis « Toujours autoriser ».</p>
+
+  <div class="dpad" role="group" aria-label="Pavé directionnel">
+    <button class="k up" data-key="UP" data-repeat aria-label="Haut"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 15l6-6 6 6"/></svg></button>
+    <button class="k left" data-key="LEFT" data-repeat aria-label="Gauche"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></button>
+    <button class="k ok" data-key="CENTER" aria-label="OK">OK</button>
+    <button class="k right" data-key="RIGHT" data-repeat aria-label="Droite"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button>
+    <button class="k down" data-key="DOWN" data-repeat aria-label="Bas"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>
+  </div>
+
+  <div class="keys">
+    <button class="k" data-key="BACK" aria-label="Retour"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 14L4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg>Retour</button>
+    <button class="k" data-key="HOME" aria-label="Accueil"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10.5L12 3l9 7.5"/><path d="M5 9v11h14V9"/></svg>Accueil</button>
+    <button class="k" data-key="MENU" aria-label="Menu"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>Menu</button>
+  </div>
+  <div class="keys">
+    <button class="k" data-key="VOLUME_DOWN" data-repeat aria-label="Baisser le volume"><svg viewBox="0 0 24 24" aria-hidden="true"><path class="f" d="M11 5L6 9H3v6h3l5 4z"/><path d="M15 12h6"/></svg></button>
+    <button class="k" data-key="VOLUME_MUTE" aria-label="Couper le son"><svg viewBox="0 0 24 24" aria-hidden="true"><path class="f" d="M11 5L6 9H3v6h3l5 4z"/><path d="M16 9.5l5 5M21 9.5l-5 5"/></svg></button>
+    <button class="k" data-key="VOLUME_UP" data-repeat aria-label="Monter le volume"><svg viewBox="0 0 24 24" aria-hidden="true"><path class="f" d="M11 5L6 9H3v6h3l5 4z"/><path d="M15 12h6M18 9v6"/></svg></button>
+  </div>
+  <div class="keys five">
+    <button class="k" data-key="MEDIA_PREVIOUS" aria-label="Précédent"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6v12"/><path class="f" d="M18 6l-9 6 9 6z"/></svg></button>
+    <button class="k" data-key="MEDIA_REWIND" data-repeat aria-label="Retour rapide"><svg viewBox="0 0 24 24" aria-hidden="true"><path class="f" d="M11 6l-8 6 8 6zM21 6l-8 6 8 6z"/></svg></button>
+    <button class="k" data-key="MEDIA_PLAY_PAUSE" aria-label="Lecture ou pause"><svg viewBox="0 0 24 24" aria-hidden="true"><path class="f" d="M4 5l8 7-8 7z"/><path d="M16 5v14M20 5v14"/></svg></button>
+    <button class="k" data-key="MEDIA_FAST_FORWARD" data-repeat aria-label="Avance rapide"><svg viewBox="0 0 24 24" aria-hidden="true"><path class="f" d="M13 6l8 6-8 6zM3 6l8 6-8 6z"/></svg></button>
+    <button class="k" data-key="MEDIA_NEXT" aria-label="Suivant"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6v12"/><path class="f" d="M6 6l9 6-9 6z"/></svg></button>
+  </div>
+
+  <h2>Clavier</h2>
+  <form class="type" id="typeForm">
+    <input type="text" id="typeText" placeholder="Taper du texte sur le téléviseur" aria-label="Texte à taper sur le téléviseur"
+      autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="send">
+  </form>
+  <div class="pair">
+    <button class="primary" type="submit" form="typeForm">Envoyer</button>
+    <button class="k" data-key="DEL" data-repeat aria-label="Effacer un caractère">Effacer</button>
+  </div>
+  <p class="hint">Sélectionnez d'abord un champ de saisie sur le téléviseur. Le texte passe par la commande « input text », qui ne transmet de façon fiable que les caractères ASCII : les accents sont retirés (é devient e) et les autres caractères spéciaux peuvent être ignorés.</p>
+</section>
+
+<section class="tab" data-tab="fond" id="tab-fond" role="tabpanel" aria-label="Fond d'écran" hidden>
 <h2>Fond d'écran de l'accueil</h2>
 <div class="chips" id="backgrounds"></div>
 
@@ -80,6 +224,19 @@
 </div>
 <p class="hint">Les vues aériennes de l'Apple TV sont lues en ligne depuis les serveurs d'Apple (environ 15–20 Mbit/s) ; si elles ne se chargent pas, les photos reprennent. Les photos suivent la source de fond d'écran choisie ci-dessus.</p>
 
+<h2>Mes photos</h2>
+<label class="primary" id="pick">Choisir des photos à importer<input type="file" id="file" accept="image/*" multiple hidden></label>
+<p class="hint">Après l'importation, le fond d'écran passe sur « Mes photos ». Le téléviseur enregistre les photos en 1920×1080.</p>
+<div class="grid" id="mine"></div>
+
+<h2>Liens d'images personnalisés</h2>
+<textarea id="links" placeholder="Un lien par ligne, par exemple&#10;https://example.com/wallpaper.jpg&#10;https://une-api-d-images-aleatoires/api"></textarea>
+<p class="hint">L'adresse d'une image, une API d'images aléatoires qui renvoie une nouvelle image à chaque fois, ou une page / un JSON qui liste des adresses d'images. Le téléviseur les récupère une fois par jour et garde quelques images par lien.</p>
+<p style="margin-top:12px"><button class="primary" id="save">Enregistrer et récupérer</button></p>
+<div class="grid" id="custom"></div>
+</section>
+
+<section class="tab" data-tab="reglages" id="tab-reglages" role="tabpanel" aria-label="Réglages" hidden>
 <h2>Animation de démarrage</h2>
 <div class="seg three" id="intro">
   <button data-mode="off">Désactivée</button>
@@ -101,34 +258,154 @@
 <label class="primary" id="pickIcon">Importer une icône<input type="file" id="iconFile" accept="image/*" hidden></label>
 <p class="hint" id="iconHint"></p>
 
-<h2>Mes photos</h2>
-<label class="primary" id="pick">Choisir des photos à importer<input type="file" id="file" accept="image/*" multiple hidden></label>
-<p class="hint">Après l'importation, le fond d'écran passe sur « Mes photos ». Le téléviseur enregistre les photos en 1920×1080.</p>
-<div class="grid" id="mine"></div>
+<h2>Profils</h2>
+<div class="apps" id="profiles"></div>
+<p class="hint">La photo de chaque profil en haut à droite de l'accueil. Sans photo, le profil montre l'initiale de son nom sur sa couleur ; une photo est recadrée en carré, centrée. Le nom et la couleur se changent sur le téléviseur (Réglages de l'accueil → Profils).</p>
 
-<h2>Liens d'images personnalisés</h2>
-<textarea id="links" placeholder="Un lien par ligne, par exemple&#10;https://example.com/wallpaper.jpg&#10;https://une-api-d-images-aleatoires/api"></textarea>
-<p class="hint">L'adresse d'une image, une API d'images aléatoires qui renvoie une nouvelle image à chaque fois, ou une page / un JSON qui liste des adresses d'images. Le téléviseur les récupère une fois par jour et garde quelques images par lien.</p>
-<p style="margin-top:12px"><button class="primary" id="save">Enregistrer et récupérer</button></p>
-<div class="grid" id="custom"></div>
+<h2>Météo</h2>
+<div class="seg" id="weather">
+  <button data-on="true">Activée</button>
+  <button data-on="false">Désactivée</button>
+</div>
+<p class="hint" id="weatherPlace"></p>
+<form class="type" id="weatherForm" style="margin-top:12px">
+  <input type="search" id="weatherQuery" placeholder="Ville" aria-label="Ville de la météo"
+    autocomplete="off" autocorrect="off" spellcheck="false" enterkeyhint="search">
+</form>
+<div class="results" id="weatherResults" aria-live="polite"></div>
+<p class="hint">La température s'affiche à côté de l'horloge de l'accueil, et les prévisions sur cinq jours dans le Centre de contrôle (bouton Météo). Prévisions d'Open-Meteo ; tant qu'aucune ville n'est choisie, le téléviseur devine le lieu une fois d'après son adresse IP publique (ip-api.com).</p>
+<h2>Top Shelf (TMDB)</h2>
+<form class="type" id="tmdbForm" autocomplete="off">
+  <input id="tmdbKey" type="password" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="Clé d'API TMDB">
+  <p style="margin-top:12px"><button class="primary" id="tmdbSave" type="submit">Enregistrer</button></p>
+</form>
+<p class="hint" id="tmdbHint"></p>
+<p class="hint">Avec une clé, le Top Shelf de Netflix, Prime Video, Disney+, Apple TV, Max, Paramount+, Canal+ et Crunchyroll affiche les titres populaires de la semaine sur ce service en France (quand l'app ne publie pas elle-même ses recommandations). Clé gratuite : <a href="https://www.themoviedb.org/settings/api" target="_blank" rel="noopener noreferrer">themoviedb.org/settings/api</a> (la « clé d'API » ou le « jeton d'accès en lecture »). La clé est enregistrée sur le téléviseur uniquement.</p>
+</section>
 
-<div class="toast" id="toast"></div>
+<section class="tab" data-tab="apps" id="tab-apps" role="tabpanel" aria-label="Apps" hidden>
+<h2>Apps de l'accueil</h2>
+<div class="apps" id="apps"><div class="empty" style="padding:12px">Chargement…</div></div>
+<p class="hint">Touchez un nom pour le modifier ; videz-le pour reprendre le nom d'origine. Une image en paysage 16:9 convient le mieux : le téléviseur la recadre au centre (20&nbsp;Mo au maximum). Sur le téléviseur, un appui long sur une app propose aussi « Renommer » et « Image d'origine ». Si le téléviseur a plusieurs profils, les noms et les apps masquées sont ceux du profil affiché ; les images valent pour tous les profils.</p>
+<h2 id="hiddenTitle" hidden>Masquées sur l'accueil</h2>
+<div class="apps" id="hiddenApps"></div>
+
+<h2>Installer une app (APK)</h2>
+<p class="note adbNote" hidden>Pour installer des apps, autorisez une fois le débogage local sur le téléviseur : Réglages de l'accueil → Débogage local, puis « Toujours autoriser ».</p>
+<label class="primary" id="pickApk" style="margin-top:12px">Choisir un fichier APK<input type="file" id="apkFile" accept=".apk,application/vnd.android.package-archive" hidden></label>
+<p class="hint" id="apkStatus" aria-live="polite"></p>
+<p class="hint">Le fichier est envoyé au téléviseur et installé tel quel (200&nbsp;Mo au maximum) ; l'app apparaît ensuite d'elle-même sur l'écran d'accueil. N'installez que des apps de sources de confiance : les apps installées ainsi sont sous votre responsabilité.</p>
+</section>
+
+<footer>Le code dans l'adresse de cette page est sa seule protection : toute personne qui la connaît, sur le même réseau, peut commander le téléviseur. Ne la partagez pas. Si un téléphone qui l'a ouverte est perdu, régénérez le code sur le téléviseur (Réglages de l'accueil → Page téléphone → Régénérer le code).</footer>
+
+<nav class="tabbar" role="tablist" aria-label="Sections">
+  <button role="tab" data-tab="telecommande" aria-controls="tab-telecommande"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="2" width="10" height="20" rx="5"/><circle cx="12" cy="8" r="2"/><path d="M10.5 14h3M10.5 17.5h3"/></svg>Télécommande</button>
+  <button role="tab" data-tab="fond" aria-controls="tab-fond"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="3"/><circle cx="9" cy="10" r="1.6"/><path d="M4 17l5-5 4 4 3-3 4 4"/></svg>Fond d'écran</button>
+  <button role="tab" data-tab="reglages" aria-controls="tab-reglages"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h9M19 7h1M4 17h2M12 17h8"/><circle cx="16" cy="7" r="2.5"/><circle cx="9" cy="17" r="2.5"/></svg>Réglages</button>
+  <button role="tab" data-tab="apps" aria-controls="tab-apps"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="7" height="7" rx="2"/><rect x="13" y="4" width="7" height="7" rx="2"/><rect x="4" y="13" width="7" height="7" rx="2"/><path d="M16.5 13.5v6M13.5 16.5h6"/></svg>Apps</button>
+</nav>
+
+<div class="toast" id="toast" role="status"></div>
 
 <script>
 const base = location.pathname.replace(/\/?$/, '/');
 let state = null;
 const $ = id => document.getElementById(id);
+const LOST = 'Téléviseur injoignable, ou code changé : scannez à nouveau le code';
+const NO_ADB = 'Autorisez d\'abord le débogage local sur le téléviseur (Réglages de l\'accueil → Débogage local)';
+const ADB_DOWN = 'Le débogage local ne répond pas : vérifiez que le débogage ADB est toujours activé sur le téléviseur';
 
-function toast(msg) {
+function toast(msg, ms) {
   const t = $('toast'); t.textContent = msg; t.classList.add('on');
-  clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove('on'), 2200);
+  clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove('on'), ms || 2200);
 }
+
+const TABS = { telecommande: 'Télécommande', fond: 'Fond d\'écran', reglages: 'Réglages', apps: 'Apps' };
+function showTab(id, remember) {
+  if (!TABS[id]) id = 'telecommande';
+  document.querySelectorAll('.tab').forEach(s => { s.hidden = s.dataset.tab !== id; });
+  document.querySelectorAll('.tabbar button').forEach(b => b.setAttribute('aria-selected', b.dataset.tab === id));
+  $('title').textContent = TABS[id];
+  if (remember) {
+    try { localStorage.setItem('tab', id); } catch (_) {}
+    history.replaceState(null, '', '#' + id);
+    window.scrollTo(0, 0);
+  }
+}
+document.querySelectorAll('.tabbar button').forEach(b => { b.onclick = () => showTab(b.dataset.tab, true); });
+(() => {
+  let first = location.hash.slice(1);
+  if (!TABS[first]) { try { first = localStorage.getItem('tab') || ''; } catch (_) { first = ''; } }
+  showTab(first, false);
+})();
+
+function showAdb(missing) { document.querySelectorAll('.adbNote').forEach(n => { n.hidden = !missing; }); }
 
 async function post(path, data) {
   const r = await fetch(base + path, { method: 'POST', body: new URLSearchParams(data) });
   if (!r.ok) throw new Error(await r.text());
-  render(await r.json());
+  const s = await r.json();
+  render(s);
+  return s;
 }
+
+/** The remote: no state to redraw, just whether the TV took it. */
+async function send(path, data) {
+  try {
+    const r = await fetch(base + path, { method: 'POST', body: new URLSearchParams(data), keepalive: true });
+    if (!r.ok) { toast(r.status === 404 ? LOST : 'Refusé par le téléviseur'); return null; }
+    const res = await r.json();
+    if (res.ok) showAdb(false);
+    else if (res.reason === 'adb') { showAdb(true); toast(NO_ADB, 4000); }
+    else if (res.reason === 'unreachable') toast(ADB_DOWN, 4000);
+    else if (res.reason === 'empty') toast('Aucun caractère transmissible dans ce texte');
+    return res;
+  } catch (_) { toast(LOST); return null; }
+}
+
+/** Lights the button for a moment: on the press itself, not when the TV answers. */
+function flash(b) {
+  b.classList.add('on');
+  clearTimeout(b.offTimer); b.offTimer = setTimeout(() => b.classList.remove('on'), 140);
+}
+
+function press(b) {
+  flash(b);
+  if (navigator.vibrate) navigator.vibrate(8);
+  send('api/key', { key: b.dataset.key });
+}
+
+// A tap sends one key; keeping a finger on an arrow, the volume or Effacer repeats it.
+document.querySelectorAll('[data-key]').forEach(b => {
+  let wait = 0, every = 0, down = false, repeated = false;
+  const stop = () => { clearTimeout(wait); clearInterval(every); wait = every = 0; };
+  b.addEventListener('pointerdown', () => {
+    stop(); down = true; repeated = false;
+    clearTimeout(b.offTimer); b.classList.add('on');
+    if (b.hasAttribute('data-repeat')) wait = setTimeout(() => {
+      repeated = true; press(b);
+      every = setInterval(() => press(b), 180);
+    }, 450);
+  });
+  ['pointerup', 'pointercancel', 'pointerleave'].forEach(t => b.addEventListener(t, () => {
+    if (!down) return;
+    down = false; stop(); flash(b);
+  }));
+  b.addEventListener('click', e => {
+    e.preventDefault();
+    if (repeated) { repeated = false; return; }
+    press(b);
+  });
+  b.addEventListener('contextmenu', e => e.preventDefault());
+});
+
+$('typeForm').onsubmit = async e => {
+  e.preventDefault();
+  const input = $('typeText'); if (!input.value) return;
+  const res = await send('api/text', { text: input.value });
+  if (res && res.ok) { input.value = ''; toast('Texte envoyé'); }
+};
 
 function photos(el, source, names) {
   el.innerHTML = '';
@@ -144,6 +421,7 @@ function photos(el, source, names) {
 
 function render(s) {
   state = s;
+  showAdb(!s.adb);
   const bg = $('backgrounds'); bg.innerHTML = '';
   for (const o of [...s.sources, ...s.themes]) {
     const b = document.createElement('button'); b.textContent = o.label;
@@ -182,7 +460,17 @@ function render(s) {
   } else {
     hint.textContent = 'Idéalement une courte vidéo qui se termine sur un logo sur fond noir : le logo s\'agrandit et ouvre l\'accueil. Sans vidéo, le logo canvasOS s\'affiche.';
   }
+  // The key itself never comes back from the TV: only whether there is one.
+  $('tmdbKey').placeholder = s.tmdbKey ? 'Clé enregistrée (masquée)' : 'Clé d\'API TMDB';
+  if (s.tmdbKey) {
+    $('tmdbHint').innerHTML = 'Une clé est enregistrée ; collez-en une autre pour la remplacer. <a href="#" id="tmdbDel">Supprimer la clé</a>';
+    $('tmdbDel').onclick = e => { e.preventDefault(); post('api/tmdb', { key: '' }).then(() => toast('Clé TMDB supprimée')); };
+  } else {
+    $('tmdbHint').textContent = 'Aucune clé enregistrée.';
+  }
   if (document.activeElement !== $('links')) $('links').value = s.links;
+  renderWeather(s);
+  renderProfiles(s.profiles);
   photos($('mine'), 'mine', s.mine);
   photos($('custom'), 'custom', s.custom);
 }
@@ -232,6 +520,51 @@ $('iconFile').onchange = async e => {
   e.target.value = '';
 };
 
+// XMLHttpRequest rather than fetch: it reports upload progress, and an APK can take a minute to send.
+$('apkFile').onchange = async e => {
+  const f = e.target.files[0]; e.target.value = ''; if (!f) return;
+  const pick = $('pickApk'), status = $('apkStatus');
+  // Fresh: local debugging may have been authorised on the TV since the page loaded.
+  await refresh();
+  if (state && !state.adb) { status.textContent = NO_ADB + '.'; return; }
+  if (f.size > 200 * 1048576) { status.textContent = 'Fichier trop volumineux : 200 Mo au maximum.'; return; }
+  pick.classList.add('busy'); pick.firstChild.textContent = 'Envoi…';
+  status.textContent = 'Envoi de ' + f.name + '…';
+  const done = r => {
+    pick.classList.remove('busy'); pick.firstChild.textContent = 'Choisir un fichier APK';
+    if (!r) { status.textContent = 'Échec : ' + LOST + '.'; toast('Échec de l\'envoi'); return; }
+    if (r.reason === 'adb') { showAdb(true); status.textContent = NO_ADB + '.'; return; }
+    if (r.reason === 'unreachable') { status.textContent = ADB_DOWN + '.'; return; }
+    status.textContent = (r.ok ? '✓ ' : 'Échec : ') + r.message;
+    toast(r.ok ? r.message : 'Installation refusée : détails sous le bouton', r.ok ? 2600 : 4000);
+  };
+  const fd = new FormData(); fd.append('apk', f, f.name);
+  const xhr = new XMLHttpRequest();
+  xhr.open('POST', base + 'api/apk/upload');
+  xhr.upload.onprogress = ev => {
+    if (ev.lengthComputable) status.textContent = 'Envoi de ' + f.name + ' : ' + Math.floor(ev.loaded * 100 / ev.total) + ' %';
+  };
+  xhr.upload.onload = () => { pick.firstChild.textContent = 'Installation…'; status.textContent = 'Installation sur le téléviseur…'; };
+  xhr.onload = () => { let r = null; try { r = JSON.parse(xhr.responseText); } catch (_) {} done(r); };
+  xhr.onerror = () => done(null);
+  xhr.send(fd);
+};
+
+$('tmdbForm').onsubmit = async e => {
+  e.preventDefault();
+  const input = $('tmdbKey'), key = input.value.trim();
+  if (!key) { toast('Collez d\'abord la clé'); return; }
+  const b = $('tmdbSave'); b.classList.add('busy'); b.textContent = 'Vérification…';
+  try {
+    const s = await post('api/tmdb', { key });
+    input.value = '';
+    toast(s.tmdbOk === true ? 'Clé enregistrée : le Top Shelf suit les tendances' :
+      s.tmdbOk === false ? 'Clé enregistrée, mais TMDB la refuse : vérifiez-la' :
+      'Clé enregistrée ; TMDB est injoignable pour la vérifier', 3500);
+  } catch (_) { toast(LOST, 4000); }
+  b.classList.remove('busy'); b.textContent = 'Enregistrer';
+};
+
 $('save').onclick = async () => {
   await post('api/links', { links: $('links').value });
   toast(state.links ? 'Enregistré : le téléviseur récupère les images' : 'Liens effacés');
@@ -242,7 +575,196 @@ $('save').onclick = async () => {
   }, 4000);
 };
 
-fetch(base + 'api/state').then(r => r.json()).then(render).catch(() => toast('Téléviseur injoignable : scannez à nouveau le code'));
+// ------------------------------------------------------------------ Apps tab
+
+/** Posts to an apps endpoint and redraws the list from the answer. */
+async function postApps(path, data) {
+  const r = await fetch(base + path, { method: 'POST', body: data instanceof FormData ? data : new URLSearchParams(data) });
+  if (!r.ok) throw new Error(r.status);
+  const res = await r.json();
+  renderApps(res.apps);
+  return res;
+}
+
+/** A name saved: only that row changes, so typing in another one is not interrupted. */
+async function saveLabel(a, input) {
+  const label = input.value.trim();
+  if (label === a.label) return;
+  try {
+    const r = await fetch(base + 'api/app/label', { method: 'POST', body: new URLSearchParams({ pkg: a.id, label }) });
+    if (!r.ok) throw new Error(r.status);
+    const res = await r.json();
+    const now = (res.apps || []).find(x => x.id === a.id);
+    if (!res.ok || !now) { toast('Cette app n\'est plus sur le téléviseur'); return; }
+    a.label = now.label;
+    const row = document.querySelector('.app[data-id="' + CSS.escape(a.id) + '"]');
+    if (row) {
+      const field = row.querySelector('input:not([type])');
+      if (document.activeElement !== field) field.value = now.label;
+      row.querySelector('small').textContent = now.label !== now.originalLabel ? 'Nom d\'origine : ' + now.originalLabel : '';
+    }
+    toast(now.label !== now.originalLabel ? 'Renommée : ' + now.label : 'Nom d\'origine : ' + now.label);
+  } catch (_) { toast(LOST); }
+}
+
+function appRow(a) {
+  const row = document.createElement('div');
+  row.className = 'app' + (a.hidden ? ' off' : ''); row.dataset.id = a.id;
+  const img = document.createElement('img'); img.loading = 'lazy'; img.alt = '';
+  img.src = base + 'thumb/app/' + encodeURIComponent(a.id) + '?v=' + a.v;
+  const body = document.createElement('div');
+  const name = document.createElement('input');
+  name.value = a.label; name.placeholder = a.originalLabel; name.maxLength = 60; name.enterKeyHint = 'done';
+  name.autocomplete = 'off'; name.spellcheck = false; name.setAttribute('aria-label', 'Nom de ' + a.originalLabel);
+  name.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); name.blur(); } };
+  name.onchange = () => saveLabel(a, name);
+  const sub = document.createElement('small');
+  sub.textContent = a.label !== a.originalLabel ? 'Nom d\'origine : ' + a.originalLabel : '';
+  body.append(name, sub);
+  const acts = document.createElement('div'); acts.className = 'acts';
+  if (a.tile) {
+    const pick = document.createElement('label'); pick.textContent = 'Changer l\'image';
+    const file = document.createElement('input'); file.type = 'file'; file.accept = 'image/*'; file.hidden = true;
+    file.onchange = async () => {
+      const f = file.files[0]; file.value = ''; if (!f) return;
+      if (f.size > 20 * 1048576) { toast('Image trop volumineuse : 20 Mo au maximum'); return; }
+      pick.classList.add('busy'); pick.firstChild.textContent = 'Envoi…';
+      try {
+        const fd = new FormData(); fd.append('pkg', a.id); fd.append('image', f, f.name);
+        const res = await postApps('api/app/tile', fd);
+        toast(res.ok ? 'Image changée : visible sur l\'accueil' : (res.message || 'Image inutilisable'));
+      } catch (_) { toast(LOST); pick.classList.remove('busy'); pick.firstChild.textContent = 'Changer l\'image'; }
+    };
+    pick.append(file); acts.append(pick);
+  }
+  if (a.custom) {
+    const b = document.createElement('button'); b.type = 'button'; b.textContent = 'Image d\'origine';
+    b.onclick = () => postApps('api/app/tile/delete', { pkg: a.id }).then(() => toast('Image d\'origine rétablie')).catch(() => toast(LOST));
+    acts.append(b);
+  }
+  const vis = document.createElement('button'); vis.type = 'button'; vis.textContent = a.hidden ? 'Afficher' : 'Masquer';
+  vis.onclick = () => postApps('api/app/hidden', { pkg: a.id, on: !a.hidden })
+    .then(() => toast((a.hidden ? 'Affichée : ' : 'Masquée : ') + a.label)).catch(() => toast(LOST));
+  acts.append(vis);
+  row.append(img, body, acts);
+  return row;
+}
+
+function renderApps(list) {
+  if (!Array.isArray(list)) return;
+  const shown = $('apps'), hidden = $('hiddenApps');
+  shown.innerHTML = ''; hidden.innerHTML = '';
+  for (const a of list) (a.hidden ? hidden : shown).append(appRow(a));
+  if (!shown.childElementCount) shown.innerHTML = '<div class="empty" style="padding:12px">Aucune app visible sur l\'accueil</div>';
+  $('hiddenTitle').hidden = !hidden.childElementCount;
+}
+
+async function refreshApps() {
+  // Not while a name is being typed: redrawing would take the field away.
+  const a = document.activeElement;
+  if (a && a.closest && a.closest('.apps')) return;
+  try {
+    const r = await fetch(base + 'api/apps');
+    if (!r.ok) throw new Error(r.status);
+    renderApps((await r.json()).apps);
+  } catch (_) { /* refresh() already says the TV is unreachable */ }
+}
+
+// ------------------------------------------------------------------ Profiles (Réglages tab)
+
+function profileRow(p) {
+  const row = document.createElement('div'); row.className = 'app profile';
+  const img = document.createElement('img'); img.alt = '';
+  img.src = base + 'thumb/avatar/' + encodeURIComponent(p.id) + '?v=' + p.v;
+  const body = document.createElement('div');
+  const name = document.createElement('b'); name.textContent = p.name;
+  const sub = document.createElement('small');
+  sub.textContent = (p.current ? 'Affiché en ce moment · ' : '') + 'identifiant ' + p.id;
+  body.append(name, sub);
+  const acts = document.createElement('div'); acts.className = 'acts';
+  const pick = document.createElement('label'); pick.textContent = 'Changer la photo';
+  const file = document.createElement('input'); file.type = 'file'; file.accept = 'image/*'; file.hidden = true;
+  file.onchange = async () => {
+    const f = file.files[0]; file.value = ''; if (!f) return;
+    if (f.size > 20 * 1048576) { toast('Image trop volumineuse : 20 Mo au maximum'); return; }
+    pick.classList.add('busy'); pick.firstChild.textContent = 'Envoi…';
+    try {
+      const fd = new FormData(); fd.append('id', p.id); fd.append('photo', f, f.name);
+      const r = await fetch(base + 'api/profile/photo', { method: 'POST', body: fd });
+      if (!r.ok) throw new Error(r.status);
+      const s = await r.json(); pick.classList.remove('busy'); render(s);
+      toast(s.ok ? 'Photo de « ' + p.name + ' » changée' : (s.message || 'Image inutilisable'));
+    } catch (_) { toast(LOST); pick.classList.remove('busy'); pick.firstChild.textContent = 'Changer la photo'; }
+  };
+  pick.append(file); acts.append(pick);
+  if (p.photo) {
+    const b = document.createElement('button'); b.type = 'button'; b.textContent = 'Supprimer la photo';
+    b.onclick = () => post('api/profile/photo/delete', { id: p.id }).then(() => toast('Photo supprimée : l\'initiale revient')).catch(() => toast(LOST));
+    acts.append(b);
+  }
+  row.append(img, body, acts);
+  return row;
+}
+
+function renderProfiles(list) {
+  if (!Array.isArray(list)) return;
+  const el = $('profiles');
+  // Not while a photo is being sent: its row says so.
+  if (el.querySelector('.busy')) return;
+  el.innerHTML = '';
+  for (const p of list) el.append(profileRow(p));
+}
+
+function renderWeather(s) {
+  document.querySelectorAll('#weather button').forEach(b => {
+    b.setAttribute('aria-pressed', String(s.weather) === b.dataset.on);
+    b.onclick = () => post('api/weather', { on: b.dataset.on }).then(() => toast('Météo : ' + b.textContent));
+  });
+  $('weatherPlace').textContent = s.weatherPlace
+    ? 'Lieu : ' + s.weatherPlace + (s.weatherAuto ? ' (détecté d\'après l\'adresse IP du téléviseur)' : '') + '. Cherchez une ville pour en changer.'
+    : 'Pas encore de lieu : le téléviseur le devinera d\'après son adresse IP publique, ou cherchez une ville.';
+}
+
+// The TV looks the city up (Open-Meteo's geocoding): the page talks to the TV only.
+let wxTimer = 0, wxSeq = 0;
+async function searchWeather() {
+  const q = $('weatherQuery').value.trim(), list = $('weatherResults'), seq = ++wxSeq;
+  if (q.length < 2) { list.innerHTML = ''; return; }
+  try {
+    const r = await fetch(base + 'api/weather/search?q=' + encodeURIComponent(q));
+    if (!r.ok) throw new Error(r.status);
+    const res = await r.json();
+    if (seq !== wxSeq) return;  // a newer search is on its way
+    list.innerHTML = '';
+    if (!res.ok) { list.innerHTML = '<div class="empty">Recherche impossible : le téléviseur n\'arrive pas à joindre Open-Meteo</div>'; return; }
+    if (!res.results.length) { list.innerHTML = '<div class="empty">Aucune ville trouvée</div>'; return; }
+    for (const p of res.results) {
+      const b = document.createElement('button'); b.type = 'button';
+      const n = document.createElement('span'); n.textContent = p.name;
+      const d = document.createElement('small'); d.textContent = p.detail;
+      b.append(n, d);
+      b.onclick = () => post('api/weather/place', { lat: p.lat, lon: p.lon, name: p.name }).then(() => {
+        list.innerHTML = ''; $('weatherQuery').value = '';
+        toast('Météo : ' + p.name + ', à l\'accueil dans une minute environ');
+      }).catch(() => toast(LOST));
+      list.append(b);
+    }
+  } catch (_) { if (seq === wxSeq) toast(LOST); }
+}
+$('weatherQuery').oninput = () => { clearTimeout(wxTimer); wxTimer = setTimeout(searchWeather, 450); };
+$('weatherForm').onsubmit = e => { e.preventDefault(); clearTimeout(wxTimer); searchWeather(); };
+
+async function refresh() {
+  try {
+    const r = await fetch(base + 'api/state');
+    if (!r.ok) throw new Error(r.status);
+    render(await r.json());
+  } catch (_) { toast(LOST, 4000); }
+}
+refresh();
+refreshApps();
+// The page stays open on the phone for days; coming back to it shows the TV as it is now.
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') { refresh(); refreshApps(); } });
 </script>
 </body>
 </html>

@@ -18,7 +18,8 @@ import java.util.concurrent.Executors
 
 /**
  * Keeps the launcher process alive, cleans memory when the TV goes to
- * standby (the remote's power key only turns the screen off) and on a timer.
+ * standby (the remote's power key only turns the screen off) and on a timer,
+ * and keeps the phone page ([PhoneServer]) listening.
  */
 class KeeperService : Service() {
     private val main = Handler(Looper.getMainLooper())
@@ -47,6 +48,23 @@ class KeeperService : Service() {
         }
     }
 
+    /**
+     * The daily look at GitHub's latest Release ([Updater]): one small request, nothing downloaded.
+     * Skipped while the TV is offline, and tried again soon.
+     */
+    private val updateCheck = object : Runnable {
+        override fun run() {
+            if (!Net.isConnected(this@KeeperService)) {
+                main.postDelayed(this, OFFLINE_RETRY)
+                return
+            }
+            worker.execute {
+                Updater.check(applicationContext)
+                main.post { scheduleUpdateCheck() }
+            }
+        }
+    }
+
     override fun onCreate() {
         super.onCreate()
         prefs = Prefs(this)
@@ -61,10 +79,14 @@ class KeeperService : Service() {
         contentResolver.registerContentObserver(Settings.Global.getUriFor(Settings.Global.ADB_ENABLED), false, adbObserver)
         Guard.ensure(this)
         schedule()
+        scheduleUpdateCheck()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == ACTION_RESCHEDULE) schedule()
+        // Runs right after onCreate too: the phone page listens whenever it is on, and every start
+        // (home screen, boot, revival, its own switch) brings it back in line with the setting.
+        PhoneServer.ensure(this)
         return START_STICKY
     }
 
@@ -72,6 +94,13 @@ class KeeperService : Service() {
         main.removeCallbacks(periodic)
         val h = prefs.cleanIntervalHours
         if (h > 0) main.postDelayed(periodic, h * 3_600_000L)
+    }
+
+    /** A day after the last attempt ([Prefs.updateCheckedAt]), but not within two minutes of starting: boot has better things to do with the network. */
+    private fun scheduleUpdateCheck() {
+        main.removeCallbacks(updateCheck)
+        val due = prefs.updateCheckedAt + UPDATE_EVERY - System.currentTimeMillis()
+        main.postDelayed(updateCheck, due.coerceIn(2 * 60_000L, UPDATE_EVERY))
     }
 
     private fun runClean(spareForeground: Boolean) {
@@ -91,6 +120,7 @@ class KeeperService : Service() {
         unregisterReceiver(screenOff)
         contentResolver.unregisterContentObserver(adbObserver)
         main.removeCallbacks(periodic)
+        main.removeCallbacks(updateCheck)
         worker.shutdown()
         super.onDestroy()
     }
@@ -100,6 +130,8 @@ class KeeperService : Service() {
     companion object {
         private const val CH = "keeper"
         const val ACTION_RESCHEDULE = "reschedule"
+        private const val UPDATE_EVERY = 24 * 3_600_000L
+        private const val OFFLINE_RETRY = 30 * 60_000L
 
         fun start(ctx: Context, action: String? = null) {
             ctx.startForegroundService(Intent(ctx, KeeperService::class.java).setAction(action))

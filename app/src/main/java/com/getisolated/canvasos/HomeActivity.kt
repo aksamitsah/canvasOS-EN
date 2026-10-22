@@ -51,6 +51,7 @@ class HomeActivity : Activity(), TileAdapter.Listener {
         const val SHELF_SECONDS = 8
         private const val EXTRA_GUARD = "com.getisolated.canvasos.GUARD"
         private const val EXTRA_WAKE = "com.getisolated.canvasos.WAKE"
+        private const val REQUEST_BLUETOOTH = 41
 
         /**
          * How the home guard and the boot receiver bring the home screen back: the same task, with
@@ -73,6 +74,11 @@ class HomeActivity : Activity(), TileAdapter.Listener {
     private lateinit var bigClock: LinearLayout
     private lateinit var bigDate: TextView
     private lateinit var bigTime: TextView
+    /** The weather ([Weather]): "14°" and its icon left of the corner clock, a line under the large clock's date. */
+    private lateinit var wxCorner: LinearLayout
+    private lateinit var wxIcon: ImageView
+    private lateinit var wxTemp: TextView
+    private lateinit var wxLine: TextView
     private var intro: Intro? = null
     private lateinit var avatar: IconButton
     private lateinit var netButton: IconButton
@@ -91,6 +97,8 @@ class HomeActivity : Activity(), TileAdapter.Listener {
     private val cols = 5
     private var tileW = 0
     private var tileH = 0
+    /** Space between two tiles of a row. */
+    private var gridGap = 0
     private var rowPitch = 0
     private var firstRowY = 0
     /** Where the focused row sits once the grid is expanded below the dock. */
@@ -134,13 +142,22 @@ class HomeActivity : Activity(), TileAdapter.Listener {
         override fun run() {
             if (!shelfShown || shelfItems.size < 2) return
             val pkg = shelfPkg ?: return
-            val next = (shelfIndex + 1) % shelfItems.size
-            val item = shelfItems[next]
+            val items = shelfItems
+            val from = shelfIndex
             net.execute {
-                val b = Shelf.image(this@HomeActivity, item.image)
+                // The next item whose picture loads: a broken or tiny one is skipped, not shown forever.
+                var next = -1
+                var b: Bitmap? = null
+                for (k in 1..minOf(3, items.size - 1)) {
+                    val j = (from + k) % items.size
+                    b = Shelf.image(this@HomeActivity, items[j].image)
+                    if (b != null) { next = j; break }
+                }
+                val pic = b
+                val at = next
                 main.post {
-                    if (shelfPkg == pkg && shelfShown && !control.isOpen) {
-                        if (b != null) showShelfItem(next, b)
+                    if (shelfPkg == pkg && shelfShown && !control.isOpen && shelfItems === items) {
+                        if (pic != null) showShelfItem(at, pic)
                         main.postDelayed(this, SHELF_SECONDS * 1000L)
                     }
                 }
@@ -151,11 +168,38 @@ class HomeActivity : Activity(), TileAdapter.Listener {
     /** Position being dragged in "edit home screen" mode, or -1. */
     private var moving = -1
 
+    /** The folder open over the grid ([FolderOverlay]), or null. */
+    private var folderView: FolderOverlay? = null
+
     private val pkgReceiver = object : BroadcastReceiver() {
         override fun onReceive(c: Context, i: Intent) {
             val pkg = i.data?.schemeSpecificPart
             repo.invalidate(pkg)
             reload(pkg)
+        }
+    }
+
+    /** A name, tile picture or the hidden list changed on the phone page ([AppRepo.notifyChanged]). */
+    private val tileReceiver = object : BroadcastReceiver() {
+        override fun onReceive(c: Context, i: Intent) {
+            // A profile's photo changed on the phone page: only the avatar is drawn again.
+            if (i.hasExtra(Profiles.EXTRA_AVATAR)) { showAvatar(); return }
+            val pkg = i.getStringExtra(AppRepo.EXTRA_PKG)
+            // The profile was switched over adb (ConfigReceiver): that profile's home, as from the avatar.
+            if (pkg == null && prefs.currentProfile != shownProfile) { showProfile(); return }
+            repo.invalidate(pkg)
+            reload(pkg)
+        }
+    }
+
+    /**
+     * Tile pictures pushed over adb show up on the next return home. Compared with what the grid
+     * shows, not with the last scan: the phone page or settings may have scanned since.
+     */
+    private fun checkCustomTiles() {
+        io.execute {
+            AppRepo.scanCustomTiles(this)
+            main.post { if (adapter.apps.any { e -> (e.folder ?: listOf(e)).any { it.tileStamp != AppRepo.tileStamp(it.pkg) } }) reload() }
         }
     }
 
@@ -187,6 +231,7 @@ class HomeActivity : Activity(), TileAdapter.Listener {
         override fun run() {
             updateClock()
             applyBackground()
+            updateWeather()
             main.postDelayed(this, 60_000 - System.currentTimeMillis() % 60_000 + 50)
         }
     }
@@ -196,10 +241,15 @@ class HomeActivity : Activity(), TileAdapter.Listener {
         Tween.readScale(this)
         prefs = Prefs(this)
         repo = AppRepo(this)
+        shownProfile = prefs.currentProfile
         buildViews()
+        // A fresh install opens on the first-launch assistant, which also asks for local debugging;
+        // no intro and no authorization sheet behind it.
+        val setup = !prefs.setupDone
+        if (setup) startActivity(Intent(this, OnboardingActivity::class.java))
         control = ControlCenter(this, root)
         // Covers the screen before its first frame, so the home screen is never seen ahead of it.
-        if (Intro.dueAfterBoot(this)) playIntro()
+        if (!setup && Intro.dueAfterBoot(this)) playIntro()
         reload()
         registerReceiver(pkgReceiver, IntentFilter().apply {
             addAction(Intent.ACTION_PACKAGE_ADDED)
@@ -208,8 +258,11 @@ class HomeActivity : Activity(), TileAdapter.Listener {
             addDataScheme("package")
         })
         registerReceiver(screenOn, IntentFilter(Intent.ACTION_SCREEN_ON))
+        // Only this app sends it (setPackage); not exported where Android lets a receiver say so.
+        if (android.os.Build.VERSION.SDK_INT >= 33) registerReceiver(tileReceiver, IntentFilter(AppRepo.ACTION_TILE_CHANGED), RECEIVER_NOT_EXPORTED)
+        else registerReceiver(tileReceiver, IntentFilter(AppRepo.ACTION_TILE_CHANGED))
         KeeperService.start(this)
-        if (!prefs.adbAuthorized) main.postDelayed({ askAdbAuthorization() }, if (intro != null) 8000L else 1500L)
+        if (!setup && !prefs.adbAuthorized) main.postDelayed({ askAdbAuthorization() }, if (intro != null) 8000L else 1500L)
     }
 
     // ------------------------------------------------------------------- intro
@@ -236,6 +289,7 @@ class HomeActivity : Activity(), TileAdapter.Listener {
         if (!preview) prefs.introBoot = Intro.bootStamp(this)
         sheets.toList().forEach { it.dismiss() }
         control.close()
+        closeFolder(animate = false)
         intro = Intro(this, root, scene, prefs.introSound) {
             intro = null
             if (sheets.isEmpty() && !control.isOpen) focusAt(focusedPos)
@@ -248,6 +302,7 @@ class HomeActivity : Activity(), TileAdapter.Listener {
         control.destroy()
         intro?.finish()
         runCatching { unregisterReceiver(screenOn) }
+        runCatching { unregisterReceiver(tileReceiver) }
         io.shutdown()
         net.shutdown()
         super.onDestroy()
@@ -271,6 +326,7 @@ class HomeActivity : Activity(), TileAdapter.Listener {
         // Proportions measured from a 1920×1080 tvOS 26 screenshot.
         val side = (sw * 0.0583f).toInt()          // 112 px
         val gap = (sw * 0.0292f).toInt()           // 56 px
+        gridGap = gap
         tileW = (sw - side * 2 - gap * (cols - 1)) / cols
         tileH = tileW * 9 / 16
         rowPitch = (sh * 0.2463f).toInt()          // 266 px
@@ -326,15 +382,14 @@ class HomeActivity : Activity(), TileAdapter.Listener {
         netButton.contentDescription = "Réglages réseau"
         ccButton.contentDescription = "Centre de contrôle"
         icons.addView(clockText, LinearLayout.LayoutParams(-2, -2).apply { marginEnd = dp(10) })
+        buildWeather(icons)
         icons.addView(netButton, LinearLayout.LayoutParams(dp(28), dp(28)).apply { marginEnd = dp(6) })
         icons.addView(ccButton, LinearLayout.LayoutParams(dp(28), dp(28)))
-        avatar = IconButton(this, R.drawable.profile_avatar, portrait = true) {
-            startActivity(Intent(this, SettingsActivity::class.java))
-        }.apply {
+        avatar = IconButton(this, 0, portrait = true) { profileSheet() }.apply {
             id = View.generateViewId()
-            contentDescription = "Réglages de l'accueil"
-            visibility = if (prefs.showAvatar) View.VISIBLE else View.GONE
+            contentDescription = "Profils"
         }
+        showAvatar()
         icons.addView(avatar, LinearLayout.LayoutParams(dp(28), dp(28)).apply { marginStart = dp(6) })
         header.addView(icons, FrameLayout.LayoutParams(-2, -2, Gravity.END or Gravity.TOP).apply {
             rightMargin = dp(32); topMargin = dp(26)
@@ -474,7 +529,11 @@ class HomeActivity : Activity(), TileAdapter.Listener {
             ellipsize = android.text.TextUtils.TruncateAt.END
             setLineSpacing(0f, 1.08f)
         }.also(shadow)
-        shelfMeta = text(17f, Color.argb(210, 255, 255, 255), weight = 500).apply { maxLines = 1 }.also(shadow)
+        shelfMeta = text(17f, Color.argb(210, 255, 255, 255), weight = 500).apply {
+            maxLines = 1
+            // Apps' own descriptions (Watch Next, preview channels) run long.
+            ellipsize = android.text.TextUtils.TruncateAt.END
+        }.also(shadow)
         shelfInfo = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             addView(shelfSource)
@@ -495,18 +554,28 @@ class HomeActivity : Activity(), TileAdapter.Listener {
     private fun showShelf(pkg: String) {
         shelfPkg = pkg
         net.execute {
-            val items = Shelf.items(pkg)
-            val first = items.firstOrNull()?.let { Shelf.image(this, it.image) }
+            // Watch Next, the app's channel, TMDB or the web, whichever has something (Shelf.load).
+            val content = Shelf.load(this, pkg)
+            val items = content?.items.orEmpty()
+            // Start on the first item whose picture loads; art that is missing or too small is skipped.
+            var start = -1
+            var first: Bitmap? = null
+            for (k in 0 until minOf(3, items.size)) {
+                first = Shelf.image(this, items[k].image)
+                if (first != null) { start = k; break }
+            }
+            val pic = first
+            val at = start
             main.post {
-                if (shelfPkg != pkg || first == null || control.isOpen) return@post
+                if (shelfPkg != pkg || content == null || pic == null || control.isOpen) return@post
                 shelfItems = items
-                shelfSource.text = Shelf.sourceName(pkg)
+                shelfSource.text = content.source
                 shelfDots.removeAllViews()
                 repeat(items.size) {
                     shelfDots.addView(View(this).apply { background = rounded(Color.WHITE, dp(4).toFloat()) },
                         LinearLayout.LayoutParams(dp(7), dp(7)).apply { marginStart = dp(7) })
                 }
-                showShelfItem(0, first)
+                showShelfItem(at, pic)
                 setShelfVisible(true)
                 main.removeCallbacks(shelfAdvance)
                 main.postDelayed(shelfAdvance, SHELF_SECONDS * 1000L)
@@ -603,6 +672,48 @@ class HomeActivity : Activity(), TileAdapter.Listener {
         updateClock()
     }
 
+    /** The weather views, next to the clocks they go with; hidden until there is a forecast to show. */
+    private fun buildWeather(icons: LinearLayout) {
+        wxIcon = ImageView(this)
+        wxTemp = text(14f, weight = 600).apply {
+            setShadowLayer(dp(5).toFloat(), 0f, dp(1).toFloat(), Color.argb(140, 0, 0, 0))
+        }
+        wxCorner = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            visibility = View.GONE
+            addView(wxIcon, LinearLayout.LayoutParams(dp(16), dp(16)).apply { marginEnd = dp(4) })
+            addView(wxTemp)
+        }
+        icons.addView(wxCorner, icons.indexOfChild(clockText), LinearLayout.LayoutParams(-2, -2).apply { marginEnd = dp(12) })
+        wxLine = text(18f, Color.argb(230, 255, 255, 255), weight = 500).apply {
+            setShadowLayer(dp(8).toFloat(), 0f, 0f, Color.argb(60, 0, 0, 0))
+            visibility = View.GONE
+        }
+        bigClock.addView(wxLine, bigClock.indexOfChild(bigDate) + 1, LinearLayout.LayoutParams(-2, -2).apply {
+            marginStart = dp(4); topMargin = dp(6)
+        })
+    }
+
+    /**
+     * Shows the kept forecast with the clock style in use, and has a new one fetched when it is due
+     * ([Weather.refreshIfDue]). From [ticker]: once a minute while the home screen is in front.
+     */
+    private fun updateWeather() {
+        // Offline, the weather goes rather than showing a forecast that can no longer be refreshed.
+        val f = if (prefs.weather && Net.isConnected(this)) Weather.cached(this) else null
+        val style = prefs.clockStyle
+        wxCorner.visibility = if (f != null && style == Prefs.CLOCK_CORNER) View.VISIBLE else View.GONE
+        wxLine.visibility = if (f != null && style == Prefs.CLOCK_LARGE) View.VISIBLE else View.GONE
+        if (f != null) {
+            val icon = Weather.icon(f)
+            if (wxIcon.tag != icon) { wxIcon.setImageResource(icon); wxIcon.tag = icon }
+            Weather.degrees(f.temp).let { if (wxTemp.text.toString() != it) wxTemp.text = it }
+            Weather.now(f).let { if (wxLine.text.toString() != it) wxLine.text = it }
+        }
+        Weather.refreshIfDue(this) { main.post { if (resumed && !isDestroyed) updateWeather() } }
+    }
+
     /** The home scene alone, without the control center or any dialog; the glass controls sample it. */
     val sceneView: View get() = scene
 
@@ -614,27 +725,36 @@ class HomeActivity : Activity(), TileAdapter.Listener {
         netButton.alpha = if (caps == null) 0.4f else 1f
     }
 
-    /** Pins a TV input to the grid, or takes it off. */
+    /** Pins a TV input to the grid, or takes it off (out of its folder too, so it does not come back there). */
     fun pinInput(i: Input, on: Boolean) {
         val enc = InputTile.encode(i)
         prefs.pinnedInputs = prefs.pinnedInputs.filter { InputTile.decode(it)?.uri != i.uri }.toSet() + if (on) setOf(enc) else emptySet()
         if (on) prefs.hidden = prefs.hidden - InputTile.key(i)
+        else prefs.editFolders { Folders.remove(it, InputTile.key(i)) }
         reload()
     }
 
     fun isPinned(i: Input) = prefs.pinnedInputs.any { InputTile.decode(it)?.uri == i.uri }
 
-    private fun reload(changed: String? = null) {
+    /** Shows the grid again from the saved state; [first] puts focus on its first entry (another profile's grid). */
+    private fun reload(changed: String? = null, first: Boolean = false) {
         io.execute {
             val list = repo.orderedVisible()
             main.post {
                 val focusedPkg = adapter.apps.getOrNull(focusedPos)?.pkg
                 adapter.submit(list, changed)
-                val idx = list.indexOfFirst { it.pkg == focusedPkg }.coerceAtLeast(0)
+                val idx = if (first) 0 else list.indexOfFirst { it.pkg == focusedPkg }.coerceAtLeast(0)
+                // An open folder follows the grid; one that was deleted or emptied closes.
+                folderView?.let { fv ->
+                    val f = list.firstOrNull { it.pkg == fv.key }
+                    if (f == null || f.folder.isNullOrEmpty()) closeFolder()
+                    else fv.update(f, changed, focus = sheets.isEmpty() && !control.isOpen)
+                }
                 grid.post {
                     // On first show the header buttons grab default focus; the grid should have it.
-                    val headerOk = header.hasFocus() && !firstFocus
-                    if (!grid.hasFocus() && !headerOk && sheets.isEmpty() && !control.isOpen) focusAt(idx)
+                    val headerOk = header.hasFocus() && !firstFocus && !first
+                    // A new profile's grid: focus goes to its first entry even if the old grid had it (stable ids would keep it on the same app).
+                    if ((first || !grid.hasFocus()) && !headerOk && sheets.isEmpty() && !control.isOpen && folderView == null) focusAt(idx)
                     firstFocus = false
                     // A new list can leave the grid between rows; put the focused row back where it belongs.
                     grid.post { grid.focusedChild?.let { grid.layoutManager?.requestChildRectangleOnScreen(grid, it, Rect(), false, true) } }
@@ -665,9 +785,11 @@ class HomeActivity : Activity(), TileAdapter.Listener {
 
     override fun onTileFocused(pos: Int, cell: TileCell) {
         focusedPos = pos
-        val pkg = adapter.apps.getOrNull(pos)?.pkg
+        val app = adapter.apps.getOrNull(pos)
+        val pkg = app?.pkg
         main.removeCallbacks(shelfShow)
-        if (pos < cols && pkg != null && Shelf.has(pkg) && moving < 0) {
+        // Shelf.has is cheap; what there is to show is found off the main thread (showShelf). Inputs and folders have none.
+        if (pos < cols && pkg != null && app.input == null && app.folder == null && pkg != packageName && moving < 0 && Shelf.has(this, pkg)) {
             if (pkg != shelfPkg || !shelfShown) {
                 if (shelfShown) hideShelf()
                 pendingShelf = pkg
@@ -680,24 +802,38 @@ class HomeActivity : Activity(), TileAdapter.Listener {
     override fun onTileClicked(pos: Int, cell: TileCell) {
         if (moving >= 0) { endMove(); return }
         val app = adapter.apps.getOrNull(pos) ?: return
+        if (app.folder != null) { openFolder(pos); return }
+        launch(app, cell, app.pkg)
+    }
+
+    /**
+     * Opens [app] from its tile, or switches to it for a TV input. [recent] is what "Récents" brings
+     * to the front once it has opened: the app itself, or the folder it was opened from.
+     */
+    private fun launch(app: AppEntry, cell: TileCell, recent: String) {
         app.input?.let { i -> io.execute { tv.setInput(i) }; return }
         // The stock launcher (Xiaomi's PatchWall) can only be opened through the system Home action.
         if (HomeGuardService.isStockHome(app.pkg) && HomeGuardService.openStockLauncher()) {
-            rememberOpened(app.pkg)
+            rememberOpened(recent)
             return
         }
         val intent = repo.launchIntent(app) ?: return
         val opts = ActivityOptions.makeScaleUpAnimation(cell.card, 0, 0, cell.card.width, cell.card.height)
         try {
             startActivity(intent, opts.toBundle())
-            rememberOpened(app.pkg)
+            rememberOpened(recent)
         } catch (e: Exception) {
             Toast.makeText(this, "Impossible d'ouvrir ${app.label}", Toast.LENGTH_SHORT).show()
         }
     }
 
-    /** Only successful app launches reorder the shelf; editing or failed launches never do. */
+    /**
+     * Only successful app launches reorder the shelf; editing or failed launches never do, and
+     * neither does a launch while the dock is "Fixe" (Prefs.dockRecents off): the arrangement the
+     * user made with "Modifier l'accueil" stays as it is.
+     */
     private fun rememberOpened(pkg: String) {
+        if (!prefs.dockRecents) return
         val visible = adapter.apps.map { it.pkg }
         prefs.order = RecentOrder.promote(pkg, visible, prefs.order)
         reload()
@@ -706,30 +842,179 @@ class HomeActivity : Activity(), TileAdapter.Listener {
     override fun onTileLongPressed(pos: Int, cell: TileCell) {
         if (moving >= 0) return
         val app = adapter.apps.getOrNull(pos) ?: return
+        if (app.folder != null) { folderMenu(app, pos); return }
         app.input?.let { i ->
-            showSheet(Sheet(root).title(app.label).message(null)
+            val s = Sheet(root).title(app.label).message(null)
                 .button("Modifier l'accueil") { startMove(pos) }
-                .button("Retirer de l'accueil") { pinInput(i, false) }
+                .button("Renommer") { rename(app, pos) }
+            // An input opens from a folder like from the grid.
+            folderButtons(s, app, pos)
+            showSheet(s.button("Retirer de l'accueil") { pinInput(i, false) }
                 .button("Annuler") {}, restoreFocusTo = pos)
             return
         }
         val s = Sheet(root).title(app.label).message(null)
             .button("Modifier l'accueil") { startMove(pos) }
-            .button("Masquer") {
-                prefs.hidden = prefs.hidden + app.pkg
-                reload()
+            .button("Renommer") { rename(app, pos) }
+        folderButtons(s, app, pos)
+        // A restricted profile neither hides apps nor reaches what is shared with every profile (pictures, system screens).
+        val kid = prefs.restricted
+        // A picture of the user's, from the phone page or pushed over adb (AppRepo.customTileFile).
+        if (app.tileStamp != 0L && !kid) s.button("Image d'origine") {
+            repo.invalidate(app.pkg)
+            io.execute {
+                AppRepo.clearCustomTile(this, app.pkg)
+                main.post { reload(app.pkg) }
             }
+        }
+        if (!kid) s.button("Masquer") {
+            prefs.hidden = prefs.hidden + app.pkg
+            reload()
+        }
         if (repo.isOwn(app.pkg)) {
             showSheet(s.button("Annuler") {}, restoreFocusTo = pos)
             return
         }
-        s.button("Infos sur l'app") {
-                startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:${app.pkg}"))
-                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-            }
-        if (!repo.isEssential(app.pkg)) s.button("Supprimer l'app") { confirmDelete(app, pos) }
+        if (!kid) s.button("Infos sur l'app") { appInfo(app) }
+        if (!repo.isEssential(app.pkg)) s.button("Supprimer l'app") { unlocked("Supprimer l'app") { confirmDelete(app, pos) } }
         s.button("Annuler") {}
         showSheet(s, restoreFocusTo = pos)
+    }
+
+    private fun appInfo(app: AppEntry) {
+        startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:${app.pkg}"))
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+    }
+
+    // ----------------------------------------------------------------- folders
+
+    /** "Nouveau dossier…" and, once there are folders, "Ajouter au dossier…", for the entry at [pos] of the grid. */
+    private fun folderButtons(s: Sheet, app: AppEntry, pos: Int) {
+        s.button("Nouveau dossier…") { newFolder(app, pos) }
+        if (adapter.apps.any { it.folder != null }) s.button("Ajouter au dossier…") { pickFolder(app, pos) }
+    }
+
+    /** A folder named on the TV's keyboard ("Dossier" when left empty), in [app]'s place on the grid, with [app] in it. */
+    private fun newFolder(app: AppEntry, pos: Int) {
+        showSheet(Sheet(root).title("Nouveau dossier").message("Le dossier prend la place de « ${app.label} » sur l'accueil, avec l'app dedans.")
+            .input("", Folders.DEFAULT_NAME) { name ->
+                val id = Folders.newId(prefs.folderList().map { it.id })
+                prefs.editFolders { Folders.create(it, id, name, listOf(app.pkg)) }
+                prefs.order = Folders.orderReplacing(adapter.apps.map { it.pkg }, prefs.order, app.pkg, listOf(Folders.key(id)))
+                reload()
+            }, restoreFocusTo = pos)
+    }
+
+    private fun pickFolder(app: AppEntry, pos: Int) {
+        val s = Sheet(root).title("Ajouter au dossier").message("« ${app.label} » quitte l'accueil pour le dossier choisi.")
+        for (f in adapter.apps.filter { it.folder != null }) s.button(f.label) {
+            Folders.idOf(f.pkg)?.let { id -> prefs.editFolders { Folders.add(it, id, app.pkg) } }
+            reload()
+        }
+        showSheet(s.button("Annuler") {}, restoreFocusTo = pos)
+    }
+
+    private fun folderMenu(f: AppEntry, pos: Int) {
+        showSheet(Sheet(root).title(f.label).message(null)
+            .button("Ouvrir") { openFolder(pos) }
+            .button("Modifier l'accueil") { startMove(pos) }
+            .button("Renommer le dossier") { renameFolder(f, pos) }
+            .button("Ajouter des apps…") { pickApps(f) }
+            .button("Supprimer le dossier") { confirmDeleteFolder(f, pos) }
+            .button("Annuler") {}, restoreFocusTo = pos)
+    }
+
+    private fun renameFolder(f: AppEntry, pos: Int) {
+        showSheet(Sheet(root).title("Renommer le dossier").message(null)
+            .input(f.label, Folders.DEFAULT_NAME) { name ->
+                Folders.idOf(f.pkg)?.let { id -> prefs.editFolders { Folders.rename(it, id, name) } }
+                reload()
+            }, restoreFocusTo = pos)
+    }
+
+    /**
+     * Ticks apps into and out of folder [f]: its own apps first (ticked), then the grid's. Each press
+     * shows at once behind the sheet; an app ticked off goes back to the end of the grid.
+     */
+    private fun pickApps(f: AppEntry) {
+        val id = Folders.idOf(f.pkg) ?: return
+        val s = Sheet(root).title("Ajouter des apps").message("Les apps cochées sont dans « ${f.label} » ; les autres restent sur l'accueil.")
+        for (a in f.folder.orEmpty()) s.toggle(a.label, true) { on -> setInFolder(id, a.pkg, on) }
+        for (a in adapter.apps.filter { it.folder == null }) s.toggle(a.label, false) { on -> setInFolder(id, a.pkg, on) }
+        // Apps that leave the grid can shift the folder: focus finds it by key.
+        showSheet(s.button("OK") {}, restoreKey = f.pkg)
+    }
+
+    private fun setInFolder(id: String, pkg: String, on: Boolean) {
+        if (!on) return removeFromFolder(pkg)
+        prefs.editFolders { Folders.add(it, id, pkg) }
+        reload()
+    }
+
+    /** Takes [pkg] out of its folder, back onto the grid at its end. */
+    private fun removeFromFolder(pkg: String) {
+        prefs.editFolders { Folders.remove(it, pkg) }
+        prefs.order = Folders.orderAtEnd(adapter.apps.map { it.pkg }, prefs.order, pkg)
+        reload()
+    }
+
+    private fun confirmDeleteFolder(f: AppEntry, pos: Int) {
+        showSheet(Sheet(root).title("Supprimer « ${f.label} » ?").message("Le dossier disparaît ; ses apps reviennent sur l'accueil à sa place.")
+            .button("Supprimer") {
+                val id = Folders.idOf(f.pkg) ?: return@button
+                // Every app it held, hidden ones included, so they keep a place in the order.
+                val apps = prefs.folderList().firstOrNull { it.id == id }?.apps.orEmpty()
+                prefs.editFolders { Folders.delete(it, id) }
+                prefs.order = Folders.orderReplacing(adapter.apps.map { it.pkg }, prefs.order, f.pkg, apps)
+                reload()
+            }
+            .button("Annuler") {}, restoreFocusTo = pos)
+    }
+
+    /** Opens the folder at [pos] over the grid; an empty one goes straight to picking its apps. */
+    private fun openFolder(pos: Int) {
+        val f = adapter.apps.getOrNull(pos) ?: return
+        if (f.folder.isNullOrEmpty()) { pickApps(f); return }
+        folderView?.close(animate = false)
+        hideShelf()
+        setGridBlocked(true)
+        folderView = FolderOverlay(root, repo, f, tileW, tileH, gridGap, rowPitch, cols, adapter.tvosFocus, folderActions)
+            .also { it.open() }
+    }
+
+    /** Closes the open folder and focuses its tile again, wherever the grid now has it. */
+    private fun closeFolder(animate: Boolean = true) {
+        val fv = folderView ?: return
+        folderView = null
+        fv.close(animate)
+        adapter.apps.indexOfFirst { it.pkg == fv.key }.takeIf { it >= 0 }?.let { focusedPos = it }
+        // A sheet still closing (one opened from the folder) restores the grid itself when it is gone.
+        if (sheets.isEmpty() && !control.isOpen) restoreGridFocus()
+    }
+
+    private val folderActions = object : FolderOverlay.Actions {
+        override fun onLaunch(app: AppEntry, cell: TileCell) {
+            // "Récents" brings the folder forward, not the app inside it.
+            folderView?.let { launch(app, cell, it.key) }
+        }
+
+        override fun onMenu(app: AppEntry, pos: Int) {
+            val s = Sheet(root).title(app.label).message(null)
+                .button("Retirer du dossier") { removeFromFolder(app.pkg) }
+                .button("Renommer") { rename(app, null) }
+            if (!repo.isOwn(app.pkg) && !prefs.restricted) s.button("Infos sur l'app") { appInfo(app) }
+            showSheet(s.button("Annuler") {})
+        }
+    }
+
+    /** Names the tile; an empty name gives the app back its own. The TV's keyboard does the typing. */
+    private fun rename(app: AppEntry, pos: Int?) {
+        showSheet(Sheet(root).title("Renommer « ${app.label} »").message("Laissez le champ vide pour reprendre le nom d'origine, « ${app.originalLabel} ».")
+            .input(app.label, app.originalLabel) { text ->
+                val name = text.trim()
+                prefs.setLabel(app.pkg, name.takeIf { it.isNotEmpty() && it != app.originalLabel })
+                reload(app.pkg)
+            }, restoreFocusTo = pos)
     }
 
     /**
@@ -831,17 +1116,113 @@ class HomeActivity : Activity(), TileAdapter.Listener {
         grid.post { focusAt(pos) }
     }
 
+    // ---------------------------------------------------------------- profiles
+
+    private val pins by lazy { PinSheets(root, prefs) { showSheet(it) } }
+
+    /** [action] at once, or after the PIN when the profile on screen is a restricted one. */
+    private fun unlocked(title: String, action: () -> Unit) {
+        if (prefs.restricted) pins.ask(title, ok = action) else action()
+    }
+
+    /**
+     * The avatar shows the profile on screen: its photo, or its initial on its colour ([ProfileAvatar]).
+     * It stays up whenever there is more than one profile, being the only way to switch from here,
+     * even with "Photo de profil" off.
+     */
+    private fun showAvatar() {
+        val p = prefs.current()
+        avatar.setIcon(ProfileAvatar.drawable(this, p, IconButton.PORTRAIT_DP))
+        avatar.contentDescription = "Profil : ${Profiles.displayName(p)}"
+        avatar.visibility = if (prefs.showAvatar || prefs.profileList().size > 1) View.VISIBLE else View.GONE
+    }
+
+    /** The avatar's sheet: one button per profile (the current one ticked), then managing them in the settings. */
+    private fun profileSheet() {
+        val list = prefs.profileList()
+        val current = prefs.currentProfile
+        val unprotected = !prefs.hasPin && list.any { it.restricted }
+        val msg = when {
+            unprotected -> "Un profil enfant demande un code PIN pour changer de profil, ouvrir les réglages ou supprimer une app. Aucun code n'est encore défini."
+            list.size == 1 -> "Chaque profil a son propre accueil : ordre des apps, apps masquées, dossiers et fond d'écran. Créez-en dans « Gérer les profils… »."
+            else -> null
+        }
+        val s = Sheet(root).title("Profils").message(msg)
+        for (p in list) {
+            val name = Profiles.displayName(p)
+            s.button(if (p.id == current) "✓  $name" else name, ProfileAvatar.drawable(this, p, PillButton.PICTURE_DP)) { if (p.id != current) switchTo(p) }
+        }
+        if (unprotected) s.button("Définir un code PIN…") { pins.choose("Code PIN") }
+        // The settings ask for the PIN themselves in a restricted profile, however they are opened.
+        s.button("Gérer les profils…") { openSettings(SettingsActivity.PAGE_PROFILES) }
+        showSheet(s.button("Annuler") {})
+    }
+
+    /**
+     * Switches to [p]: leaving a restricted profile takes the PIN, and a restricted profile cannot be
+     * entered before there is one (it could be left freely, and the parent may not know).
+     */
+    private fun switchTo(p: Profile) {
+        when {
+            p.restricted && !prefs.hasPin -> pins.choose("Code PIN",
+                "« ${Profiles.displayName(p)} » est un profil enfant : choisissez d'abord le code PIN qui permettra d'en sortir (de ${Profiles.PIN_MIN} à ${Profiles.PIN_MAX} chiffres).") {
+                applyProfile(p.id)
+            }
+            prefs.restricted -> pins.ask("Changer de profil") { applyProfile(p.id) }
+            else -> applyProfile(p.id)
+        }
+    }
+
+    /** Switches to profile [id], PIN already taken care of. */
+    private fun applyProfile(id: String) {
+        // A move in progress belongs to the grid being left.
+        if (moving >= 0) endMove()
+        if (prefs.switchProfile(id)) showProfile()
+    }
+
+    /** The profile whose home is on screen, to notice a switch made elsewhere (over adb). */
+    private var shownProfile = Profiles.MAIN
+
+    /** Shows the current profile's home: its grid from the first entry, its background and its avatar. */
+    private fun showProfile() {
+        shownProfile = prefs.currentProfile
+        // A move left half done (a switch over adb) is dropped, not saved into the new profile's order.
+        if (moving >= 0) { moving = -1; adapter.movingPkg = null }
+        control.close()
+        closeFolder(animate = false)
+        hideShelf()
+        repo.invalidate()
+        focusedPos = 0
+        showAvatar()
+        applyBackground()
+        reload(first = true)
+    }
+
+    /** Opens the settings, on one of its pages ([SettingsActivity.EXTRA_PAGE]) or the main one. */
+    fun openSettings(page: String? = null) {
+        startActivity(Intent(this, SettingsActivity::class.java).apply { page?.let { putExtra(SettingsActivity.EXTRA_PAGE, it) } })
+    }
+
     // ------------------------------------------------------------ overlays / keys
 
-    fun showSheet(s: Sheet, restoreFocusTo: Int? = null): Sheet {
+    /** Shows [s]; once it closes, focus goes back to the grid entry keyed [restoreKey], else at [restoreFocusTo]. */
+    fun showSheet(s: Sheet, restoreFocusTo: Int? = null, restoreKey: String? = null): Sheet {
         sheets += s
         setGridBlocked(true)
+        folderView?.block()
         s.onDismiss {
             sheets -= s
-            if (sheets.isEmpty() && control.isOpen) control.refocus()
-            else if (sheets.isEmpty()) {
-                setGridBlocked(false)
-                focusAt(restoreFocusTo ?: focusedPos)
+            val fv = folderView
+            when {
+                sheets.isNotEmpty() -> {}
+                control.isOpen -> control.refocus()
+                // A sheet opened from an open folder gives focus back to it; the grid stays blocked.
+                fv != null -> fv.refocus()
+                else -> {
+                    setGridBlocked(false)
+                    val at = restoreKey?.let { k -> adapter.apps.indexOfFirst { it.pkg == k }.takeIf { it >= 0 } }
+                    focusAt(at ?: restoreFocusTo ?: focusedPos)
+                }
             }
         }
         return s.show()
@@ -855,6 +1236,7 @@ class HomeActivity : Activity(), TileAdapter.Listener {
     }
 
     fun restoreGridFocus() {
+        folderView?.let { it.refocus(); return }
         setGridBlocked(false)
         focusAt(focusedPos)
     }
@@ -867,6 +1249,8 @@ class HomeActivity : Activity(), TileAdapter.Listener {
         if (event.action == KeyEvent.ACTION_UP && (code == KeyEvent.KEYCODE_BACK || code == KeyEvent.KEYCODE_MENU)) {
             when {
                 sheets.isNotEmpty() -> sheets.last().dismiss()
+                // Before the Control Center: Back from an open folder returns to the grid.
+                folderView != null -> closeFolder()
                 control.isOpen -> control.close()
                 moving >= 0 -> endMove()
                 header.hasFocus() -> focusAt(focusedPos)
@@ -880,14 +1264,18 @@ class HomeActivity : Activity(), TileAdapter.Listener {
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
+        // Home (or the guard) closed the assistant on its way here (singleTask clears what is above): it comes back until it is finished.
+        if (!prefs.setupDone) { startActivity(Intent(this, OnboardingActivity::class.java)); return }
         if (intent.getBooleanExtra(Intro.EXTRA_PREVIEW, false)) { playIntro(preview = true); return }
         if (intent.getBooleanExtra(EXTRA_WAKE, false)) return  // onResume plays the intro
+        checkCustomTiles()
         // Home pressed while already home: close everything and go back to the top.
         sheets.toList().forEach { it.dismiss() }
         control.close()
         if (moving >= 0) endMove()
-        // The guard brought the screen back (an app exited to the stock launcher): stay where we were.
+        // The guard brought the screen back (an app exited to the stock launcher): stay where we were, in a folder too.
         if (intent.getBooleanExtra(EXTRA_GUARD, false)) return
+        closeFolder(animate = false)
         focusedPos = 0
         // Scroll by our own offset: smoothScrollToPosition aligns to the padding and leaves the grid off its resting place.
         grid.smoothScrollBy(0, -scrollY, Motion.ease, 360)
@@ -902,21 +1290,27 @@ class HomeActivity : Activity(), TileAdapter.Listener {
 
     override fun onResume() {
         super.onResume()
-        avatar.visibility = if (prefs.showAvatar) View.VISIBLE else View.GONE
+        // Renamed or recoloured in the settings meanwhile, or switched over adb.
+        if (prefs.currentProfile != shownProfile) showProfile() else showAvatar()
         adapter.tvosFocus = prefs.focusTvos(this)
         applyClockStyle()
         control.applyStyle()
         if (wakeIntro) { wakeIntro = false; playIntro(wake = true) }
+        // What was just watched changes the apps' Watch Next rows.
+        Shelf.onHomeResumed()
         resumed = true
         prefs.homeInFront = true
         HomeGuardService.onHomeResumed()
         restartIdle()
         applyBackground()
         updateNetworkIcon()
+        checkCustomTiles()
         main.removeCallbacks(ticker)
         ticker.run()
         control.refresh()
         if (shelfShown && !control.isOpen) resumeShelfRotation()
+        // Notification banners (Prefs.banners) show in here while the home screen is in front.
+        Banners.attach(root)
     }
 
     override fun onPause() {
@@ -927,6 +1321,7 @@ class HomeActivity : Activity(), TileAdapter.Listener {
         main.removeCallbacks(idleFrame)
         main.removeCallbacks(ticker)
         main.removeCallbacks(shelfAdvance)
+        Banners.detach(root)
         super.onPause()
     }
 
@@ -946,6 +1341,19 @@ class HomeActivity : Activity(), TileAdapter.Listener {
                 Toast.makeText(this, if (ok) "C'est fait : l'extinction et la libération de la mémoire sont disponibles" else "Autorisation refusée ; réessayez dans Réglages de l'accueil", Toast.LENGTH_LONG).show()
                 control.refresh()
             }
+        }
+    }
+
+    /** The Bluetooth capsule's first press, from Android 12 on, where BLUETOOTH_CONNECT is asked on screen; before, the manifest grants it. */
+    fun requestBluetoothPermission() {
+        if (android.os.Build.VERSION.SDK_INT >= 31) requestPermissions(arrayOf(Bluetooth.PERMISSION), REQUEST_BLUETOOTH)
+        else control.onBluetoothPermission(true)
+    }
+
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == REQUEST_BLUETOOTH) {
+            control.onBluetoothPermission(grantResults.firstOrNull() == android.content.pm.PackageManager.PERMISSION_GRANTED)
         }
     }
 }
@@ -976,9 +1384,17 @@ class ShelfScrim : Drawable() {
 
 /** Round glyph button for the top-right corner; fills white when focused. */
 class IconButton(ctx: Context, icon: Int, private val portrait: Boolean = false, onClick: () -> Unit) : FrameLayout(ctx) {
+    /** [icon] 0: none yet, for a [portrait] set later with [setIcon]. */
     private val img = ImageView(ctx).apply {
-        setImageResource(icon)
-        if (portrait) { scaleType = ImageView.ScaleType.CENTER_CROP; clipRounded(ctx.dp(12).toFloat()) }
+        if (icon != 0) setImageResource(icon)
+        if (portrait) {
+            scaleType = ImageView.ScaleType.CENTER_CROP
+            // A full circle whatever is set: a photo's square corners never show.
+            outlineProvider = object : android.view.ViewOutlineProvider() {
+                override fun getOutline(view: View, outline: android.graphics.Outline) = outline.setOval(0, 0, view.width, view.height)
+            }
+            clipToOutline = true
+        }
     }
     private val disc = android.graphics.drawable.GradientDrawable().apply {
         shape = android.graphics.drawable.GradientDrawable.OVAL
@@ -989,7 +1405,7 @@ class IconButton(ctx: Context, icon: Int, private val portrait: Boolean = false,
         isFocusable = true
         isClickable = true
         background = disc
-        val size = ctx.dp(if (portrait) 24 else 16)
+        val size = ctx.dp(if (portrait) PORTRAIT_DP else 16)
         addView(img, LayoutParams(size, size, Gravity.CENTER))
         setOnClickListener { onClick() }
         setOnFocusChangeListener { _, f ->
@@ -1000,4 +1416,10 @@ class IconButton(ctx: Context, icon: Int, private val portrait: Boolean = false,
     }
 
     fun setIcon(res: Int) = img.setImageResource(res)
+    fun setIcon(d: Drawable) = img.setImageDrawable(d)
+
+    companion object {
+        /** Side of a portrait (the profile's avatar), in dp; a glyph is 16. */
+        const val PORTRAIT_DP = 24
+    }
 }
