@@ -81,7 +81,7 @@ class Prefs(ctx: Context) {
         get() = grid.getString("background", "daily")!!
         set(v) = grid.edit().putString("background", v).apply()
 
-    /** Minutes between background photo changes. */
+    /** Minutes between background photo changes; 0 = never, only the "Photo suivante" button moves on. */
     var wallMinutes: Int
         get() = grid.getInt("wall_minutes", 30)
         set(v) = grid.edit().putInt("wall_minutes", v).apply()
@@ -159,8 +159,12 @@ class Prefs(ctx: Context) {
         get() = sp.getString("cc_style", AUTO)!!
         set(v) = sp.edit().putString("cc_style", v).apply()
 
-    /** The Control Center uses floating glass controls rather than one plain panel. */
-    fun ccGlass(ctx: Context) = when (ccStyle) { CC_GLASS -> true; CC_PANEL -> false; else -> !Device.isLowEnd(ctx) }
+    /**
+     * The Control Center uses floating glass controls rather than one plain panel: everywhere unless
+     * the panel is chosen, as the glass costs no more per frame than the panel since its focus light went.
+     */
+    @Suppress("UNUSED_PARAMETER")
+    fun ccGlass(ctx: Context) = ccStyle != CC_PANEL
 
     /** [AUTO], [FOCUS_TVOS] (tilt and a gliding highlight) or [FOCUS_SIMPLE] (scale and shadow only). */
     var focusStyle: String
@@ -183,11 +187,6 @@ class Prefs(ctx: Context) {
     var ownIcon: Boolean
         get() = sp.getBoolean("own_icon", true)
         set(v) = sp.edit().putBoolean("own_icon", v).apply()
-
-    /** The settings page on its uploaded picture ([SettingsActivity.backdropFile]) rather than plain dark. */
-    var settingsBg: Boolean
-        get() = sp.getBoolean("settings_bg", true)
-        set(v) = sp.edit().putBoolean("settings_bg", v).apply()
 
     /**
      * How long the screen stays black on wake before the intro starts. Many panels (OLED especially)
@@ -271,21 +270,28 @@ class Prefs(ctx: Context) {
         set(v) = sp.edit().putString("weather_cache", v).apply()
     /**
      * "Lecture en cours": the Control Center shows what a media session is playing (title, artist,
-     * artwork) with play/pause and skip ([NowPlaying]). Off by default: it reads session metadata.
+     * artwork) with play/pause and skip ([NowPlaying]). On by default (the product owner's choice):
+     * it reads the playback metadata of media sessions, through the notification listener.
      */
     var nowPlaying: Boolean
-        get() = sp.getBoolean("now_playing", false)
+        get() = sp.getBoolean("now_playing", true)
         set(v) = sp.edit().putBoolean("now_playing", v).apply()
 
-    /** tvOS-style banners for the notifications of [bannerApps] ([Banners]). Off by default: it reads notifications. */
+    /**
+     * tvOS-style banners for notifications ([Banners]). On by default (the product owner's choice):
+     * the title and text of every app's notifications are read, except [bannerExcluded]'s.
+     */
     var banners: Boolean
-        get() = sp.getBoolean("banners", false)
+        get() = sp.getBoolean("banners", true)
         set(v) = sp.edit().putBoolean("banners", v).apply()
 
-    /** The only packages whose notifications [Banners] reads (title and text), when [banners] is on. */
-    var bannerApps: Set<String>
-        get() = sp.getStringSet("banner_apps", emptySet())!!.toSet()
-        set(v) = sp.edit().putStringSet("banner_apps", v).apply()
+    /**
+     * The packages whose notifications [Banners] never reads nor shows. The old allowlist
+     * ("banner_apps") is ignored on purpose: its meaning was the opposite.
+     */
+    var bannerExcluded: Set<String>
+        get() = sp.getStringSet("banner_excluded", emptySet())!!.toSet()
+        set(v) = sp.edit().putStringSet("banner_excluded", v).apply()
     /**
      * The user's own TMDB key (v3 API key or v4 read token) for the Top Shelf's popular titles on
      * Netflix, Prime Video… ([ShelfFeeds.SERVICES]); "" = none. Kept on the TV only, never shown back.
@@ -402,21 +408,55 @@ class Prefs(ctx: Context) {
         return true
     }
 
+    /** The user's Unsplash access key for the "Unsplash" wallpaper source ([Wallpapers.UNSPLASH]); "" = none. Kept on the TV only. */
+    var unsplashKey: String
+        get() = sp.getString("unsplash_key", "")!!
+        set(v) = sp.edit().putString("unsplash_key", v.trim()).apply()
+
+    /** What the Top Shelf may use: [SHELF_ALL] (Android TV rows, then TMDB and web), [SHELF_TV] (Android TV rows only) or [SHELF_OFF]. */
+    var shelfMode: String
+        get() = sp.getString("shelf_mode", SHELF_ALL)!!.takeIf { it in SHELF_MODES } ?: SHELF_ALL
+        set(v) = sp.edit().putString("shelf_mode", v).apply()
+
+    /** "Continuer à regarder": the Top Shelf reads the Watch Next rows apps publish for Android TV ([Shelf]). On by default. */
+    var watchNext: Boolean
+        get() = sp.getBoolean("watch_next", true)
+        set(v) = sp.edit().putBoolean("watch_next", v).apply()
+
     /**
-     * The first-launch assistant ([OnboardingActivity]) is over. With nothing saved yet it is worked
-     * out once and saved: a TV updated from 1.0.0 (a grid order, local debugging authorized, or the
-     * home screen shown before) counts as set up, so only a fresh install gets the assistant.
+     * The Control Center's player: [PLAYER_ONE] (one line) or [PLAYER_TWO] (a card with controls and
+     * progress); a long press on OK opens the large one from either. Now the player's size in
+     * [ccLayout] (4 × 1 or 4 × 2), read from there while it is placed; the stored value only picks
+     * the default layout's player. Setting it resizes the player where it fits (CONFIG player_style).
      */
-    var setupDone: Boolean
-        get() {
-            if (sp.contains("setup_done")) return sp.getBoolean("setup_done", false)
-            val before = !sp.getString("order", null).isNullOrEmpty() || adbAuthorized || sp.contains("home_in_front")
-            sp.edit().putBoolean("setup_done", before).apply()
-            return before
+    var playerStyle: String
+        get() = when (ccLayout.find(CcLayout.PLAYER)?.second?.h) {
+            1 -> PLAYER_ONE
+            2 -> PLAYER_TWO
+            else -> storedPlayerStyle
         }
-        set(v) = sp.edit().putBoolean("setup_done", v).apply()
+        set(v) {
+            sp.edit().putString("player_style", v).apply()
+            val size = if (v == PLAYER_ONE) CcLayout.Size(4, 1) else CcLayout.Size(4, 2)
+            CcLayout.resize(ccLayout, CcLayout.PLAYER, size)?.let { ccLayout = it }
+        }
+
+    private val storedPlayerStyle: String
+        get() = sp.getString("player_style", PLAYER_TWO)!!.takeIf { it == PLAYER_ONE || it == PLAYER_TWO } ?: PLAYER_TWO
+
+    /** Where the Control Center's controls stand, on up to three pages ([CcLayout]); the default layout until edited. */
+    var ccLayout: CcLayout.Layout
+        get() = CcLayout.parse(sp.getString("cc_layout", null), storedPlayerStyle == PLAYER_ONE)
+        set(v) = sp.edit().putString("cc_layout", CcLayout.serialize(v)).apply()
+
+    /** Back to [CcLayout.defaultLayout] (with the player at the stored [playerStyle]). */
+    fun resetCcLayout() = sp.edit().remove("cc_layout").apply()
 
     companion object {
+        const val SHELF_ALL = "all"
+        const val SHELF_TV = "tv"
+        const val SHELF_OFF = "off"
+        val SHELF_MODES = listOf(SHELF_ALL, SHELF_TV, SHELF_OFF)
         const val SAVER_PHOTOS = "photos"
         const val SAVER_AERIAL = "aerial"
 
@@ -502,5 +542,7 @@ class Prefs(ctx: Context) {
             "com.limelight.qiin",
             "com.android.tv.settings",
         )
+        const val PLAYER_ONE = "one"
+        const val PLAYER_TWO = "two"
     }
 }

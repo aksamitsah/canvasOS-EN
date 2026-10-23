@@ -18,26 +18,21 @@ import android.widget.Toast
 import com.getisolated.canvasos.tv.TvControls
 
 /**
- * tvOS-style settings: the title centred on top, a large icon on the left with a
- * description of the focused row under it, and grouped rows on the right.
- * Sub-pages (keep list, hidden apps) reuse the same list.
+ * tvOS-style settings, laid out on Apple TV's settings page (1080p measures / 2, see [u]): the
+ * title centred on top, the icon card on the left with a description of the focused row low in
+ * that column, and rows on the right under small uppercase headers, all over the home wallpaper
+ * blurred and darkened. The top level lists the groups ([Page.title]); each opens a page of rows,
+ * and the list pages (keep list, hidden apps…) sit one level below their group. All reuse the same list.
  */
 class SettingsActivity : Activity() {
     companion object {
         const val SONY_DREAM = "com.sony.dtv.braviashow/com.sony.dtv.braviashow.BraviaDayDreamService"
         const val ICON_FILE = "settings_icon.png"
-        /** Opens the settings on a sub-page rather than the main one: [PAGE_PROFILES]. */
+        /** Opens the settings on a sub-page rather than the main one: [PAGE_PROFILES] or [PAGE_LOOK]. */
         const val EXTRA_PAGE = "com.getisolated.canvasos.PAGE"
         const val PAGE_PROFILES = "profiles"
-        const val BACKDROP_FILE = "settings_bg.jpg"
-
-        /**
-         * A picture of the user's own behind the whole settings page (Apple TV's, a TV on a blue haze,
-         * say), with the TV where the big icon would be; uploaded from the phone page or pushed over adb.
-         */
-        fun backdropFile(ctx: android.content.Context): java.io.File? =
-            listOfNotNull(java.io.File(ctx.filesDir, BACKDROP_FILE), ctx.getExternalFilesDir(null)?.let { java.io.File(it, BACKDROP_FILE) })
-                .firstOrNull { it.isFile && it.length() > 0 }
+        /** Apparence, where the weather is switched on (the Control Center's idle Météo control leads there). */
+        const val PAGE_LOOK = "look"
 
         /**
          * A picture of the user's own for the settings icon (Apple TV's, say), uploaded from the phone
@@ -60,12 +55,44 @@ class SettingsActivity : Activity() {
             return android.graphics.BitmapFactory.decodeFile(f.path, android.graphics.BitmapFactory.Options().apply { inSampleSize = sample })
         }
 
-        /** A profile's avatar at the start of its row, and as the big icon of the profiles page. */
+        /** A profile's avatar at the start of its row (drawn at this size, shown at [ROW_AVATAR]), and as the big icon of the profiles page. */
         private const val ROW_AVATAR_DP = 36
-        private const val BIG_AVATAR_DP = 120
-        private val IDLE_TEXT = Color.argb(235, 255, 255, 255)
-        private val IDLE_VALUE = Color.argb(130, 255, 255, 255)
-        private val FOCUS_VALUE = Color.argb(140, 0, 0, 0)
+        private const val ROW_AVATAR = 22f
+        private const val BIG_AVATAR = 110f
+
+        // Measured on Apple TV's settings page (white at these alphas over its dark teal background).
+        private val TITLE = Color.argb(85, 255, 255, 255)
+        private val IDLE_TEXT = Color.WHITE
+        private val IDLE_VALUE = Color.argb(95, 255, 255, 255)
+        private val FOCUS_VALUE = Color.argb(125, 0, 0, 0)
+        /** A row at rest: a light translucent fill over the blurred wallpaper. */
+        private val IDLE_ROW = Color.argb(25, 255, 255, 255)
+        private val HEADER = Color.argb(95, 255, 255, 255)
+        private val DESCRIPTION = Color.argb(158, 255, 255, 255)
+        /** Behind everything until the blurred wallpaper is ready, and when there is none. */
+        private val BASE = Color.rgb(22, 27, 36)
+        /** The wallpaper's brightest allowed luminance once blurred: Apple TV's page never goes past about this. */
+        private const val MAX_LUMA = 62f
+
+        // The layout, in units of the 960-wide design (a 1080p screenshot's pixels / 2).
+        private const val TITLE_TOP = 29f
+        private const val LIST_WIDTH = 390f
+        private const val LIST_END = 40f
+        /** Where the scrolling list starts: rows slide up under a short fade below the title. */
+        private const val LIST_TOP = 70f
+        private const val CARD_W = 200f
+        private const val CARD_H = 120f
+        private const val CARD_TOP = 193f
+        private const val ABOUT_TOP = 416f
+        private const val ABOUT_W = 440f
+        private const val ROW_H = 33f
+        private const val ROW_GAP = 7f
+        private const val ROW_RADIUS = 13f
+        private const val ROW_PAD = 16f
+        private const val HEADER_ABOVE = 16f
+        private const val HEADER_BELOW = 8f
+        private const val HEADER_SIZE = 13.5f
+        private const val HEADER_TAG = "header"
         private const val LISTENER_NEEDED = "Écouteur requis (étape 4)"
         private const val PROFILES_ABOUT = "Chaque profil a son propre accueil : l'ordre des apps, les apps masquées, les dossiers, les noms des apps, " +
             "les entrées épinglées et le fond d'écran. Les autres réglages valent pour tous. Un profil enfant demande le code PIN pour changer de profil, " +
@@ -75,18 +102,56 @@ class SettingsActivity : Activity() {
     private lateinit var prefs: Prefs
     private lateinit var repo: AppRepo
     private lateinit var root: FrameLayout
-    private lateinit var body: LinearLayout
+    private lateinit var body: FrameLayout
     private lateinit var list: LinearLayout
     private lateinit var heading: TextView
     private lateinit var about: TextView
     private lateinit var icon: ImageView
+    /** The home wallpaper, blurred and darkened ([loadBackdrop]). */
     private lateinit var backdrop: ImageView
+    /** What [backdrop] shows ("source:file"), so a return from the wallpaper picker redoes it only if it changed. */
+    @Volatile private var backdropKey: String? = null
+    /** Pixels per unit of the 960-wide design: the screen's width / 960, whatever its density. */
+    private var unit = 2f
     private lateinit var scroll: ScrollView
     private var page = Page.MAIN
-    /** The main-page row that opened the current sub-page, focused again on the way back. */
-    private var opener = 0
+    /** For each page, the row of its parent page that opened it, focused again on the way back. */
+    private val openers = HashMap<Page, Int>()
 
-    private enum class Page { MAIN, KEEP, HIDDEN, REMOVED, PHONE, LAST_CLEAN, BANNER_APPS, FOLDERS, PROFILES }
+    /**
+     * The top level ([MAIN]) lists the groups, the entries with a [title], in this order; each group
+     * page holds the rows, and the list pages (keep list, hidden apps…) sit one level below their group.
+     */
+    private enum class Page(val title: String? = null, val summary: String? = null) {
+        MAIN,
+        LOOK("Apparence", "L'horloge, le Dock, la photo de profil, la météo, l'effet de sélection, le Centre de contrôle " +
+            "(son style, ses commandes) et l'animation de démarrage."),
+        WALLPAPER("Fond d'écran et cadre photo", "Le fond de l'écran d'accueil et la fréquence à laquelle il change, " +
+            "et le cadre photo que le téléviseur affiche en économiseur d'écran."),
+        SHELF("Top Shelf", "Les contenus de l'app sélectionnée dans le Dock, en plein écran au-dessus de lui, et d'où ils viennent."),
+        PLAYBACK("Lecture et notifications", "Le lecteur du Centre de contrôle pour ce que lisent les apps, " +
+            "et les bannières de notifications en haut à droite de l'écran."),
+        MEMORY("Mémoire et alimentation", "La libération de la mémoire, en veille, à heures régulières ou tout de suite, les apps qu'elle épargne, " +
+            "et ce que fait le bouton marche/arrêt."),
+        APPS("Apps", "Les apps masquées de l'accueil, les apps préinstallées supprimées et les dossiers."),
+        ACCOUNTS("Profils", "Un accueil par personne, avec ses apps, ses dossiers et son fond d'écran ; un profil enfant est protégé par un code PIN."),
+        PHONE_GROUP("Page téléphone", "Une page web pour un téléphone sur le même Wi-Fi : télécommande avec clavier, fond d'écran, photos, " +
+            "installation d'apps. Son QR code et sa protection."),
+        SYSTEM("Système", "Le débogage local et ADB, l'adresse du téléviseur, la protection de l'accueil, les réglages d'origine du téléviseur, " +
+            "la mise à jour de canvasOS et sa version."),
+        KEEP, HIDDEN, REMOVED, PHONE, LAST_CLEAN, BANNER_APPS, FOLDERS, PROFILES;
+
+        /** Where Back goes; null at the top level. */
+        val parent: Page? get() = when (this) {
+            MAIN -> null
+            KEEP, LAST_CLEAN -> MEMORY
+            HIDDEN, REMOVED, FOLDERS -> APPS
+            PHONE -> PHONE_GROUP
+            BANNER_APPS -> PLAYBACK
+            PROFILES -> ACCOUNTS
+            else -> MAIN
+        }
+    }
 
     /** The page this screen was opened on ([EXTRA_PAGE]); Back from it leaves, as it came from the home screen. */
     private var entry = Page.MAIN
@@ -110,49 +175,60 @@ class SettingsActivity : Activity() {
         prefs = Prefs(this)
         repo = AppRepo(this)
 
-        root = FrameLayout(this).apply { setBackgroundColor(Color.rgb(28, 28, 30)) }
-        backdrop = ImageView(this).apply {
-            scaleType = ImageView.ScaleType.MATRIX
-            addOnLayoutChangeListener { v, _, _, _, _, _, _, _, _ -> placeBackdrop(v as ImageView) }
-        }
+        val m = resources.displayMetrics
+        unit = maxOf(m.widthPixels, m.heightPixels) / 960f
+        root = FrameLayout(this).apply { setBackgroundColor(BASE) }
+        backdrop = ImageView(this).apply { scaleType = ImageView.ScaleType.CENTER_CROP }
         root.addView(backdrop, FrameLayout.LayoutParams(-1, -1))
-        heading = text(28f, weight = 600).apply { gravity = Gravity.CENTER }
-        root.addView(heading, FrameLayout.LayoutParams(-1, -2, Gravity.TOP).apply { topMargin = dp(40) })
+        heading = label(28f, TITLE, 600).apply { gravity = Gravity.CENTER }
+        root.addView(heading, FrameLayout.LayoutParams(-1, -2, Gravity.TOP).apply { topMargin = u(TITLE_TOP) })
 
-        body = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        val left = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            gravity = Gravity.CENTER_HORIZONTAL
-            setPadding(dp(48), dp(84), dp(32), 0)
-        }
+        // The left column is everything left of the list; the card and the description are centred in it.
+        val column = 960f - LIST_END - LIST_WIDTH
+        body = FrameLayout(this)
         icon = ImageView(this).apply {
             showIcon(this)
             scaleType = ImageView.ScaleType.CENTER_CROP
-            clipRounded(dp(18).toFloat())
-            clipToOutline = true
+            clipRounded(u(17).toFloat())
         }
-        left.addView(icon, LinearLayout.LayoutParams(-1, dp(207)))
-        about = text(15f, Color.argb(150, 255, 255, 255)).apply {
-            gravity = Gravity.CENTER_HORIZONTAL
-            setLineSpacing(0f, 1.3f)
+        body.addView(icon, FrameLayout.LayoutParams(u(CARD_W), u(CARD_H), Gravity.TOP or Gravity.START).apply {
+            leftMargin = u((column - CARD_W) / 2); topMargin = u(CARD_TOP)
+        })
+        about = label(15f, DESCRIPTION).apply { gravity = Gravity.CENTER_HORIZONTAL }
+        // Low in the column as on tvOS; a description too long for the space left rises towards the card.
+        about.addOnLayoutChangeListener { v, _, _, _, _, _, _, _, _ ->
+            val over = v.bottom - (root.height - u(24))
+            v.translationY = -minOf(maxOf(over, 0), maxOf(v.top - u(CARD_TOP + CARD_H + 18), 0)).toFloat()
         }
-        left.addView(about, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(26) })
-        showBackdrop()
-        body.addView(left, LinearLayout.LayoutParams(0, -1, 1f))
+        body.addView(about, FrameLayout.LayoutParams(u(ABOUT_W), -2, Gravity.TOP or Gravity.START).apply {
+            leftMargin = u((column - ABOUT_W) / 2); topMargin = u(ABOUT_TOP)
+        })
 
-        // Not clipped, so a focused row can grow past the list's edges.
-        list = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; clipChildren = false }
+        // Not clipped, so a focused row can grow past the list's edges; the top padding (set per page in
+        // [show]) lines the first row up with the card, and the rows scroll up under a fade below the title.
+        list = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            clipChildren = false
+            clipToPadding = false
+            setPadding(u(10), 0, u(10), u(48))
+        }
         scroll = ScrollView(this).apply {
             isVerticalScrollBarEnabled = false
             clipToPadding = false
             clipChildren = false
-            setPadding(dp(12), dp(16), dp(12), dp(60))
+            // A fading edge redraws through an offscreen layer while scrolling: not on weak TVs.
+            if (!Device.isLowEnd(this@SettingsActivity)) {
+                isVerticalFadingEdgeEnabled = true
+                setFadingEdgeLength(u(26))
+            }
             addView(list)
         }
-        body.addView(scroll, LinearLayout.LayoutParams(0, -1, 1.05f).apply { marginEnd = dp(52) })
-        root.addView(body, FrameLayout.LayoutParams(-1, -1).apply { topMargin = dp(84) })
+        body.addView(scroll, FrameLayout.LayoutParams(u(LIST_WIDTH + 20), -1, Gravity.TOP or Gravity.END).apply {
+            rightMargin = u(LIST_END - 10); topMargin = u(LIST_TOP)
+        })
+        root.addView(body, FrameLayout.LayoutParams(-1, -1))
         setContentView(root)
-        entry = if (intent.getStringExtra(EXTRA_PAGE) == PAGE_PROFILES) Page.PROFILES else Page.MAIN
+        entry = when (intent.getStringExtra(EXTRA_PAGE)) { PAGE_PROFILES -> Page.PROFILES; PAGE_LOOK -> Page.LOOK; else -> Page.MAIN }
         // A restricted profile reaches the settings only with the PIN, whichever way they were opened
         // (the avatar, the Control Center's gear, the grid's tile, another launcher).
         if (prefs.restricted && prefs.hasPin) {
@@ -187,10 +263,21 @@ class SettingsActivity : Activity() {
     }
 
     private fun show(p: Page, focusIndex: Int = 0) {
+        // Another page starts at its top, its first header showing; the same page drawn again stays where it was.
+        if (p != page) scroll.scrollTo(0, 0)
         page = p
         list.removeAllViews()
         when (p) {
             Page.MAIN -> main()
+            Page.LOOK -> lookGroup()
+            Page.WALLPAPER -> wallpaperGroup()
+            Page.SHELF -> shelfGroup()
+            Page.PLAYBACK -> playbackGroup()
+            Page.MEMORY -> memoryGroup()
+            Page.APPS -> appsGroup()
+            Page.ACCOUNTS -> accountsGroup()
+            Page.PHONE_GROUP -> phoneGroup()
+            Page.SYSTEM -> systemGroup()
             Page.KEEP -> appPicker("Apps à conserver", prefs.keep) { pkg, on ->
                 prefs.keep = if (on) prefs.keep + pkg else prefs.keep - pkg
             }
@@ -204,6 +291,14 @@ class SettingsActivity : Activity() {
             Page.FOLDERS -> foldersPage()
             Page.PROFILES -> profilesPage()
         }
+        // A list shorter than the column is centred in it; a longer one starts at the top and scrolls.
+        list.setPadding(list.paddingLeft, u(8), list.paddingRight, u(48))
+        list.post { centreList() }
+        p.title?.let {
+            heading.text = it
+            // Under the icon until a row with a description of its own is focused.
+            about.text = p.summary
+        }
         pageIcon(p)
         list.post {
             val target = list.getChildAt(focusIndex.coerceIn(0, maxOf(list.childCount - 1, 0)))
@@ -212,34 +307,82 @@ class SettingsActivity : Activity() {
         }
     }
 
-    /** The uploaded background, whose TV stands in for the big icon; or the plain dark page. RGB_565: half the memory. */
-    private fun showBackdrop() {
-        val bmp = (if (prefs.settingsBg) backdropFile(this) else null)?.let {
-            android.graphics.BitmapFactory.decodeFile(it.path, android.graphics.BitmapFactory.Options().apply {
-                inPreferredConfig = android.graphics.Bitmap.Config.RGB_565
-            })
-        }
-        backdrop.setImageBitmap(bmp)
-        placeBackdrop(backdrop)
-        icon.visibility = if (bmp != null) android.view.View.INVISIBLE else android.view.View.VISIBLE
-        // Below the TV in the picture, which reaches a little lower than the icon would.
-        (about.layoutParams as LinearLayout.LayoutParams).topMargin = dp(if (bmp != null) 62 else 26)
-        about.requestLayout()
+    override fun onResume() {
+        super.onResume()
+        loadBackdrop()
     }
 
     /**
-     * Fills the screen, 8% larger than needed and against the right edge: a subject in the left
-     * third of a 16:9 picture (where the icon would be) then sits over the description column.
+     * The home screen's wallpaper behind the page, as Apple TV's settings sit on a blurred, darkened
+     * haze of the home screen: the current picture of the current source decoded small, blurred twice
+     * over, darkened, and its highlights held down so white text stays legible on a bright photo.
+     * A gradient theme is blurred the same way; no picture yet leaves the plain dark page. Done off
+     * the main thread, again on return only if the wallpaper changed meanwhile.
      */
-    private fun placeBackdrop(v: ImageView) {
-        val d = v.drawable ?: return
-        if (v.width == 0 || d.intrinsicWidth <= 0) return
-        val s = maxOf(v.width / d.intrinsicWidth.toFloat(), v.height / d.intrinsicHeight.toFloat()) * 1.08f
-        v.imageMatrix = android.graphics.Matrix().apply {
-            setScale(s, s)
-            postTranslate(v.width - d.intrinsicWidth * s, (v.height - d.intrinsicHeight * s) / 2)
-        }
+    private fun loadBackdrop() {
+        val theme = prefs.background
+        Thread {
+            // An earlier version let the phone page upload a settings background; it is no longer used.
+            listOfNotNull(filesDir, getExternalFilesDir(null)).forEach { java.io.File(it, "settings_bg.jpg").delete() }
+            val photo = if (Wallpapers.isPhoto(theme)) Wallpapers(applicationContext, Wallpapers.sourceFor(theme)).current() else null
+            val key = "$theme:${photo?.name}"
+            if (key == backdropKey) return@Thread
+            val src = runCatching {
+                when {
+                    photo != null -> decodeIcon(photo, 192)
+                    Wallpapers.isPhoto(theme) -> null
+                    else -> Backgrounds.render(theme)
+                }
+            }.getOrNull()
+            val bmp = src?.let { settle(Wallpapers.blurred(Wallpapers.blurred(it, 0f), 0.55f)) }
+            runOnUiThread {
+                if (isDestroyed) return@runOnUiThread
+                val first = backdropKey == null
+                backdropKey = key
+                backdrop.setImageBitmap(bmp)
+                if (first && bmp != null) {
+                    backdrop.alpha = 0f
+                    backdrop.animate().alpha(1f).setDuration(220).start()
+                }
+            }
+        }.start()
     }
+
+    /** Scales down every pixel brighter than [MAX_LUMA], keeping its hue: a white sky turns the deep grey-blue of tvOS's page. */
+    private fun settle(b: android.graphics.Bitmap): android.graphics.Bitmap {
+        val w = b.width
+        val h = b.height
+        val px = IntArray(w * h)
+        b.getPixels(px, 0, w, 0, 0, w, h)
+        for (i in px.indices) {
+            val c = px[i]
+            val r = Color.red(c); val g = Color.green(c); val bl = Color.blue(c)
+            val luma = 0.299f * r + 0.587f * g + 0.114f * bl
+            if (luma <= MAX_LUMA) continue
+            val k = MAX_LUMA / luma
+            px[i] = Color.rgb((r * k).toInt(), (g * k).toInt(), (bl * k).toInt())
+        }
+        b.setPixels(px, 0, w, 0, 0, w, h)
+        return b
+    }
+
+    /** [v] units of the 960-wide design in pixels. */
+    /** Centres the rows vertically when they do not fill the column; otherwise they start under the title. */
+    private fun centreList() {
+        val content = (0 until list.childCount).sumOf { i ->
+            val v = list.getChildAt(i); val lp = v.layoutParams as LinearLayout.LayoutParams
+            v.measuredHeight + lp.topMargin + lp.bottomMargin
+        }
+        val room = scroll.height - u(8) - u(48)
+        val top = u(8) + maxOf(0, (room - content) / 2)
+        if (list.paddingTop != top) list.setPadding(list.paddingLeft, top, list.paddingRight, list.paddingBottom)
+    }
+
+    private fun u(v: Number): Int = (v.toFloat() * unit + 0.5f).toInt()
+
+    /** A text sized in design units rather than sp, so the page keeps Apple TV's proportions at any density. */
+    private fun label(size: Float, color: Int, weight: Int = 400): TextView =
+        text(size, color, weight = weight).apply { setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, size * unit) }
 
     /** Whether the big icon shows the current profile's avatar ([pageIcon]) rather than the settings icon. */
     private var iconAvatar = false
@@ -247,7 +390,7 @@ class SettingsActivity : Activity() {
     /** On the profiles page the big icon is the current profile's avatar, as on tvOS's account screens; elsewhere the settings icon. */
     private fun pageIcon(p: Page) {
         if (p == Page.PROFILES) {
-            icon.setImageDrawable(ProfileAvatar.drawable(this, prefs.current(), BIG_AVATAR_DP))
+            icon.setImageDrawable(ProfileAvatar.drawable(this, prefs.current(), (u(BIG_AVATAR) / resources.displayMetrics.density).toInt()))
             icon.scaleType = ImageView.ScaleType.CENTER
             iconAvatar = true
         } else if (iconAvatar) {
@@ -257,59 +400,81 @@ class SettingsActivity : Activity() {
         }
     }
 
+    /** Opens [p] from a row of the current page, which Back from [p] focuses again. */
+    private fun open(p: Page) {
+        openers[p] = list.indexOfChild(list.focusedChild).coerceAtLeast(0)
+        show(p)
+    }
+
     private fun showIcon(v: ImageView) {
-        val own = customIcon(this)?.let { decodeIcon(it, dp(380)) }
+        val own = customIcon(this)?.let { decodeIcon(it, u(CARD_W * 2)) }
         if (own != null) v.setImageBitmap(own) else v.setImageResource(R.drawable.banner_settings)
     }
 
+    /** The top level: one row per group ([Page.title]), each opening its page. */
     private fun main() {
         heading.text = "Réglages de l'accueil"
         about.text = ""
+        for (g in Page.values()) g.title?.let { t -> row(t, g.summary, { "" }, chevron = true) { open(g) } }
+    }
 
-        section("Apparence")
+    /** Apparence: the clock, the home screen, the weather, effects and the boot animation. */
+    private fun lookGroup() {
+        section("Horloge")
         row("Format de l'heure", "L'heure sur l'écran d'accueil et dans le Centre de contrôle, au format 12 h (11:49 AM) ou 24 h (23:49).",
             { if (prefs.clock24) "24 h" else "12 h" }) { prefs.clock24 = !prefs.clock24 }
-        row("Dock", "Récents : l'app que vous ouvrez passe en tête, comme aujourd'hui. Fixe : l'ordre que vous avez choisi avec « Modifier l'accueil » est conservé.",
-            { if (prefs.dockRecents) "Récents" else "Fixe" }) { prefs.dockRecents = !prefs.dockRecents }
-        row("Météo", "La température et le temps qu'il fait à côté de l'horloge, et les prévisions sur cinq jours dans le Centre de contrôle. " +
-            "Elles viennent d'Open-Meteo et sont mises à jour toutes les 30 minutes pendant que l'accueil est affiché. " +
-            "Tant qu'aucune ville n'est choisie, le lieu est deviné une fois d'après l'adresse IP publique du téléviseur (ip-api.com).",
-            { onOff(prefs.weather) }) { prefs.weather = !prefs.weather }
-        row("Lieu de la météo", "Pour choisir une autre ville : la page téléphone (onglet Réglages, section Météo), ou un ordinateur avec la commande CONFIG (weather_city).",
-            { Weather.placeLabel(prefs).ifEmpty { "Pas encore défini" } }) {}
         row("Horloge", "Une petite horloge en haut à droite, ou une grande horloge avec la date en haut à gauche (l'ancien style), ou aucune.", {
             when (prefs.clockStyle) { Prefs.CLOCK_LARGE -> "Grande, à gauche"; Prefs.CLOCK_OFF -> "Masquée"; else -> "En haut à droite" }
         }) {
             val opts = listOf(Prefs.CLOCK_CORNER, Prefs.CLOCK_LARGE, Prefs.CLOCK_OFF)
             prefs.clockStyle = opts[(opts.indexOf(prefs.clockStyle) + 1) % opts.size]
         }
-        if (backdropFile(this) != null) row("Fond des réglages", "Le fond de cette page : l'image importée, ou le fond sombre standard.", {
-            if (prefs.settingsBg) "Image" else "Standard"
-        }) {
-            prefs.settingsBg = !prefs.settingsBg
-            showBackdrop()
-        }
-        if (iconFile(this) != null) row("Icône des réglages", "L'icône de ces réglages : votre image importée, ou l'engrenage intégré.", {
-            if (prefs.ownIcon) "Image importée" else "Engrenage"
-        }) {
-            prefs.ownIcon = !prefs.ownIcon
-            showIcon(icon)
-        }
+        section("Accueil")
+        row("Dock", "Récents : l'app que vous ouvrez passe en tête, comme aujourd'hui. Fixe : l'ordre que vous avez choisi avec « Modifier l'accueil » est conservé.",
+            { if (prefs.dockRecents) "Récents" else "Fixe" }) { prefs.dockRecents = !prefs.dockRecents }
         row("Photo de profil", "La photo du profil en haut à droite de l'accueil : l'initiale de son nom sur sa couleur, ou une photo importée " +
             "depuis la page téléphone. Appuyez dessus pour changer de profil. Elle reste affichée tant qu'il existe plusieurs profils.", { onOff(prefs.showAvatar) }) { prefs.showAvatar = !prefs.showAvatar }
+        section("Météo")
+        row("Météo", "La température et le temps qu'il fait à côté de l'horloge, et les prévisions sur cinq jours dans le Centre de contrôle. " +
+            "Elles viennent d'Open-Meteo et sont mises à jour toutes les 30 minutes pendant que l'accueil est affiché. " +
+            "Tant qu'aucune ville n'est choisie, le lieu est deviné une fois d'après l'adresse IP publique du téléviseur (ip-api.com).",
+            { onOff(prefs.weather) }) { prefs.weather = !prefs.weather }
+        row("Lieu de la météo", "Pour choisir une autre ville : la page téléphone (onglet Réglages, section Météo), ou un ordinateur avec la commande CONFIG (weather_city).",
+            { Weather.placeLabel(prefs).ifEmpty { "Pas encore défini" } }) {}
+        section("Effets")
         row("Effet de sélection", "tvOS : l'app sélectionnée s'agrandit, s'incline selon la direction et un reflet passe dessus. Simple : elle s'agrandit seulement." +
             "\nAuto choisit Simple sur les téléviseurs peu puissants.", {
             auto(prefs.focusStyle, prefs.focusTvos(this), "tvOS", "Simple")
         }) {
             prefs.focusStyle = next(prefs.focusStyle, Prefs.FOCUS_TVOS, Prefs.FOCUS_SIMPLE)
         }
-        row("Style du Centre de contrôle", "Verre : du verre dépoli qui laisse voir l'image derrière ; le bouton sélectionné éclaire ses voisins. Panneau : l'ancien panneau sombre, plus léger." +
-            "\nAuto choisit Panneau sur les téléviseurs peu puissants.", {
+        section("Centre de contrôle")
+        row("Style du Centre de contrôle", "Verre : du verre dépoli qui laisse voir l'image derrière ; le bouton sélectionné devient blanc. Panneau : l'ancien panneau sombre." +
+            "\nAuto choisit Verre sur tous les téléviseurs.", {
             auto(prefs.ccStyle, prefs.ccGlass(this), "Verre", "Panneau")
         }) {
             prefs.ccStyle = next(prefs.ccStyle, Prefs.CC_GLASS, Prefs.CC_PANEL)
         }
-
+        row("Personnaliser le Centre de contrôle", "Ouvre le Centre de contrôle en mode modification. Ses commandes sont sur une grille " +
+            "de 4 × 6 cases, sur trois pages au plus (Bas depuis la dernière ligne passe à la page suivante). OK sur une commande : " +
+            "la déplacer, changer sa taille, la retirer, ajouter une commande ou une page. Retour pour terminer. " +
+            "Ailleurs, un appui long sur OK sur le bouton du Centre de contrôle, en haut à droite de l'accueil, fait de même.", { "" }, chevron = true) {
+            startActivity(Intent(this, HomeActivity::class.java).putExtra(HomeActivity.EXTRA_EDIT_CC, true))
+        }
+        row("Réinitialiser le panneau", "Remet les commandes du Centre de contrôle à leur place et à leur taille d'origine, sur deux pages.", { "" }) {
+            showSheet(Sheet(root).title("Réinitialiser le Centre de contrôle ?")
+                .message("Les commandes reprennent leur place et leur taille d'origine, sur deux pages.")
+                .button("Réinitialiser") { prefs.resetCcLayout() }
+                .button("Annuler") {})
+        }
+        // Only once a picture of the user's own was uploaded for this page.
+        if (iconFile(this) != null) section("Cette page")
+        if (iconFile(this) != null) row("Icône des réglages", "L'icône de ces réglages : votre image importée, ou l'engrenage intégré.", {
+            if (prefs.ownIcon) "Image importée" else "Engrenage"
+        }) {
+            prefs.ownIcon = !prefs.ownIcon
+            showIcon(icon)
+        }
         section("Animation de démarrage")
         val video = Intro.videoFile(this) != null
         row("Animation de démarrage", "Jouée au premier affichage de l'accueil après l'allumage ; à la fin, le logo s'agrandit et ouvre l'accueil. Appuyez sur une touche pour la passer." +
@@ -339,15 +504,19 @@ class SettingsActivity : Activity() {
                 .putExtra(Intro.EXTRA_PREVIEW, true)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
         }
+    }
 
-        section("Fond d'écran et cadre photo")
+    /** Fond d'écran et cadre photo. */
+    private fun wallpaperGroup() {
+        section("Fond d'écran")
         row("Fond d'écran", "Le fond de l'écran d'accueil : un thème, une source de fonds d'écran ou vos propres photos.", {
             Backgrounds.THEMES[prefs.background]?.first ?: Wallpapers.label(Wallpapers.sourceFor(prefs.background)).let {
                 if (prefs.background == Wallpapers.MINE) it else "$it (auto)"
             }
         }, chevron = true) { startActivity(Intent(this, WallpaperActivity::class.java)) }
-        row("Changer de photo", "À quelle fréquence le fond d'écran automatique change.", { minutesLabel(prefs.wallMinutes) }) {
-            val opts = listOf(15, 30, 60, 180, 1440)
+        row("Changer de photo", "À quelle fréquence le fond d'écran automatique change. Jamais : la photo ne change qu'avec le bouton Photo suivante du Centre de contrôle (ou Changer maintenant ci-dessous).",
+            { minutesLabel(prefs.wallMinutes) }) {
+            val opts = listOf(0, 15, 30, 60, 180, 1440)
             prefs.wallMinutes = opts[(opts.indexOf(prefs.wallMinutes) + 1) % opts.size]
         }
         row("Changer maintenant", "Prend une nouvelle photo de la source de fonds d'écran. Les photos sont téléchargées au moment de les afficher ; les anciennes sont effacées après quelques jours.",
@@ -360,6 +529,7 @@ class SettingsActivity : Activity() {
                 runOnUiThread { v.text = "${w.files().size} photos" }
             }.start()
         }
+        section("Cadre photo")
         row("Cadre photo en économiseur", "Après un moment d'inactivité, le téléviseur affiche en plein écran des photos ou des vues aériennes, à la place de son propre économiseur d'écran.",
             { onOff(prefs.frameScreensaver) }) { v ->
             val on = !prefs.frameScreensaver
@@ -392,8 +562,71 @@ class SettingsActivity : Activity() {
             val opts = listOf(15, 30, 60, 120)
             prefs.frameSeconds = opts[(opts.indexOf(prefs.frameSeconds) + 1) % opts.size]
         }
+    }
 
-        section("Mémoire et alimentation")
+    /** Top Shelf: its mode and its Android TV source. */
+    private fun shelfGroup() {
+        section("Top Shelf")
+        row("Top Shelf", "Les contenus de l'app sélectionnée dans le Dock, en plein écran au-dessus. Complet : la ligne « Continuer à regarder » " +
+            "publiée pour Android TV, puis les tendances TMDB (avec votre clé) et les sources web. Android TV seul : sans TMDB ni web. " +
+            "Désactivé : le fond d'écran reste visible.", {
+            when (prefs.shelfMode) { Prefs.SHELF_TV -> "Android TV seul"; Prefs.SHELF_OFF -> "Désactivé"; else -> "Complet" }
+        }) {
+            prefs.shelfMode = Prefs.SHELF_MODES[(Prefs.SHELF_MODES.indexOf(prefs.shelfMode) + 1) % Prefs.SHELF_MODES.size]
+        }
+        section("Sources")
+        row("Continuer à regarder", "La ligne que les apps (YouTube, Netflix…) publient pour Android TV : ce que vous regardiez, à reprendre. " +
+            "Désactivée, le Top Shelf n'utilise que TMDB et les sources web, quand le mode du Top Shelf les autorise.",
+            { onOff(prefs.watchNext) }) { prefs.watchNext = !prefs.watchNext }
+    }
+
+    /** Lecture et notifications: the Control Center player and the banners. */
+    private fun playbackGroup() {
+        section("Lecture")
+        row("Lecture en cours", "Activée par défaut. Affiche dans le Centre de contrôle ce que lit une app (titre, artiste, pochette) avec lecture/pause et piste suivante. " +
+            "Lit pour cela les informations de lecture des apps (titre, artiste, pochette, état de lecture) via l'écouteur de notifications ; rien n'est enregistré.",
+            { if (!MediaSessions.isAvailable(this)) LISTENER_NEEDED else onOff(prefs.nowPlaying) }) { v ->
+            // On by default: without the listener it shows as needing it, and OK then asks for it rather than switching off.
+            if (prefs.nowPlaying && MediaSessions.isAvailable(this)) { prefs.nowPlaying = false; return@row }
+            v.text = "Réglage…"
+            Thread {
+                val ok = MediaSessions.isAvailable(applicationContext) || (allowListener() && MediaSessions.isAvailable(applicationContext))
+                if (ok) prefs.nowPlaying = true
+                runOnUiThread { v.text = if (ok) onOff(true) else LISTENER_NEEDED }
+            }.start()
+        }
+        section("Notifications")
+        row("Bannières de notifications", "Activées par défaut. Affiche en haut à droite les notifications des apps (sonnette, messages, domotique…). " +
+            "Le titre et le texte des notifications de toutes les apps, sauf celles exclues, sont lus, affichés 6 secondes et jamais enregistrés. " +
+            "Désactivées, aucune notification n'est lue.",
+            { if (!Banners.listenerGranted(this)) LISTENER_NEEDED else onOff(prefs.banners) }) { v ->
+            if (prefs.banners && Banners.listenerGranted(this)) {
+                prefs.banners = false
+                show(Page.PLAYBACK, list.indexOfChild(list.focusedChild).coerceAtLeast(0))
+                return@row
+            }
+            v.text = "Réglage…"
+            Thread {
+                val ok = Banners.listenerGranted(applicationContext) || allowListener()
+                // Over the app being watched, banners need the overlay permission the guard also uses.
+                if (ok && !Settings.canDrawOverlays(applicationContext) && prefs.adbAuthorized)
+                    LocalAdb.shell(applicationContext, "appops set $packageName SYSTEM_ALERT_WINDOW allow", 10_000)
+                if (ok) prefs.banners = true
+                runOnUiThread {
+                    if (!ok) v.text = LISTENER_NEEDED
+                    // "Apps exclues des bannières" appears below: the page is rebuilt where the focus is.
+                    else if (page == Page.PLAYBACK && !isDestroyed) show(Page.PLAYBACK, list.indexOfChild(list.focusedChild).coerceAtLeast(0))
+                }
+            }.start()
+        }
+        if (prefs.banners) row("Apps exclues des bannières", "Les notifications des apps cochées ne sont ni lues ni affichées. Toutes les autres s'affichent en bannière." +
+            if (Settings.canDrawOverlays(this)) "" else "\nSans l'autorisation d'affichage par-dessus les autres apps (étape 4), les bannières n'apparaissent que sur l'accueil.",
+            { "${prefs.bannerExcluded.size}" }, chevron = true) { open(Page.BANNER_APPS) }
+    }
+
+    /** Mémoire et alimentation. */
+    private fun memoryGroup() {
+        section("Nettoyage")
         row("Libérer la mémoire en veille", "Ferme les apps en arrière-plan quand le téléviseur passe en veille, pour un redémarrage plus fluide. " +
             "Les apps qui lisent du son ou de la vidéo, ou qui font tourner un service (diffusion, serveur), sont épargnées.", { onOff(prefs.cleanOnStandby) }) {
             prefs.cleanOnStandby = !prefs.cleanOnStandby
@@ -414,16 +647,17 @@ class SettingsActivity : Activity() {
                     // Short: the label must keep its room. The whole summary is on "Dernier nettoyage".
                     cleanResult = if (r.viaAdb) "${r.freedMb} Mo · ${r.closedText}" else r.freedText
                     // "Dernier nettoyage" below changed too, so the page is rebuilt (where the focus is) rather than one value set.
-                    if (page == Page.MAIN && !isDestroyed) show(Page.MAIN, list.indexOfChild(list.focusedChild).coerceAtLeast(0))
+                    if (page == Page.MEMORY && !isDestroyed) show(Page.MEMORY, list.indexOfChild(list.focusedChild).coerceAtLeast(0))
                 }
             }.start()
         }
         row("Dernier nettoyage", if (prefs.lastClean.isEmpty()) "La mémoire n'a pas encore été libérée." else "${lastCleanWhat()}.\nAppuyez pour voir les apps fermées.",
-            { lastCleanWhen() }, chevron = true) { show(Page.LAST_CLEAN) }
+            { lastCleanWhen() }, chevron = true) { open(Page.LAST_CLEAN) }
         row("Apps à conserver", "Apps que la libération de la mémoire ne ferme jamais, comme la diffusion d'écran. " +
             "Celles qui lisent du son ou de la vidéo, ou qui font tourner un service, sont de toute façon épargnées tant qu'elles le font.", { "${prefs.keep.size}" }, chevron = true) {
-            show(Page.KEEP)
+            open(Page.KEEP)
         }
+        section("Alimentation")
         row("Bouton marche/arrêt", "Veille : comme d'habitude. Arrêt complet : économise l'énergie, mais le démarrage est plus long.", {
             if (prefs.shutdownOnPowerKey) "Arrêt complet" else "Veille"
         }) {
@@ -431,24 +665,35 @@ class SettingsActivity : Activity() {
             if (prefs.shutdownOnPowerKey && !prefs.adbAuthorized)
                 Toast.makeText(this, "Autorisez d'abord le débogage local pour l'activer", Toast.LENGTH_LONG).show()
         }
+    }
 
+    /** Apps: hidden and removed apps, folders. */
+    private fun appsGroup() {
         section("Apps")
-        row("Apps masquées", "Apps qui ne s'affichent pas sur l'écran d'accueil.", { "${prefs.hidden.size}" }, chevron = true) { show(Page.HIDDEN) }
+        row("Apps masquées", "Apps qui ne s'affichent pas sur l'écran d'accueil.", { "${prefs.hidden.size}" }, chevron = true) { open(Page.HIDDEN) }
         row("Apps préinstallées supprimées", "Apps préinstallées supprimées depuis le menu d'appui long ; vous pouvez les restaurer ici.", { "${prefs.removed.size}" }, chevron = true) {
-            show(Page.REMOVED)
+            open(Page.REMOVED)
         }
+        section("Dossiers")
         row("Dossiers", "Les dossiers de l'accueil et leurs apps. Ils se créent et se gèrent depuis l'accueil, par un appui long sur une app ou un dossier.",
-            { "${prefs.folderList().size}" }, chevron = true) { show(Page.FOLDERS) }
+            { "${prefs.folderList().size}" }, chevron = true) { open(Page.FOLDERS) }
+    }
 
+    /** Profils. */
+    private fun accountsGroup() {
         section("Profils")
         row("Profil actuel", "Le profil dont l'accueil est affiché. Changez-en avec la photo de profil, en haut à droite de l'accueil.",
             { Profiles.displayName(prefs.current()) }) {}
-        row("Gérer les profils", PROFILES_ABOUT, { "${prefs.profileList().size}" }, chevron = true) { show(Page.PROFILES) }
+        row("Gérer les profils", PROFILES_ABOUT, { "${prefs.profileList().size}" }, chevron = true) { open(Page.PROFILES) }
+    }
 
-        section("Page téléphone")
+    /** Page téléphone. */
+    private fun phoneGroup() {
+        section("Accès")
         row("Afficher le QR code", "Scannez-le avec un téléphone sur le même Wi-Fi. La page qui s'ouvre sert de télécommande avec clavier, choisit le fond d'écran, " +
             "l'économiseur et l'animation de démarrage, importe des photos et installe des apps (APK). La télécommande et l'installation d'apps demandent le débogage local.",
-            { "" }, chevron = true) { show(Page.PHONE) }
+            { "" }, chevron = true) { open(Page.PHONE) }
+        section("Sécurité")
         row("Régénérer le code", "Change le code secret de l'adresse : les téléphones qui connaissaient l'ancienne ne peuvent plus s'en servir et doivent scanner à nouveau. " +
             "Faites-le si un téléphone qui a ouvert la page est perdu.", { if (tokenRenewed) "Nouveau code créé" else "" }) {
             PhoneServer.regenerate(this)
@@ -459,46 +704,11 @@ class SettingsActivity : Activity() {
             prefs.phoneServer = !prefs.phoneServer
             KeeperService.start(this)
         }
+    }
 
-        section("Lecture et notifications")
-        row("Lecture en cours", "Affiche dans le Centre de contrôle ce que lit une app (titre, artiste, pochette) avec lecture/pause et piste suivante. " +
-            "Lit uniquement les métadonnées de lecture via l'écouteur de notifications ; aucune notification n'est lue pour cela.",
-            { if (!MediaSessions.isAvailable(this)) LISTENER_NEEDED else onOff(prefs.nowPlaying) }) { v ->
-            if (prefs.nowPlaying) { prefs.nowPlaying = false; return@row }
-            v.text = "Réglage…"
-            Thread {
-                val ok = MediaSessions.isAvailable(applicationContext) || (allowListener() && MediaSessions.isAvailable(applicationContext))
-                if (ok) prefs.nowPlaying = true
-                runOnUiThread { v.text = if (ok) onOff(true) else LISTENER_NEEDED }
-            }.start()
-        }
-        row("Bannières de notifications", "Affiche en haut à droite les notifications des apps choisies (sonnette, domotique…). " +
-            "Seules ces apps sont lues : titre et texte, affichés 6 secondes, jamais enregistrés.",
-            { if (!Banners.listenerGranted(this)) LISTENER_NEEDED else onOff(prefs.banners) }) { v ->
-            if (prefs.banners) {
-                prefs.banners = false
-                show(Page.MAIN, list.indexOfChild(list.focusedChild).coerceAtLeast(0))
-                return@row
-            }
-            v.text = "Réglage…"
-            Thread {
-                val ok = Banners.listenerGranted(applicationContext) || allowListener()
-                // Over the app being watched, banners need the overlay permission the guard also uses.
-                if (ok && !Settings.canDrawOverlays(applicationContext) && prefs.adbAuthorized)
-                    LocalAdb.shell(applicationContext, "appops set $packageName SYSTEM_ALERT_WINDOW allow", 10_000)
-                if (ok) prefs.banners = true
-                runOnUiThread {
-                    if (!ok) v.text = LISTENER_NEEDED
-                    // "Apps des bannières" appears below: the page is rebuilt where the focus is.
-                    else if (page == Page.MAIN && !isDestroyed) show(Page.MAIN, list.indexOfChild(list.focusedChild).coerceAtLeast(0))
-                }
-            }.start()
-        }
-        if (prefs.banners) row("Apps des bannières", "Les apps dont les notifications s'affichent en bannière. Aucune autre notification n'est lue." +
-            if (Settings.canDrawOverlays(this)) "" else "\nSans l'autorisation d'affichage par-dessus les autres apps (étape 4), les bannières n'apparaissent que sur l'accueil.",
-            { "${prefs.bannerApps.size}" }, chevron = true) { show(Page.BANNER_APPS) }
-
-        section("Système")
+    /** Système: debugging, the home guard, the TV's own settings, updates, the version. */
+    private fun systemGroup() {
+        section("Débogage")
         row("Débogage local", "Permet à l'accueil d'éteindre le téléviseur, de libérer la mémoire, etc. via le débogage local. Dans la fenêtre qui s'affiche, choisissez « Toujours autoriser ».",
             { if (prefs.adbAuthorized) "Autorisé" else "Non autorisé, appuyez sur OK" }) { v ->
             v.text = "Choisissez Toujours autoriser…"
@@ -507,19 +717,9 @@ class SettingsActivity : Activity() {
                 runOnUiThread { v.text = if (ok) "Autorisé" else "Non autorisé, OK pour réessayer" }
             }.start()
         }
-        // Only where the TV keeps Home for its own launcher; on Sony or stock Android TV canvasOS is the real home.
-        if (Guard.needed(this)) row("Protection de l'accueil", "Quand la touche Accueil ramène au lanceur d'origine du téléviseur, revient automatiquement ici.",
-            { if (!prefs.guard) "Désactivée" else if (HomeGuardService.isRunning) "Activée" else "Activée (inactive)" }) { v ->
-            val on = !prefs.guard
-            v.text = "Réglage…"
-            Thread {
-                val ok = (Guard.hasSecureSettings(this) || Guard.grantViaLocalAdb(applicationContext)) && Guard.setEnabled(applicationContext, on)
-                runOnUiThread {
-                    v.text = if (!ok) "Débogage local requis" else if (on) "Activée" else "Désactivée"
-                    if (ok && on) Toast.makeText(this, "La touche Accueil ramènera désormais ici au lieu du lanceur d'origine", Toast.LENGTH_LONG).show()
-                }
-            }.start()
-        }
+        row("Débogage ADB", "Doit être activé pour qu'un ordinateur puisse se connecter au téléviseur : sans lui, pas d'installation ni de mise à jour par le réseau. " +
+            "Il se règle dans les options pour les développeurs du téléviseur.",
+            { onOff(Settings.Global.getInt(contentResolver, Settings.Global.ADB_ENABLED, 0) == 1) }) {}
         if (Guard.isXiaomi() || prefs.keepAdb) row("Garder le débogage ADB activé", "Empêche le système de désactiver le débogage ADB.", { onOff(prefs.keepAdb) }) { v ->
             val on = !prefs.keepAdb
             v.text = "Réglage…"
@@ -531,13 +731,29 @@ class SettingsActivity : Activity() {
         }
         row("Adresse IP", "L'adresse du téléviseur sur le réseau local. Un ordinateur sur le même réseau s'en sert pour s'y connecter (adb connect, port 5555), " +
             "par exemple pour installer ou mettre à jour canvasOS.", { Net.lanAddress(this) ?: "Non connecté" }) {}
-        row("Débogage ADB", "Doit être activé pour qu'un ordinateur puisse se connecter au téléviseur : sans lui, pas d'installation ni de mise à jour par le réseau. " +
-            "Il se règle dans les options pour les développeurs du téléviseur.",
-            { onOff(Settings.Global.getInt(contentResolver, Settings.Global.ADB_ENABLED, 0) == 1) }) {}
+        // Only where the TV keeps Home for its own launcher; on Sony or stock Android TV canvasOS is the real home.
+        if (Guard.needed(this)) {
+            section("Protection")
+            row("Protection de l'accueil", "Quand la touche Accueil ramène au lanceur d'origine du téléviseur, revient automatiquement ici.",
+                { if (!prefs.guard) "Désactivée" else if (HomeGuardService.isRunning) "Activée" else "Activée (inactive)" }) { v ->
+                val on = !prefs.guard
+                v.text = "Réglage…"
+                Thread {
+                    val ok = (Guard.hasSecureSettings(this) || Guard.grantViaLocalAdb(applicationContext)) && Guard.setEnabled(applicationContext, on)
+                    runOnUiThread {
+                        v.text = if (!ok) "Débogage local requis" else if (on) "Activée" else "Désactivée"
+                        if (ok && on) Toast.makeText(this, "La touche Accueil ramènera désormais ici au lieu du lanceur d'origine", Toast.LENGTH_LONG).show()
+                    }
+                }.start()
+            }
+        }
+        section("Téléviseur")
         row("Réglages du téléviseur", "Ouvre les réglages d'origine du téléviseur.", { "" }, chevron = true) { runCatching { startActivity(TvControls(this).settingsIntent()) } }
+        section("Mise à jour")
         row("Mise à jour", "Cherche la dernière version de canvasOS sur GitHub (Releases) et l'installe sur place : les réglages et les autorisations sont conservés. " +
             "Appuyez une première fois pour vérifier, une seconde pour installer. L'installation demande le débogage local. " +
             "canvasOS cherche aussi chaque jour qu'une version existe, sans rien télécharger.", { updateValue() }) { v -> updatePressed(v) }
+        section("À propos")
         row("À propos", "canvasOS, un écran d'accueil Android TV inspiré de tvOS.",
             { "Version " + packageManager.getPackageInfo(packageName, 0).versionName }) {}
     }
@@ -618,21 +834,21 @@ class SettingsActivity : Activity() {
     }
 
     /**
-     * The apps whose notifications become banners: every app on the TV, system ones included (a
-     * doorbell or home-automation app may come with the firmware), and any package set over adb.
+     * The apps whose notifications never become banners (ticked = excluded): every app on the TV,
+     * system ones included (a firmware app may be chatty), and any package excluded over adb.
      */
     private fun bannerAppsPage() {
         val listed = repo.allApps().filter { !repo.isOwn(it.pkg) }
         val known = listed.mapTo(HashSet()) { it.pkg }
-        val more = (prefs.bannerApps - known).mapNotNull { pkg ->
+        val more = (prefs.bannerExcluded - known).mapNotNull { pkg ->
             runCatching {
                 AppEntry(pkg, packageManager.getApplicationLabel(packageManager.getApplicationInfo(pkg, 0)).toString(), android.content.ComponentName(pkg, ""), false)
             }.getOrNull()
         }
-        appPicker("Apps des bannières", prefs.bannerApps, source = (listed + more).sortedBy { it.label.lowercase() }) { pkg, on ->
-            prefs.bannerApps = if (on) prefs.bannerApps + pkg else prefs.bannerApps - pkg
+        appPicker("Apps exclues des bannières", prefs.bannerExcluded, source = (listed + more).sortedBy { it.label.lowercase() }) { pkg, on ->
+            prefs.bannerExcluded = if (on) prefs.bannerExcluded + pkg else prefs.bannerExcluded - pkg
         }
-        about.text = "Les notifications des apps cochées s'affichent 6 secondes en haut à droite. Celles des autres apps ne sont pas lues."
+        about.text = "Les notifications des apps cochées ne sont ni lues ni affichées. Celles des autres apps s'affichent 6 secondes en haut à droite."
     }
 
     /** Approves the notification listener through local adb, as AGENTS.md step 4 does from a computer. Blocking. */
@@ -766,13 +982,13 @@ class SettingsActivity : Activity() {
             "Le code dans l'adresse est la seule protection : régénérez-le si un téléphone qui a ouvert la page est perdu ; " +
             "les téléphones qui connaissaient l'ancien devront scanner à nouveau."
         val qr = ImageView(this).apply {
-            background = rounded(Color.WHITE, dp(14).toFloat())
-            setPadding(dp(14), dp(14), dp(14), dp(14))
+            background = rounded(Color.WHITE, u(ROW_RADIUS).toFloat())
+            setPadding(u(12), u(12), u(12), u(12))
             scaleType = ImageView.ScaleType.FIT_CENTER
         }
-        val address = text(15f, Color.argb(170, 255, 255, 255)).apply { gravity = Gravity.CENTER_HORIZONTAL }
-        list.addView(qr, LinearLayout.LayoutParams(dp(250), dp(250)).apply { gravity = Gravity.CENTER_HORIZONTAL })
-        list.addView(address, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(14); bottomMargin = dp(18) })
+        val address = label(15f, DESCRIPTION).apply { gravity = Gravity.CENTER_HORIZONTAL }
+        list.addView(qr, LinearLayout.LayoutParams(u(210), u(210)).apply { gravity = Gravity.CENTER_HORIZONTAL })
+        list.addView(address, LinearLayout.LayoutParams(-1, -2).apply { topMargin = u(12); bottomMargin = u(16) })
         fun load() {
             address.text = "Démarrage…"
             Thread {
@@ -821,13 +1037,17 @@ class SettingsActivity : Activity() {
         for (label in labels) row(label, null, { "" }) {}
     }
 
-    /** A small grey group title above a run of rows. */
+    /** A small grey uppercase title above a run of rows, as tvOS splits a settings page ("AUTO-PLAY", "HOME SCREEN"). */
     private fun section(title: String) {
         val first = list.childCount == 0
-        list.addView(text(14f, Color.argb(120, 255, 255, 255), weight = 500).apply { text = title },
-            LinearLayout.LayoutParams(-2, -2).apply {
-                marginStart = dp(18); topMargin = if (first) 0 else dp(22); bottomMargin = dp(8)
-            })
+        list.addView(label(HEADER_SIZE, HEADER, 600).apply {
+            text = title.uppercase(java.util.Locale.FRENCH)
+            letterSpacing = 0.02f
+            tag = HEADER_TAG
+        }, LinearLayout.LayoutParams(-2, -2).apply {
+            // Lined up with the rows' labels; the row above already keeps its gap below it.
+            marginStart = u(ROW_PAD); topMargin = if (first) 0 else u(HEADER_ABOVE); bottomMargin = u(HEADER_BELOW)
+        })
     }
 
     /**
@@ -840,36 +1060,69 @@ class SettingsActivity : Activity() {
             gravity = Gravity.CENTER_VERTICAL
             isFocusable = true
             isClickable = true
-            setPadding(dp(20), 0, dp(if (chevron) 14 else 20), 0)
+            setPadding(u(ROW_PAD), 0, u(if (chevron) ROW_PAD + 2 else ROW_PAD), 0)
         }
-        val l = text(17f, IDLE_TEXT, weight = 500).apply {
+        val l = label(18.5f, IDLE_TEXT, 500).apply {
             text = label
             maxLines = 1
             ellipsize = TextUtils.TruncateAt.END
         }
-        val v = text(16f, IDLE_VALUE).apply { text = value() }
-        picture?.let { d -> r.addView(ImageView(this).apply { setImageDrawable(d) }, LinearLayout.LayoutParams(dp(ROW_AVATAR_DP), dp(ROW_AVATAR_DP)).apply { marginEnd = dp(14) }) }
+        val v = label(18.5f, IDLE_VALUE).apply {
+            text = value()
+            maxLines = 1
+        }
+        picture?.let { d -> r.addView(ImageView(this).apply { setImageDrawable(d) }, LinearLayout.LayoutParams(u(ROW_AVATAR), u(ROW_AVATAR)).apply { marginEnd = u(10) }) }
         r.addView(l, LinearLayout.LayoutParams(0, -2, 1f))
-        r.addView(v, LinearLayout.LayoutParams(-2, -2).apply { marginStart = dp(12) })
-        val arrow = if (chevron) text(24f, IDLE_VALUE, weight = 300).apply { text = "›" } else null
-        arrow?.let { r.addView(it, LinearLayout.LayoutParams(-2, -2).apply { marginStart = dp(10); bottomMargin = dp(2) }) }
-        val idle = rounded(Color.argb(20, 255, 255, 255), dp(14).toFloat())
-        val focus = rounded(Color.WHITE, dp(14).toFloat())
+        r.addView(v, LinearLayout.LayoutParams(-2, -2).apply { marginStart = u(12) })
+        val arrow = if (chevron) Chevron(IDLE_VALUE, maxOf(1.6f * unit, 1.5f)) else null
+        arrow?.let { r.addView(android.view.View(this).apply { background = it }, LinearLayout.LayoutParams(u(8), u(15)).apply { marginStart = u(12) }) }
+        val idle = rounded(IDLE_ROW, u(ROW_RADIUS).toFloat())
+        val focus = rounded(Color.WHITE, u(ROW_RADIUS).toFloat())
         r.background = idle
         r.setOnFocusChangeListener { _, f ->
             r.background = if (f) focus else idle
             l.setTextColor(if (f) Color.BLACK else IDLE_TEXT)
             v.setTextColor(if (f) FOCUS_VALUE else IDLE_VALUE)
-            arrow?.setTextColor(if (f) FOCUS_VALUE else IDLE_VALUE)
+            arrow?.color = if (f) FOCUS_VALUE else IDLE_VALUE
             if (f && desc != null) about.text = desc
-            r.tweenScale(if (f) 1.03f else 1f, 160)
+            // A slight lift with a soft shadow under it, as the focused row on tvOS.
+            r.tweenScale(if (f) 1.02f else 1f, 160, z = if (f) u(6).toFloat() else 0f)
         }
         r.setOnClickListener {
-            if (page == Page.MAIN) opener = list.indexOfChild(r)
+            val from = page
             onClick(v)
-            if (page == Page.MAIN && !v.text.endsWith("…")) v.text = value()
+            // On a group page the value shows what the press changed; list pages set their own.
+            if (page == from && from.title != null && !v.text.endsWith("…")) v.text = value()
         }
-        list.addView(r, LinearLayout.LayoutParams(-1, dp(52)).apply { bottomMargin = dp(6) })
+        list.addView(r, LinearLayout.LayoutParams(-1, u(ROW_H)).apply { bottomMargin = u(ROW_GAP) })
+    }
+
+    /** tvOS's thin chevron at the end of a row that opens a page: two strokes with round ends. */
+    private class Chevron(color: Int, stroke: Float) : android.graphics.drawable.Drawable() {
+        private val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+            style = android.graphics.Paint.Style.STROKE
+            strokeWidth = stroke
+            strokeCap = android.graphics.Paint.Cap.ROUND
+            strokeJoin = android.graphics.Paint.Join.ROUND
+            this.color = color
+        }
+        var color: Int
+            get() = paint.color
+            set(v) { paint.color = v; invalidateSelf() }
+
+        override fun draw(c: android.graphics.Canvas) {
+            val b = bounds
+            val i = paint.strokeWidth / 2
+            c.drawPath(android.graphics.Path().apply {
+                moveTo(b.left + i, b.top + i)
+                lineTo(b.right - i, b.exactCenterY())
+                lineTo(b.left + i, b.bottom - i)
+            }, paint)
+        }
+        override fun setAlpha(alpha: Int) { paint.alpha = alpha }
+        override fun setColorFilter(cf: android.graphics.ColorFilter?) { paint.colorFilter = cf }
+        @Suppress("OVERRIDE_DEPRECATION")
+        override fun getOpacity() = android.graphics.PixelFormat.TRANSLUCENT
     }
 
     private fun onOff(b: Boolean) = if (b) "Activé" else "Désactivé"
@@ -887,6 +1140,7 @@ class SettingsActivity : Activity() {
         else LocalAdb.shell(applicationContext, "settings put secure $key $value") != null
 
     private fun minutesLabel(m: Int) = when {
+        m <= 0 -> "Jamais"
         m >= 1440 -> "Chaque jour"
         m >= 60 -> "${m / 60} h"
         else -> "$m min"
@@ -901,7 +1155,9 @@ class SettingsActivity : Activity() {
             return true
         }
         if (keyCode == KeyEvent.KEYCODE_BACK && page != Page.MAIN) {
-            if (page == entry) finish() else show(Page.MAIN, opener)
+            // Up one level, onto the row that opened this page; the page the screen was opened on leaves.
+            val up = page.parent
+            if (page == entry || up == null) finish() else show(up, openers[page] ?: 0)
             return true
         }
         return super.onKeyUp(keyCode, event)

@@ -2,38 +2,75 @@ package com.getisolated.canvasos
 
 import android.content.Context
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.graphics.BitmapShader
 import android.graphics.Canvas
+import android.graphics.Color
 import android.graphics.ColorFilter
 import android.graphics.Matrix
 import android.graphics.Paint
 import android.graphics.PixelFormat
+import android.graphics.RectF
 import android.graphics.Shader
 import android.graphics.drawable.Drawable
 import android.media.MediaMetadata
 import android.media.session.MediaController
 import android.media.session.PlaybackState
+import android.net.Uri
+import android.os.SystemClock
+import java.io.InputStream
+import java.net.HttpURLConnection
+import java.net.URL
+import java.util.concurrent.Executors
 
 /**
- * What the Control Center's "Lecture" capsule shows ([Prefs.nowPlaying], off by default): the
- * media session that is playing, or else the one that is paused. Read through [MediaSessions]
- * (the approved notification listener): the session's title, artist, album and artwork, and its
- * playback state. No notification is read for this, and nothing is written anywhere; the capsule
- * keeps the last reading and one scaled picture.
+ * What the Control Center's player shows ([Prefs.nowPlaying], off by default): the media session
+ * that is playing, or else the one that is paused. Read through [MediaSessions] (the approved
+ * notification listener): the session's title, artist, album and artwork, its playback state,
+ * position and duration. No notification is read for this, and nothing is written anywhere; the
+ * player keeps the last reading and the scaled pictures of the track on screen. An app that only
+ * gives the address of its artwork (YouTube Music, Spotify and others on TV) has that picture
+ * loaded from where the app says, once per track.
  */
 class NowPlaying private constructor(
     private val controller: MediaController,
     val pkg: String,
     val title: String,
     val sub: String,
-    /** The scaled, square artwork; the same object for as long as the track does not change. */
+    /** The scaled, square artwork for the one-line and two-line players; the same object for as long as the track does not change. */
     val art: Bitmap?,
+    /** The same artwork at the large player's size. */
+    val artLarge: Bitmap?,
     private val artKey: String?,
+    /** Sound or video is going ([MediaSessions.ACTIVE]): the player shows pause rather than play. */
+    val playing: Boolean,
+    /** Where playback was at [updatedAt], in ms; -1 when the session does not say. */
+    val position: Long,
+    /** [SystemClock.elapsedRealtime] of [position], as [PlaybackState.getLastPositionUpdateTime]. */
+    val updatedAt: Long,
+    /** How fast the position moves on its own: the playback speed while it plays, 0 otherwise. */
+    val speed: Float,
+    /** The track's length in ms; 0 or less when unknown (a live stream, or an app that does not say). */
+    val duration: Long,
 ) {
-    /** Nothing the capsule shows has changed: it is left alone (no relayout, no redraw). */
+    /** Nothing the player's text and artwork show has changed: they are left alone (no relayout, no redraw). */
     fun sameAs(o: NowPlaying?) = o != null && o.pkg == pkg && o.title == title && o.sub == sub && o.artKey == artKey
 
-    /** Pauses what plays, plays what is paused; the state is read again, the capsule's may be 2 s old. */
+    val hasDuration get() = duration > 0
+
+    /** The position now, carried forward from the last reading; -1 when unknown. */
+    fun positionNow(): Long = positionAt(position, updatedAt, speed, SystemClock.elapsedRealtime(), duration)
+
+    /** This reading as if playback had just been moved to [ms] (shown at once, before the app says so). */
+    fun seeked(ms: Long) = NowPlaying(controller, pkg, title, sub, art, artLarge, artKey, playing, ms, SystemClock.elapsedRealtime(), speed, duration)
+
+    /** This reading as if play or pause had just been pressed. */
+    fun toggled(): NowPlaying {
+        val at = positionNow()
+        return NowPlaying(controller, pkg, title, sub, art, artLarge, artKey, !playing, at, SystemClock.elapsedRealtime(), if (playing) 0f else 1f, duration)
+    }
+
+    /** Pauses what plays, plays what is paused; the state is read again, the player's may be 2 s old. */
     fun playPause() = runCatching {
         val playing = controller.playbackState?.state?.let { it in MediaSessions.ACTIVE } == true
         if (playing) controller.transportControls.pause() else controller.transportControls.play()
@@ -43,15 +80,31 @@ class NowPlaying private constructor(
 
     fun next() = runCatching { controller.transportControls.skipToNext() }
 
+    /** Apps that cannot seek ignore it (some live streams, some casting receivers). */
+    fun seekTo(ms: Long) = runCatching { controller.transportControls.seekTo(ms.coerceAtLeast(0L)) }
+
     /**
      * Reads the sessions, keeping the scaled artwork of the track on screen, so the 2 s poll does
      * not decode and scale the same picture again. One per Control Center; blocking binder calls,
-     * so off the UI thread, and from one thread at a time.
+     * so off the UI thread, and from one thread at a time. An artwork given only as an address is
+     * loaded on a thread of its own (a slow server must not hold up play/pause), then [onArt] is
+     * told so the player can read the session again at once.
      */
-    class Reader(private val ctx: Context, private val artPx: Int) {
-        private var artKey: String? = null
+    class Reader(private val ctx: Context, private val artPx: Int, private val largePx: Int, private val onArt: () -> Unit = {}) {
+        @Volatile private var artKey: String? = null
         private var artBmp: Bitmap? = null
+        private var largeBmp: Bitmap? = null
         private val labels = HashMap<String, String>()
+        /** Loads artwork addresses, one at a time; its thread starts with the first one. */
+        private val loader = Executors.newSingleThreadExecutor()
+        private val lock = Any()
+        /** The last loaded artwork, for the track [Loaded.key]; null pictures when it could not be loaded (not tried again). */
+        private var loaded: Loaded? = null
+
+        private class Loaded(val key: String, val small: Bitmap?, val large: Bitmap?)
+
+        /** Stops the artwork loader; a load under way finishes on its own and is dropped. */
+        fun shutdown() { loader.shutdownNow() }
 
         fun read(): NowPlaying? {
             val list = MediaSessions.controllers(ctx)
@@ -60,7 +113,8 @@ class NowPlaying private constructor(
             return runCatching {
                 val pkg = c.packageName
                 val md = c.metadata
-                val playing = c.playbackState?.state?.let { it in MediaSessions.ACTIVE } == true
+                val ps = c.playbackState
+                val playing = ps?.state?.let { it in MediaSessions.ACTIVE } == true
                 val app = label(pkg)
                 val title = md.text(MediaMetadata.METADATA_KEY_TITLE) ?: md.text(MediaMetadata.METADATA_KEY_DISPLAY_TITLE)
                 val line = md.text(MediaMetadata.METADATA_KEY_ARTIST) ?: md.text(MediaMetadata.METADATA_KEY_ALBUM_ARTIST)
@@ -69,51 +123,150 @@ class NowPlaying private constructor(
                     it.getBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART) ?: it.getBitmap(MediaMetadata.METADATA_KEY_ART)
                         ?: it.getBitmap(MediaMetadata.METADATA_KEY_DISPLAY_ICON)
                 }
+                // Many TV apps send no picture, only where it is: a content:// or https:// address.
+                val uri = if (src != null) null else md?.let {
+                    listOf(MediaMetadata.METADATA_KEY_ALBUM_ART_URI, MediaMetadata.METADATA_KEY_ART_URI, MediaMetadata.METADATA_KEY_DISPLAY_ICON_URI)
+                        .firstNotNullOfOrNull { k -> it.getString(k)?.trim()?.takeIf(::loadable) }
+                }
                 // The session's own key and the track: a new picture for the same track (sent once
-                // it has loaded) has other dimensions or comes after none at all.
-                val key = src?.let { "$pkg|${md.text(MediaMetadata.METADATA_KEY_MEDIA_ID)}|$title|$line|${it.width}x${it.height}" }
+                // it has loaded) has other dimensions, another address, or comes after none at all.
+                val track = "$pkg|${md.text(MediaMetadata.METADATA_KEY_MEDIA_ID)}|$title|$line"
+                val key = when {
+                    src != null -> "$track|${src.width}x${src.height}"
+                    uri != null -> "$track|$uri"
+                    else -> null
+                }
                 if (key != artKey) {
                     artKey = key
-                    artBmp = src?.let { scale(it) }
+                    artBmp = null
+                    largeBmp = null
+                    if (src != null) {
+                        val sq = square(src)
+                        artBmp = sq?.let { scale(it, artPx) }
+                        largeBmp = sq?.let { scale(it, largePx) }
+                    } else if (uri != null && key != null) load(key, uri)
                 }
-                NowPlaying(c, pkg, title ?: app, subtitle(title != null, line, app, playing), artBmp, artKey)
+                if (uri != null && artBmp == null) synchronized(lock) {
+                    loaded?.takeIf { it.key == key }?.let { artBmp = it.small; largeBmp = it.large }
+                }
+                // Only a playing session moves on by itself; buffering and the rest hold still.
+                val moving = ps?.state == PlaybackState.STATE_PLAYING
+                val speed = if (!moving) 0f else ps?.playbackSpeed?.takeIf { it > 0f } ?: 1f
+                val duration = md?.getLong(MediaMetadata.METADATA_KEY_DURATION) ?: 0L
+                NowPlaying(c, pkg, title ?: app, subtitle(title != null, line, app, playing), artBmp, largeBmp, "$artKey|${artBmp != null}",
+                    playing, ps?.position ?: -1L, ps?.lastPositionUpdateTime ?: SystemClock.elapsedRealtime(), speed, duration)
             }.getOrNull()
+        }
+
+        /** Loads [uri] for the track [key] on the loader's thread; dropped if the track has changed by then. */
+        private fun load(key: String, uri: String) {
+            runCatching {
+                loader.execute {
+                    if (artKey != key) return@execute
+                    val sq = runCatching { decode(uri) }.getOrNull()?.let { square(it) }
+                    val small = sq?.let { scale(it, artPx) }
+                    val large = sq?.let { scale(it, largePx) }
+                    synchronized(lock) { loaded = Loaded(key, small, large) }
+                    if (small != null && artKey == key) onArt()
+                }
+            }
+        }
+
+        /** The picture at [uri], decoded at no more than about twice the large player's size. */
+        private fun decode(uri: String): Bitmap? {
+            val bytes = fetch(uri) ?: return null
+            val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
+            if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
+            val opts = BitmapFactory.Options().apply { inSampleSize = sampleSize(bounds.outWidth, bounds.outHeight, largePx) }
+            return BitmapFactory.decodeByteArray(bytes, 0, bytes.size, opts)
+        }
+
+        /**
+         * The bytes at [uri]: through the app's content provider (which may refuse: then none), or
+         * over the network with short timeouts. Nothing larger than [MAX_ART_BYTES].
+         */
+        private fun fetch(uri: String): ByteArray? = when (scheme(uri)) {
+            "http", "https" -> {
+                val c = URL(uri).openConnection() as HttpURLConnection
+                try {
+                    c.connectTimeout = 4_000
+                    c.readTimeout = 6_000
+                    if (c.responseCode !in 200..299 || c.contentLengthLong > MAX_ART_BYTES) null
+                    else c.inputStream.use { capped(it) }
+                } finally {
+                    c.disconnect()
+                }
+            }
+            else -> ctx.contentResolver.openInputStream(Uri.parse(uri))?.use { capped(it) }
+        }
+
+        private fun capped(input: InputStream): ByteArray? {
+            val out = java.io.ByteArrayOutputStream()
+            val buf = ByteArray(16 * 1024)
+            while (true) {
+                val n = input.read(buf)
+                if (n < 0) break
+                out.write(buf, 0, n)
+                if (out.size() > MAX_ART_BYTES) return null
+            }
+            return out.toByteArray()
         }
 
         private fun label(pkg: String) = labels.getOrPut(pkg) {
             runCatching { ctx.packageManager.let { pm -> pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)).toString() } }.getOrDefault(pkg)
         }
 
-        /** Square from the middle, at [artPx]: a 320 px cover becomes a few KB kept for the capsule. */
-        private fun scale(src: Bitmap): Bitmap? = runCatching {
+        /** Square from the middle. */
+        private fun square(src: Bitmap): Bitmap? = runCatching {
             // A hardware bitmap cannot be cropped on Android 9; a software copy can.
             val soft = if (src.config == Bitmap.Config.HARDWARE) src.copy(Bitmap.Config.ARGB_8888, false) else src
             val s = minOf(soft.width, soft.height)
-            val sq = Bitmap.createBitmap(soft, (soft.width - s) / 2, (soft.height - s) / 2, s, s)
-            Bitmap.createScaledBitmap(sq, artPx, artPx, true)
+            Bitmap.createBitmap(soft, (soft.width - s) / 2, (soft.height - s) / 2, s, s)
+        }.getOrNull()
+
+        /**
+         * At [px], once per track: drawn at about its own size, the cover stays sharp without a
+         * filter pass at every frame. A small cover is not blown up.
+         */
+        private fun scale(sq: Bitmap, px: Int): Bitmap? = runCatching {
+            if (sq.width <= px) sq else Bitmap.createScaledBitmap(sq, px, px, true)
         }.getOrNull()
 
         private fun MediaMetadata?.text(key: String): String? =
             this?.getText(key)?.toString()?.trim()?.takeIf { it.isNotEmpty() }
     }
 
-    /** The artwork as a disc. Ignores the colour filter the capsule puts on its glyph. */
-    class Disc(bitmap: Bitmap) : Drawable() {
-        private val shader = BitmapShader(bitmap, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP)
-        private val paint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG).apply { this.shader = this@Disc.shader }
-        private val w = bitmap.width.toFloat()
-        private val h = bitmap.height.toFloat()
+    /**
+     * The artwork as a square with rounded corners; without one, a grey square with [note] (the
+     * music glyph) in the middle. Ignores the colour filter a player puts on its glyphs.
+     */
+    class Cover(bitmap: Bitmap?, private val radius: Float, private val note: Drawable?) : Drawable() {
+        private val art = bitmap?.let { BitmapShader(it, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP) }
+        // Not named `shader` inside apply: there it would be the Paint's own (null), and every
+        // cover would be drawn as the empty grey square. That is why v1.1's player showed none.
+        private val paint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG).also { p ->
+            if (art != null) p.shader = art else p.color = Color.argb(110, 128, 128, 136)
+        }
+        private val w = bitmap?.width?.toFloat() ?: 1f
+        private val h = bitmap?.height?.toFloat() ?: 1f
         private val m = Matrix()
+        private val rect = RectF()
 
         override fun onBoundsChange(b: android.graphics.Rect) {
+            rect.set(b)
             m.setScale(b.width() / w, b.height() / h)
             m.postTranslate(b.left.toFloat(), b.top.toFloat())
-            shader.setLocalMatrix(m)
+            art?.setLocalMatrix(m)
+            if (art == null) note?.let { d ->
+                val s = minOf(b.width(), b.height()) / 2
+                d.setBounds(b.centerX() - s / 2, b.centerY() - s / 2, b.centerX() + s / 2, b.centerY() + s / 2)
+            }
         }
 
         override fun draw(c: Canvas) {
-            val b = bounds
-            c.drawCircle(b.exactCenterX(), b.exactCenterY(), minOf(b.width(), b.height()) / 2f, paint)
+            c.drawRoundRect(rect, radius, radius, paint)
+            if (art == null) note?.draw(c)
         }
 
         override fun setAlpha(alpha: Int) {}
@@ -123,25 +276,92 @@ class NowPlaying private constructor(
     }
 
     companion object {
+        /** A press on « back » restarts the track past this point, and goes to the previous one before it. */
+        const val RESTART_MS = 3_000L
+        /** One step of seeking or of the large player's cursor. */
+        const val STEP_MS = 10_000L
+        /** An artwork address that serves more than this is not a cover. */
+        const val MAX_ART_BYTES = 6 * 1024 * 1024
+
+        /** The scheme of [uri], lower case; empty without one. */
+        fun scheme(uri: String): String = uri.substringBefore(':', "").lowercase()
+
+        /** An artwork address the player can load: from an app's content provider or resources, or the web. */
+        fun loadable(uri: String): Boolean = scheme(uri) in setOf("content", "android.resource", "http", "https")
+
+        /**
+         * BitmapFactory's inSampleSize for a [w]×[h] picture shown at [px]: the largest power of two
+         * that keeps its short side at [px] or more, so a 3000 px poster is not decoded whole.
+         */
+        fun sampleSize(w: Int, h: Int, px: Int): Int {
+            var s = 1
+            val short = minOf(w, h)
+            if (px <= 0) return 1
+            while (short / (s * 2) >= px) s *= 2
+            return s
+        }
+
+        /**
+         * Where a progress bar's white fill ends, from the left of a bar [width] wide and [thick]
+         * thick: at the [cursor] (0 to 1) when there is one, else at what has [played]. Never
+         * shorter than its own thickness, so its rounded ends stay round; nothing before playback starts.
+         */
+        fun barFill(width: Float, played: Float, cursor: Float, thick: Float): Float {
+            val at = if (cursor >= 0f) cursor else played
+            if (cursor < 0f && played <= 0f) return 0f
+            return maxOf(width * at.coerceIn(0f, 1f), thick).coerceAtMost(maxOf(width, 0f))
+        }
+
         /** The session to show among [states] (Android's order, most recent first): the first playing, else the first paused. */
         fun pick(states: List<Int?>): Int? =
             states.indexOfFirst { it in MediaSessions.ACTIVE }.takeIf { it >= 0 }
                 ?: states.indexOfFirst { it == PlaybackState.STATE_PAUSED }.takeIf { it >= 0 }
 
         /**
-         * The capsule's second line: "▶ Artist" or "‖ Artist". Without a title of its own the app's
-         * name is the title, so the line says what the app is doing instead. ‖ rather than ⏸: Inter
-         * has no ⏸, and many TVs would draw it with their colour emoji font.
+         * The second line: the artist. Without a title of its own the app's name is the title, so
+         * the line says what the app is doing instead.
          */
-        fun subtitle(hasTitle: Boolean, line: String?, app: String, playing: Boolean): String {
-            val mark = if (playing) "▶" else "‖"
-            val what = when {
-                line != null -> line
-                hasTitle -> app
-                playing -> "En lecture"
-                else -> "En pause"
-            }
-            return "$mark  $what"
+        fun subtitle(hasTitle: Boolean, line: String?, app: String, playing: Boolean): String = when {
+            line != null -> line
+            hasTitle -> app
+            playing -> "En lecture"
+            else -> "En pause"
         }
+
+        /**
+         * Where playback is at [now], from a reading of [position] at [updatedAt] moving at
+         * [speed] (0 when it does not move), kept within the track when its [duration] is known.
+         */
+        fun positionAt(position: Long, updatedAt: Long, speed: Float, now: Long, duration: Long): Long {
+            if (position < 0) return -1L
+            val p = position + if (speed != 0f && now > updatedAt) ((now - updatedAt) * speed).toLong() else 0L
+            return if (duration > 0) p.coerceIn(0L, duration) else p.coerceAtLeast(0L)
+        }
+
+        /** « Back » restarts the track when it has played more than [RESTART_MS]; otherwise it goes to the previous track. */
+        fun restartsOnBack(position: Long) = position > RESTART_MS
+
+        /** [from] moved by [dir] steps of [STEP_MS], kept within the track (or at 0 or more when its length is unknown). */
+        fun step(from: Long, dir: Int, duration: Long): Long {
+            val to = from.coerceAtLeast(0L) + dir * STEP_MS
+            return if (duration > 0) to.coerceIn(0L, duration) else to.coerceAtLeast(0L)
+        }
+
+        /** "0:52", "12:05", "1:02:03": elapsed time, whole seconds. */
+        fun clock(ms: Long): String {
+            val s = (ms.coerceAtLeast(0L) / 1000)
+            val h = s / 3600
+            val m = s % 3600 / 60
+            val sec = s % 60
+            fun two(v: Long) = v.toString().padStart(2, '0')
+            return if (h > 0) "$h:${two(m)}:${two(sec)}" else "$m:${two(sec)}"
+        }
+
+        /**
+         * "−2:46": the time left, with a real minus sign. Whole seconds of the length minus whole
+         * seconds played, so the two times always add up to the track's length.
+         */
+        fun remaining(position: Long, duration: Long): String =
+            "−" + clock(((duration / 1000) - (position.coerceAtLeast(0L) / 1000)).coerceAtLeast(0L) * 1000)
     }
 }

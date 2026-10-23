@@ -173,7 +173,7 @@
 </header>
 
 <section class="tab" data-tab="telecommande" id="tab-telecommande" role="tabpanel" aria-label="Télécommande">
-  <p class="note adbNote" hidden>Pour la télécommande, autorisez une fois le débogage local sur le téléviseur : Réglages de l'accueil → Débogage local, puis « Toujours autoriser ».</p>
+  <p class="note adbNote" hidden>Pour la télécommande, autorisez une fois le débogage local sur le téléviseur : Réglages de l'accueil → Système → Débogage local, puis « Toujours autoriser ».</p>
 
   <div class="dpad" role="group" aria-label="Pavé directionnel">
     <button class="k up" data-key="UP" data-repeat aria-label="Haut"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 15l6-6 6 6"/></svg></button>
@@ -250,10 +250,6 @@
   <button data-source="wordmark">Logo canvasOS</button>
 </div>
 
-<h2>Fond des réglages</h2>
-<label class="primary" id="pickBackdrop">Importer un fond pour les réglages<input type="file" id="backdropFile" accept="image/*" hidden></label>
-<p class="hint" id="backdropHint"></p>
-
 <h2>Icône des réglages</h2>
 <label class="primary" id="pickIcon">Importer une icône<input type="file" id="iconFile" accept="image/*" hidden></label>
 <p class="hint" id="iconHint"></p>
@@ -280,7 +276,15 @@
   <p style="margin-top:12px"><button class="primary" id="tmdbSave" type="submit">Enregistrer</button></p>
 </form>
 <p class="hint" id="tmdbHint"></p>
-<p class="hint">Avec une clé, le Top Shelf de Netflix, Prime Video, Disney+, Apple TV, Max, Paramount+, Canal+ et Crunchyroll affiche les titres populaires de la semaine sur ce service en France (quand l'app ne publie pas elle-même ses recommandations). Clé gratuite : <a href="https://www.themoviedb.org/settings/api" target="_blank" rel="noopener noreferrer">themoviedb.org/settings/api</a> (la « clé d'API » ou le « jeton d'accès en lecture »). La clé est enregistrée sur le téléviseur uniquement.</p>
+<p class="hint" id="tmdbNote">Avec une clé, le Top Shelf de Netflix, Prime Video, Disney+, Apple TV, Max, Paramount+, Canal+ et Crunchyroll affiche les titres populaires de la semaine sur ce service en France (quand l'app ne publie pas de ligne « Continuer à regarder », ou si celle-ci est désactivée). Clé gratuite : <a href="https://www.themoviedb.org/settings/api" target="_blank" rel="noopener noreferrer">themoviedb.org/settings/api</a> (la « clé d'API » ou le « jeton d'accès en lecture »). La clé est enregistrée sur le téléviseur uniquement.</p>
+
+<h2>Fond d'écran Unsplash</h2>
+<form class="type" id="unsplashForm" autocomplete="off">
+  <input id="unsplashKey" type="password" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="Clé d'accès Unsplash">
+  <p style="margin-top:12px"><button class="primary" id="unsplashSave" type="submit">Enregistrer</button></p>
+</form>
+<p class="hint" id="unsplashHint"></p>
+<p class="hint">La source « Unsplash » du fond d'écran puise dans les sélections éditoriales Fonds d'écran et Nature d'Unsplash, en 4K sur un téléviseur 4K. Clé gratuite : <a href="https://unsplash.com/developers" target="_blank" rel="noopener noreferrer">unsplash.com/developers</a> (créez une app et copiez l'« Access Key » ; 50 requêtes par heure suffisent largement). La clé reste sur le téléviseur.</p>
 </section>
 
 <section class="tab" data-tab="apps" id="tab-apps" role="tabpanel" aria-label="Apps" hidden>
@@ -291,7 +295,7 @@
 <div class="apps" id="hiddenApps"></div>
 
 <h2>Installer une app (APK)</h2>
-<p class="note adbNote" hidden>Pour installer des apps, autorisez une fois le débogage local sur le téléviseur : Réglages de l'accueil → Débogage local, puis « Toujours autoriser ».</p>
+<p class="note adbNote" hidden>Pour installer des apps, autorisez une fois le débogage local sur le téléviseur : Réglages de l'accueil → Système → Débogage local, puis « Toujours autoriser ».</p>
 <label class="primary" id="pickApk" style="margin-top:12px">Choisir un fichier APK<input type="file" id="apkFile" accept=".apk,application/vnd.android.package-archive" hidden></label>
 <p class="hint" id="apkStatus" aria-live="polite"></p>
 <p class="hint">Le fichier est envoyé au téléviseur et installé tel quel (200&nbsp;Mo au maximum) ; l'app apparaît ensuite d'elle-même sur l'écran d'accueil. N'installez que des apps de sources de confiance : les apps installées ainsi sont sous votre responsabilité.</p>
@@ -441,12 +445,6 @@ function render(s) {
     b.setAttribute('aria-pressed', s.introSource === b.dataset.source);
     b.onclick = () => post('api/intro/source', { source: b.dataset.source }).then(() => toast('Contenu de l\'animation : ' + b.textContent));
   });
-  if (s.backdrop) {
-    $('backdropHint').innerHTML = 'Les réglages utilisent cette image ; sur le téléviseur, vous pouvez revenir au fond standard dans les réglages. <a href="#" id="backdropDel">Supprimer cette image</a>';
-    $('backdropDel').onclick = e => { e.preventDefault(); post('api/backdrop/delete', {}).then(() => toast('Supprimée')); };
-  } else {
-    $('backdropHint').textContent = 'Le fond de toute la page des réglages : une image 16:9 en paysage, avec le sujet (par exemple un téléviseur) à gauche et la droite libre pour les réglages.';
-  }
   if (s.icon) {
     $('iconHint').innerHTML = 'L\'accueil et les réglages utilisent cette image. <a href="#" id="iconDel">Revenir à l\'engrenage</a>';
     $('iconDel').onclick = e => { e.preventDefault(); post('api/icon/delete', {}).then(() => toast('Icône par défaut rétablie')); };
@@ -462,6 +460,13 @@ function render(s) {
   }
   // The key itself never comes back from the TV: only whether there is one.
   $('tmdbKey').placeholder = s.tmdbKey ? 'Clé enregistrée (masquée)' : 'Clé d\'API TMDB';
+  $('unsplashKey').placeholder = s.unsplashKey ? 'Clé enregistrée (masquée)' : 'Clé d\'accès Unsplash';
+  if (s.unsplashKey) {
+    $('unsplashHint').innerHTML = 'Une clé est enregistrée ; collez-en une autre pour la remplacer. <a href="#" id="unsplashDel">Supprimer la clé</a>';
+    $('unsplashDel').onclick = e => { e.preventDefault(); post('api/unsplash', { key: '' }).then(() => toast('Clé Unsplash supprimée')); };
+  } else {
+    $('unsplashHint').textContent = 'Aucune clé enregistrée.';
+  }
   if (s.tmdbKey) {
     $('tmdbHint').innerHTML = 'Une clé est enregistrée ; collez-en une autre pour la remplacer. <a href="#" id="tmdbDel">Supprimer la clé</a>';
     $('tmdbDel').onclick = e => { e.preventDefault(); post('api/tmdb', { key: '' }).then(() => toast('Clé TMDB supprimée')); };
@@ -498,16 +503,6 @@ $('introFile').onchange = async e => {
     toast(s.ok ? 'Importée : prévisualisez-la dans les réglages du téléviseur' : 'Le téléviseur ne peut pas lire ce fichier');
   } catch (err) { toast('Échec de l\'importation : ' + err.message); }
   pick.firstChild.textContent = 'Importer une vidéo d\'animation'; e.target.value = '';
-};
-
-$('backdropFile').onchange = async e => {
-  const f = e.target.files[0]; if (!f) return;
-  try {
-    const fd = new FormData(); fd.append('backdrop', f, f.name);
-    const s = await (await fetch(base + 'api/backdrop/upload', { method: 'POST', body: fd })).json(); render(s);
-    toast(s.ok ? 'C\'est fait : visible en ouvrant les réglages' : 'Image inutilisable');
-  } catch (err) { toast('Échec de l\'importation : ' + err.message); }
-  e.target.value = '';
 };
 
 $('iconFile').onchange = async e => {
@@ -561,6 +556,21 @@ $('tmdbForm').onsubmit = async e => {
     toast(s.tmdbOk === true ? 'Clé enregistrée : le Top Shelf suit les tendances' :
       s.tmdbOk === false ? 'Clé enregistrée, mais TMDB la refuse : vérifiez-la' :
       'Clé enregistrée ; TMDB est injoignable pour la vérifier', 3500);
+  } catch (_) { toast(LOST, 4000); }
+  b.classList.remove('busy'); b.textContent = 'Enregistrer';
+};
+
+$('unsplashForm').onsubmit = async e => {
+  e.preventDefault();
+  const input = $('unsplashKey'), key = input.value.trim();
+  if (!key) { toast('Collez d\'abord la clé'); return; }
+  const b = $('unsplashSave'); b.classList.add('busy'); b.textContent = 'Vérification…';
+  try {
+    const s = await post('api/unsplash', { key });
+    input.value = '';
+    toast(s.unsplashOk === true ? 'Clé enregistrée : choisissez « Unsplash » comme fond d\'écran' :
+      s.unsplashOk === false ? 'Clé enregistrée, mais Unsplash la refuse : vérifiez-la' :
+      'Clé enregistrée ; Unsplash est injoignable pour la vérifier', 3500);
   } catch (_) { toast(LOST, 4000); }
   b.classList.remove('busy'); b.textContent = 'Enregistrer';
 };

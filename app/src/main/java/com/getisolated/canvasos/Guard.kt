@@ -42,8 +42,8 @@ import com.getisolated.canvasos.tv.XiaomiAdapter
  *    launcher comes to the front. It sees window changes only, never screen content.
  * 2. [RevivalListener], a notification listener. Android rebinds a listener about half a second
  *    after its process is killed, which restarts canvasOS; canvasOS then switches the guard back on,
- *    which needs WRITE_SECURE_SETTINGS. It reads no notification unless the user turns on banners
- *    ([Banners]) for apps they choose, and then only those apps' title and text.
+ *    which needs WRITE_SECURE_SETTINGS. With banners on (the default, [Banners]) it also reads the
+ *    title and text of notifications, except those of the apps the user excluded.
  * 3. WRITE_SECURE_SETTINGS and the listener approval come from adb (a computer, AGENTS.md) or from
  *    the TV's own adb through [LocalAdb] ([grantViaLocalAdb]).
  *
@@ -369,12 +369,13 @@ class HomeGuardService : AccessibilityService() {
  * Brings the guard back after the firmware kills canvasOS. Android drops a force-stopped app's
  * accessibility services for good, but keeps a notification listener approved and binds it again
  * shortly after its process dies. Being an approved listener also lets [MediaSessions] see which
- * app is playing (package name and playback state; with "Lecture en cours" on, [NowPlaying] also
- * reads the title, artist and artwork).
+ * app is playing (package name and playback state; with "Lecture en cours" on, the default,
+ * [NowPlaying] also reads the title, artist and artwork).
  *
- * No notification is read or touched, except when the user turns on banners ([Prefs.banners]):
- * then the notifications of the apps they picked ([Prefs.bannerApps]), and only those, are read
- * for their title and text, shown 6 seconds and never stored. Every other one is let go unread.
+ * With banners on ([Prefs.banners], the default), every app's notifications are read for their
+ * title and text, shown 6 seconds and never stored, except those of the apps the user excluded
+ * ([Prefs.bannerExcluded]), which are let go unread. With banners off, none is read. None is ever
+ * touched (dismissed, answered or changed).
  */
 class RevivalListener : NotificationListenerService() {
     override fun onListenerConnected() {
@@ -384,7 +385,7 @@ class RevivalListener : NotificationListenerService() {
         Handler(Looper.getMainLooper()).postDelayed({ Guard.rebindIfStalled(this) }, 5_000)
     }
 
-    /** Returns at once unless banners are on and the app is one the user picked. */
+    /** Returns at once when banners are off or the app is excluded. */
     override fun onNotificationPosted(sbn: StatusBarNotification) {
         runCatching { Banners.onPosted(this, sbn) }
     }
@@ -414,12 +415,14 @@ class ConfigReceiver : BroadcastReceiver() {
             prefs.background = it
             Wallpapers.trimExcept(c, it)
         }
-        if (i.hasExtra("settings_bg")) prefs.settingsBg = i.getBooleanExtra("settings_bg", true)
         if (i.hasExtra("own_icon")) prefs.ownIcon = i.getBooleanExtra("own_icon", true)
         if (i.hasExtra("intro_sound")) prefs.introSound = i.getBooleanExtra("intro_sound", true)
         if (i.hasExtra("wake_delay")) prefs.wakeDelay = i.getIntExtra("wake_delay", 5000)
         // The Top Shelf's TMDB key; an empty string removes it. Never echoed back, only whether there is one.
         i.getStringExtra("tmdb_key")?.let { Shelf.setTmdbKey(c, it) }
+        i.getStringExtra("shelf")?.takeIf { it in Prefs.SHELF_MODES }?.let { prefs.shelfMode = it }
+        // The Unsplash key for the wallpaper source; an empty string removes it. Never echoed back.
+        i.getStringExtra("unsplash_key")?.let { prefs.unsplashKey = it; Wallpapers(c, Wallpapers.UNSPLASH).forgetList() }
         if (i.hasExtra("phone_server")) {
             prefs.phoneServer = i.getBooleanExtra("phone_server", true)
             // KeeperService applies it; Android 12 may refuse to start a foreground service from here.
@@ -428,16 +431,16 @@ class ConfigReceiver : BroadcastReceiver() {
         Guard.ensure(c)
         resultData = "guard=${prefs.guard} keep_adb=${prefs.keepAdb} secure_settings=${Guard.hasSecureSettings(c)} " +
             "background=${prefs.background} cc_style=${prefs.ccStyle} focus_style=${prefs.focusStyle} clock_style=${prefs.clockStyle} clock_24=${prefs.clock24} " +
-            "intro=${prefs.intro} intro_source=${prefs.introSource} wake_delay=${prefs.wakeDelay} own_icon=${prefs.ownIcon} settings_bg=${prefs.settingsBg} low_end=${Device.isLowEnd(c)} " +
+            "intro=${prefs.intro} intro_source=${prefs.introSource} wake_delay=${prefs.wakeDelay} own_icon=${prefs.ownIcon} low_end=${Device.isLowEnd(c)} " +
             "phone_server=${prefs.phoneServer} dock_recents=${prefs.dockRecents} " +
-            "tmdb_key=${if (prefs.tmdbKey.isNotEmpty()) "set" else "unset"}"
+            "tmdb_key=${if (prefs.tmdbKey.isNotEmpty()) "set" else "unset"} shelf=${prefs.shelfMode} unsplash_key=${if (prefs.unsplashKey.isNotEmpty()) "set" else "unset"}"
         // Lecture en cours and banners (Réglages → Lecture et notifications); both need the listener.
-        if (i.hasExtra("now_playing")) prefs.nowPlaying = i.getBooleanExtra("now_playing", false)
-        if (i.hasExtra("banners")) prefs.banners = i.getBooleanExtra("banners", false)
-        i.getStringExtra("banner_apps")?.let { list ->
-            prefs.bannerApps = list.split(',').map { it.trim() }.filter { it.isNotEmpty() }.toSet()
+        if (i.hasExtra("now_playing")) prefs.nowPlaying = i.getBooleanExtra("now_playing", true)
+        if (i.hasExtra("banners")) prefs.banners = i.getBooleanExtra("banners", true)
+        i.getStringExtra("banner_excluded")?.let { list ->
+            prefs.bannerExcluded = list.split(',').map { it.trim() }.filter { it.isNotEmpty() }.toSet()
         }
-        resultData += " now_playing=${prefs.nowPlaying} banners=${prefs.banners} banner_apps=${prefs.bannerApps.sorted().joinToString(",")} " +
+        resultData += " now_playing=${prefs.nowPlaying} banners=${prefs.banners} banner_excluded=${prefs.bannerExcluded.sorted().joinToString(",")} " +
             "listener=${Banners.listenerGranted(c)} overlay=${Settings.canDrawOverlays(c)}"
         // Asks GitHub for the latest Release now (a few seconds at most) and says what it found.
         if (i.getBooleanExtra("check_update", false)) resultData += " update=${Updater.checkForConfig(c)}"
@@ -460,8 +463,10 @@ class ConfigReceiver : BroadcastReceiver() {
             if (v.isEmpty()) prefs.setPin(null) else if (Profiles.validPin(v)) prefs.setPin(v) else resultData += " profile_pin=invalid"
         }
         resultData += " profile=\"${Profiles.displayName(prefs.current())}\" profile_id=${prefs.currentProfile} profiles=${prefs.profileList().size} pin=${if (prefs.hasPin) "set" else "unset"}"
-        // Read only: the first-launch assistant is done on the TV, with the remote; nothing here skips it.
-        resultData += " setup_done=${prefs.setupDone}"
+        // The Top Shelf's "Continuer à regarder" source (Watch Next rows apps publish for Android TV).
+        if (i.hasExtra("watch_next")) prefs.watchNext = i.getBooleanExtra("watch_next", true)
+        resultData += " watch_next=${prefs.watchNext}"
+        i.getStringExtra("player_style")?.takeIf { it == Prefs.PLAYER_ONE || it == Prefs.PLAYER_TWO }?.let { prefs.playerStyle = it }; resultData += " player_style=${prefs.playerStyle}"
         // Must stay last: a weather_city is looked up over the network, so this may call goAsync(),
         // after which resultData can only be set through the pending result (Weather.config does).
         Weather.config(this, c, i)
