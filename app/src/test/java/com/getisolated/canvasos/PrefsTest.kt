@@ -19,6 +19,11 @@ class PrefsTest {
         // banners read every app's notifications but the excluded ones, Lecture en cours reads playback metadata.
         assertTrue(p.banners)
         assertTrue(p.nowPlaying)
+        assertTrue(p.homePlayer)
+        assertTrue(p.lyrics)
+        assertEquals("", p.keyMap)
+        assertFalse(p.captureKeys)
+        assertEquals(Prefs.LYRICS_LEFT, p.lyricsAlign)
         assertTrue(p.bannerExcluded.isEmpty())
         assertTrue(p.watchNext)
         assertEquals("", p.tmdbKey)

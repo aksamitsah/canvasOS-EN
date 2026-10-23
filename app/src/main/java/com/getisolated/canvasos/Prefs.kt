@@ -304,6 +304,43 @@ class Prefs(ctx: Context) {
         set(v) = sp.edit().putBoolean("now_playing", v).apply()
 
     /**
+     * The home screen's small player, top left ([HomePlayer]): the cover, title and artist of what
+     * plays, OK opening the app. On by default; it only shows with [nowPlaying], whose reading it
+     * shares (nothing more is read for it).
+     */
+    var homePlayer: Boolean
+        get() = sp.getBoolean("home_player", true)
+        set(v) = sp.edit().putBoolean("home_player", v).apply()
+
+    /**
+     * Paroles: the button beside the home screen's player and the lyrics it shows ([LyricsView]),
+     * from LRCLIB. On by default (the product owner's choice): each new track's title, artist,
+     * album and length go to lrclib.net as it starts ([Lyrics]); off, nothing is sent.
+     */
+    var lyrics: Boolean
+        get() = sp.getBoolean("lyrics", true)
+        set(v) = sp.edit().putBoolean("lyrics", v).apply()
+
+    /** Where the lyrics stand on the home screen ([LyricsView]): [LYRICS_LEFT] (under the capsule), [LYRICS_CENTER] or [LYRICS_RIGHT]. */
+    var lyricsAlign: String
+        get() = sp.getString("lyrics_align", LYRICS_LEFT)!!.takeIf { it in LYRICS_ALIGNS } ?: LYRICS_LEFT
+        set(v) = sp.edit().putString("lyrics_align", v).apply()
+
+    /**
+     * « Capter les touches du téléviseur » (Réglages → Télécommande): the home guard's accessibility
+     * service filters key events so the keys the TV keeps for itself (Réglages, Profil) can be
+     * bound ([KeyCapture]). Off by default: on, the service sees every key pressed in every app.
+     */
+    var captureKeys: Boolean
+        get() = sp.getBoolean("capture_keys", false)
+        set(v) = sp.edit().putBoolean("capture_keys", v).apply()
+
+    /** Remote shortcuts (Réglages → Télécommande), in [KeyMap]'s text form; empty by default: no key is bound until the user binds it. */
+    var keyMap: String
+        get() = sp.getString("key_map", "")!!
+        set(v) = sp.edit().putString("key_map", v).apply()
+
+    /**
      * tvOS-style banners for notifications ([Banners]). On by default (the product owner's choice):
      * the title and text of every app's notifications are read, except [bannerExcluded]'s.
      */
@@ -479,6 +516,11 @@ class Prefs(ctx: Context) {
     fun resetCcLayout() = sp.edit().remove("cc_layout").apply()
 
     companion object {
+        const val LYRICS_LEFT = "left"
+        const val LYRICS_CENTER = "center"
+        const val LYRICS_RIGHT = "right"
+        val LYRICS_ALIGNS = listOf(LYRICS_LEFT, LYRICS_CENTER, LYRICS_RIGHT)
+
         const val SHELF_ALL = "all"
         const val SHELF_TV = "tv"
         const val SHELF_OFF = "off"
