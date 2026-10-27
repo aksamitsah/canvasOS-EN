@@ -1,4 +1,4 @@
-package com.getisolated.canvasos
+package com.aksamitsah.canvasos.en
 
 import android.content.Context
 import android.util.Log
@@ -23,7 +23,7 @@ import java.util.concurrent.atomic.AtomicReference
  */
 object Updater {
     private const val TAG = "canvasOSUpdate"
-    private const val REPO = "getisolated/canvasOS"
+    private const val REPO = "aksamitsah/canvasOS-EN"
     private const val LATEST_URL = "https://api.github.com/repos/$REPO/releases/latest"
     private const val FILE = "update.apk"
 
@@ -109,18 +109,18 @@ object Updater {
             when (val code = c.responseCode) {
                 200 -> {}
                 // GitHub answers 404 for a private repo (and for a repo without a Release), whoever asks.
-                401, 404 -> return Check.Unavailable("GitHub n'affiche aucune Release publique de canvasOS (dépôt privé, ou pas encore de Release).")
+                401, 404 -> return Check.Unavailable("GitHub has no public canvasOS Release (private repository or no Release yet).")
                 403, 429 -> return Check.Unavailable(
-                    if (c.getHeaderField("X-RateLimit-Remaining") == "0") "GitHub limite les requêtes de ce réseau : réessayez dans une heure."
-                    else "GitHub refuse l'accès aux Releases (dépôt privé ?)."
+                    if (c.getHeaderField("X-RateLimit-Remaining") == "0") "GitHub has rate-limited this network: try again in an hour."
+                    else "GitHub denied access to Releases (private repository?)."
                 )
-                else -> return Check.Unavailable("GitHub a répondu HTTP $code.")
+                else -> return Check.Unavailable("GitHub returned HTTP $code.")
             }
-            val body = c.inputStream.use { readLimited(it, MAX_JSON) } ?: return Check.Unavailable("La réponse de GitHub est trop volumineuse.")
+            val body = c.inputStream.use { readLimited(it, MAX_JSON) } ?: return Check.Unavailable("The GitHub response is too large.")
             parse(body, BuildConfig.VERSION_NAME, BuildConfig.FLAVOR)
         } catch (e: Exception) {
             Log.w(TAG, "GitHub unreachable", e)
-            Check.Unavailable("GitHub est injoignable : vérifiez la connexion Internet du téléviseur.")
+            Check.Unavailable("Cannot reach GitHub: check the TV's Internet connection.")
         } finally {
             c.disconnect()
         }
@@ -143,18 +143,18 @@ object Updater {
      * which case the asset for [flavor] is looked up. Pure, so it is unit-tested.
      */
     fun parse(json: String, current: String, flavor: String): Check {
-        val o = runCatching { JSONObject(json) }.getOrNull() ?: return Check.Unavailable("La réponse de GitHub est illisible.")
+        val o = runCatching { JSONObject(json) }.getOrNull() ?: return Check.Unavailable("The GitHub response cannot be read.")
         val tag = o.optString("tag_name").trim()
-        val latest = Version.parse(tag) ?: return Check.Unavailable("La version « $tag » de la Release est illisible.")
+        val latest = Version.parse(tag) ?: return Check.Unavailable("Release version “$tag” cannot be read.")
         val have = Version.parse(current)
         if (have != null && latest <= have) return Check.UpToDate(current)
         val name = assetName(flavor)
         val assets = o.optJSONArray("assets")
         val asset = (0 until (assets?.length() ?: 0)).mapNotNull { assets?.optJSONObject(it) }.firstOrNull { it.optString("name") == name }
-            ?: return Check.Unavailable("La Release $tag ne contient pas $name.")
+            ?: return Check.Unavailable("Release $tag does not contain $name.")
         val url = asset.optString("browser_download_url")
         // The link comes from the API, but nothing but TLS is worth installing from.
-        if (!url.startsWith("https://")) return Check.Unavailable("Le lien de $name dans la Release $tag est invalide.")
+        if (!url.startsWith("https://")) return Check.Unavailable("The $name link in Release $tag is invalid.")
         return Check.Available(Update(latest.text, url, asset.optLong("size", 0L), (if (o.isNull("body")) "" else o.optString("body")).trim().take(MAX_NOTES)))
     }
 
@@ -165,24 +165,24 @@ object Updater {
      * Blocking, needs local debugging authorized; one at a time.
      */
     fun downloadAndInstall(ctx: Context, update: Update, onStage: (String) -> Unit): Result<String> {
-        val dir = ctx.getExternalFilesDir(null) ?: return Result.failure(Refused("Le stockage de l'application est indisponible."))
-        if (!busy.compareAndSet(false, true)) return Result.failure(Refused("Une mise à jour est déjà en cours."))
+        val dir = ctx.getExternalFilesDir(null) ?: return Result.failure(Refused("App storage is unavailable."))
+        if (!busy.compareAndSet(false, true)) return Result.failure(Refused("An update is already in progress."))
         val apk = File(dir, FILE)
         return try {
             fun stage(s: String) { working = s; onStage(s) }
-            stage("Téléchargement 0 %…")
+            stage("Downloading 0 %…")
             try {
-                download(update, apk) { stage("Téléchargement $it %…") }
+                download(update, apk) { stage("Downloading $it %…") }
             } catch (e: Exception) {
                 Log.w(TAG, "download failed", e)
-                return Result.failure(if (e is Refused) e else Refused("Le téléchargement a échoué : ${e.message ?: e.javaClass.simpleName}."))
+                return Result.failure(if (e is Refused) e else Refused("Download failed: ${e.message ?: e.javaClass.simpleName}."))
             }
             verify(ctx, apk)?.let { return Result.failure(Refused(it)) }
             stage("Installation…")
             Installer.install(ctx, apk).recoverCatching { e ->
                 // A Release signed with another key than the installed build (an install from before the stable key, or a local build).
                 if ((e as? Installer.Failure)?.output?.contains("INSTALL_FAILED_UPDATE_INCOMPATIBLE") == true)
-                    throw Refused("Cette installation de canvasOS n'a pas la signature des Releases : mettez-la à jour une première fois depuis un ordinateur (AGENTS.md, étape 3).")
+                    throw Refused("This canvasOS installation has a different signature from Releases: update it once from a computer (AGENTS.md, step 3).")
                 throw e
             }
         } finally {
@@ -196,7 +196,7 @@ object Updater {
     private class Refused(message: String) : Exception(message)
 
     private fun download(update: Update, to: File, onPercent: (Int) -> Unit) {
-        if (update.size > MAX_APK) throw Refused("Le fichier de la Release est trop volumineux (${update.size / 1024 / 1024} Mo).")
+        if (update.size > MAX_APK) throw Refused("The Release file is too large (${update.size / 1024 / 1024} MB).")
         val c = URL(update.url).openConnection() as HttpURLConnection
         try {
             c.connectTimeout = 10_000
@@ -215,13 +215,13 @@ object Updater {
                         if (n < 0) break
                         out.write(buf, 0, n)
                         done += n
-                        if (done > MAX_APK) throw Refused("Le fichier téléchargé dépasse ${MAX_APK / 1024 / 1024} Mo.")
+                        if (done > MAX_APK) throw Refused("The download exceeds ${MAX_APK / 1024 / 1024} MB.")
                         val pct = if (total > 0) (done * 100 / total).toInt().coerceIn(0, 100) else 0
                         if (pct != last) { last = pct; onPercent(pct) }
                     }
                 }
             }
-            if (update.size > 0 && done != update.size) throw Refused("Le fichier est incomplet ($done octets reçus sur ${update.size}).")
+            if (update.size > 0 && done != update.size) throw Refused("The file is incomplete ($done of ${update.size} bytes received).")
         } finally {
             c.disconnect()
         }
@@ -229,12 +229,12 @@ object Updater {
 
     /** Null when [apk] is a canvasOS newer than the running one; otherwise why not installing it. */
     private fun verify(ctx: Context, apk: File): String? {
-        if (!PhoneApi.isApk(apk)) return "Le fichier téléchargé n'est pas un APK."
+        if (!PhoneApi.isApk(apk)) return "The download is not an APK."
         val info = runCatching { ctx.packageManager.getPackageArchiveInfo(apk.path, 0) }.getOrNull()
-            ?: return "Le fichier téléchargé est illisible."
-        if (info.packageName != ctx.packageName) return "Le fichier téléchargé n'est pas canvasOS."
+            ?: return "The download cannot be read."
+        if (info.packageName != ctx.packageName) return "The download is not canvasOS."
         val name = info.versionName.orEmpty()
-        if (!isNewer(name, BuildConfig.VERSION_NAME)) return "Cette Release ne contient pas de version plus récente (APK en $name)."
+        if (!isNewer(name, BuildConfig.VERSION_NAME)) return "This Release does not contain a newer version (APK $name)."
         return null
     }
 

@@ -90,7 +90,7 @@
         <service
             android:name=".PhotoDream"
             android:exported="true"
-            android:label="Cadre photo"
+            android:label="Photo Frame"
             android:permission="android.permission.BIND_DREAM_SERVICE">
             <intent-filter>
                 <action android:name="android.service.dreams.DreamService" />
@@ -137,7 +137,7 @@
             android:exported="true"
             android:permission="android.permission.WRITE_SECURE_SETTINGS">
             <intent-filter>
-                <action android:name="com.getisolated.canvasos.CONFIG" />
+                <action android:name="com.aksamitsah.canvasos.en.CONFIG" />
             </intent-filter>
         </receiver>
 

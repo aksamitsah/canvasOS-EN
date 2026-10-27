@@ -1,4 +1,4 @@
-package com.getisolated.canvasos.tv
+package com.aksamitsah.canvasos.en.tv
 
 import android.content.Context
 

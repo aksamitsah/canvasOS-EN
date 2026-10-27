@@ -1,4 +1,4 @@
-package com.getisolated.canvasos
+package com.aksamitsah.canvasos.en
 
 import android.app.Activity
 import android.app.Instrumentation

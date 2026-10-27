@@ -1,6 +1,6 @@
-package com.getisolated.canvasos
+package com.aksamitsah.canvasos.en
 
-import com.getisolated.canvasos.tv.Input
+import com.aksamitsah.canvasos.en.tv.Input
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -16,7 +16,7 @@ class InputTileTest {
         assertTrue(InputTile.isInput(InputTile.key(hdmi)))
         assertTrue(InputTile.isInput("input:"))
         assertFalse(InputTile.isInput("com.netflix.ninja"))
-        assertFalse(InputTile.isInput("com.getisolated.canvasos:WallpaperActivity"))
+        assertFalse(InputTile.isInput("com.aksamitsah.canvasos.en:WallpaperActivity"))
         assertFalse(InputTile.isInput(""))
         assertFalse("the prefix has to lead", InputTile.isInput("x input:y"))
         assertFalse("and is case sensitive", InputTile.isInput("Input:y"))
@@ -30,10 +30,10 @@ class InputTileTest {
     }
 
     @Test fun anEmptyLabelRoundTripsAndKeepsTheBareTitle() {
-        val bare = Input("tcl-input://", "Sources TCL", "", false)
+        val bare = Input("tcl-input://", "TCL Inputs", "", false)
         val back = InputTile.decode(InputTile.encode(bare))!!
         assertEquals(bare, back)
-        assertEquals("Sources TCL", back.name)
+        assertEquals("TCL Inputs", back.name)
     }
 
     @Test fun theMiddleDotInALabelIsNotTheSeparator() {

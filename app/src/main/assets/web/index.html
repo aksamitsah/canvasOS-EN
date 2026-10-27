@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="fr">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -230,56 +230,56 @@
 <body>
 <header>
   <h1 id="title">canvasOS</h1>
-  <p>{{DEVICE}} · Modifiez ici, le téléviseur suit aussitôt</p>
+  <p>{{DEVICE}} · Change settings here; the TV updates immediately</p>
 </header>
 
-<section class="tab" data-tab="telecommande" id="tab-telecommande" role="tabpanel" aria-label="Télécommande">
-  <p class="note adbNote" hidden>Sur les écrans de canvasOS, la télécommande marche déjà. Pour commander aussi les autres apps, autorisez une fois le débogage local sur le téléviseur : Réglages de l'accueil → Système → Débogage local, puis « Toujours autoriser ».</p>
+<section class="tab" data-tab="telecommande" id="tab-telecommande" role="tabpanel" aria-label="Remote">
+  <p class="note adbNote" hidden>The remote already works on canvasOS screens. To control other apps, allow local debugging once on the TV: Home Settings → System → Local Debugging, then Always allow.</p>
 
-  <div class="pad" id="pad" role="group" aria-label="Pavé tactile : glissez pour naviguer, touchez pour OK, maintenez pour le menu">
+  <div class="pad" id="pad" role="group" aria-label="Trackpad: swipe to navigate, tap for OK, hold for menu">
     <span class="dot" aria-hidden="true"></span>
     <span class="ring" aria-hidden="true"></span>
     <svg class="arrow up" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 15l6-6 6 6"/></svg>
     <svg class="arrow down" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
     <svg class="arrow left" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>
     <svg class="arrow right" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
-    <p class="padHint" id="padHint" hidden>Glissez pour naviguer, touchez pour OK, maintenez pour le menu</p>
+    <p class="padHint" id="padHint" hidden>Swipe to navigate, tap for OK, hold for menu</p>
   </div>
 
   <div class="keys" role="group" aria-label="Touches">
-    <button class="k" data-key="BACK" aria-label="Retour"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 14L4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg>Retour</button>
-    <button class="k" data-key="HOME" aria-label="Accueil"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10.5L12 3l9 7.5"/><path d="M5 9v11h14V9"/></svg>Accueil</button>
-    <button class="k" id="kbOpen" aria-label="Clavier" aria-haspopup="dialog" aria-controls="kb"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="6" width="20" height="13" rx="3"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M8 15h8"/></svg>Clavier</button>
+    <button class="k" data-key="BACK" aria-label="Back"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 14L4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg>Back</button>
+    <button class="k" data-key="HOME" aria-label="Home"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10.5L12 3l9 7.5"/><path d="M5 9v11h14V9"/></svg>Home</button>
+    <button class="k" id="kbOpen" aria-label="Keyboard" aria-haspopup="dialog" aria-controls="kb"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="6" width="20" height="13" rx="3"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M8 15h8"/></svg>Keyboard</button>
   </div>
   <div class="keys" role="group" aria-label="Volume">
-    <button class="k" data-key="VOLUME_DOWN" data-repeat aria-label="Baisser le volume"><svg viewBox="0 0 24 24" aria-hidden="true"><path class="f" d="M11 5L6 9H3v6h3l5 4z"/><path d="M15 12h6"/></svg></button>
-    <button class="k" data-key="VOLUME_MUTE" aria-label="Couper le son"><svg viewBox="0 0 24 24" aria-hidden="true"><path class="f" d="M11 5L6 9H3v6h3l5 4z"/><path d="M16 9.5l5 5M21 9.5l-5 5"/></svg></button>
-    <button class="k" data-key="VOLUME_UP" data-repeat aria-label="Monter le volume"><svg viewBox="0 0 24 24" aria-hidden="true"><path class="f" d="M11 5L6 9H3v6h3l5 4z"/><path d="M15 12h6M18 9v6"/></svg></button>
+    <button class="k" data-key="VOLUME_DOWN" data-repeat aria-label="Volume Down"><svg viewBox="0 0 24 24" aria-hidden="true"><path class="f" d="M11 5L6 9H3v6h3l5 4z"/><path d="M15 12h6"/></svg></button>
+    <button class="k" data-key="VOLUME_MUTE" aria-label="Mute"><svg viewBox="0 0 24 24" aria-hidden="true"><path class="f" d="M11 5L6 9H3v6h3l5 4z"/><path d="M16 9.5l5 5M21 9.5l-5 5"/></svg></button>
+    <button class="k" data-key="VOLUME_UP" data-repeat aria-label="Volume Up"><svg viewBox="0 0 24 24" aria-hidden="true"><path class="f" d="M11 5L6 9H3v6h3l5 4z"/><path d="M15 12h6M18 9v6"/></svg></button>
   </div>
 
   <div class="sheet" id="kb" role="dialog" aria-modal="true" aria-labelledby="kbTitle" hidden>
     <div class="card">
       <div class="head">
-        <b id="kbTitle">Clavier</b>
-        <button class="close" id="kbClose" type="button" aria-label="Fermer le clavier"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+        <b id="kbTitle">Keyboard</b>
+        <button class="close" id="kbClose" type="button" aria-label="Close Keyboard"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
       </div>
-      <input type="text" id="kbText" placeholder="Tapez : le texte s'écrit sur le téléviseur" aria-label="Texte à taper sur le téléviseur"
+      <input type="text" id="kbText" placeholder="Type to enter text on the TV" aria-label="Text to Type on TV"
         autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="send">
-      <p class="hint">Sélectionnez d'abord un champ sur le téléviseur. Caractères ASCII uniquement : les accents sont retirés (é devient e).</p>
+      <p class="hint">Select a text field on the TV first. ASCII characters only: accents are removed (é becomes e).</p>
     </div>
   </div>
 </section>
 
-<section class="tab" data-tab="reglages" id="tab-reglages" role="tabpanel" aria-label="Réglages" hidden>
-<h2>Mes photos</h2>
-<label class="primary" id="pick">Choisir des photos à importer<input type="file" id="file" accept="image/*" multiple hidden></label>
-<p class="hint">Après l'importation, le fond d'écran passe sur « Mes photos ». Le téléviseur enregistre les photos en 1920×1080. La source du fond d'écran se choisit sur le téléviseur (Réglages de l'accueil → Fond d'écran et cadre photo, ou la tuile Fond d'écran).</p>
+<section class="tab" data-tab="reglages" id="tab-reglages" role="tabpanel" aria-label="Settings" hidden>
+<h2>My Photos</h2>
+<label class="primary" id="pick">Choose Photos to Upload<input type="file" id="file" accept="image/*" multiple hidden></label>
+<p class="hint">After upload, wallpaper switches to My Photos. Photos are saved at 1920×1080. Choose the wallpaper source on the TV (Home Settings → Wallpaper and Photo Frame, or the Wallpaper tile).</p>
 <div class="grid" id="mine"></div>
 
-<h2>Liens d'images personnalisés</h2>
-<textarea id="links" placeholder="Un lien par ligne, par exemple&#10;https://example.com/wallpaper.jpg&#10;https://une-api-d-images-aleatoires/api"></textarea>
-<p class="hint">L'adresse d'une image, une API d'images aléatoires qui renvoie une nouvelle image à chaque fois, ou une page / un JSON qui liste des adresses d'images. Le téléviseur les récupère une fois par jour et garde quelques images par lien.</p>
-<p style="margin-top:12px"><button class="primary" id="save">Enregistrer et récupérer</button></p>
+<h2>Custom Image Links</h2>
+<textarea id="links" placeholder="One link per line, for example&#10;https://example.com/wallpaper.jpg&#10;https://example.com/random-image/api"></textarea>
+<p class="hint">An image URL, a random-image API that returns a new image each time, or a page / JSON listing image URLs. The TV fetches them daily and keeps a few images per link.</p>
+<p style="margin-top:12px"><button class="primary" id="save">Save and Fetch</button></p>
 <div class="grid" id="custom"></div>
 
 <h2>Logo</h2>
@@ -287,93 +287,93 @@
   <button data-brand="canvasos">canvasOS</button>
   <button data-brand="tvos">tvOS</button>
 </div>
-<p class="hint">La carte-titre et le film de démarrage intégrés au téléviseur : ceux de canvasOS, ou ceux de l'Apple TV. Ils servent d'icône aux réglages et d'animation de démarrage, sauf choix contraire ci-dessous.</p>
+<p class="hint">Built-in title card and startup film: canvasOS or Apple TV. Used for the settings icon and startup animation unless changed below.</p>
 
-<h2>Animation de démarrage</h2>
+<h2>Startup Animation</h2>
 <div class="seg three" id="intro">
-  <button data-mode="off">Désactivée</button>
-  <button data-mode="boot">Au démarrage</button>
-  <button data-mode="wake">Démarrage et réveil</button>
+  <button data-mode="off">Off</button>
+  <button data-mode="boot">At Startup</button>
+  <button data-mode="wake">Startup and Wake</button>
 </div>
 <div class="seg three" id="introSource" style="margin-top:12px">
-  <button data-source="brand">Film du logo</button>
-  <button data-source="video">Vidéo importée</button>
-  <button data-source="wordmark">Nom canvasOS</button>
+  <button data-source="brand">Logo Film</button>
+  <button data-source="video">Uploaded Video</button>
+  <button data-source="wordmark">canvasOS Name</button>
 </div>
-<p style="margin-top:12px"><label class="primary" id="pickIntro">Importer une vidéo d'animation<input type="file" id="introFile" accept="video/*" hidden></label></p>
+<p style="margin-top:12px"><label class="primary" id="pickIntro">Upload Animation Video<input type="file" id="introFile" accept="video/*" hidden></label></p>
 <p class="hint" id="introHint"></p>
 
-<h2>Icône des réglages</h2>
+<h2>Settings Icon</h2>
 <div class="seg three" id="iconSource">
   <button data-source="brand">Logo</button>
-  <button data-source="own">Image importée</button>
-  <button data-source="gear">Engrenage</button>
+  <button data-source="own">Uploaded Image</button>
+  <button data-source="gear">Gear</button>
 </div>
-<p style="margin-top:12px"><label class="primary" id="pickIcon">Importer une icône<input type="file" id="iconFile" accept="image/*" hidden></label></p>
+<p style="margin-top:12px"><label class="primary" id="pickIcon">Upload Icon<input type="file" id="iconFile" accept="image/*" hidden></label></p>
 <p class="hint" id="iconHint"></p>
 
-<h2>Profils</h2>
+<h2>Profiles</h2>
 <div class="apps" id="profiles"></div>
-<p class="hint">La photo de chaque profil en haut à droite de l'accueil. Sans photo, le profil montre l'initiale de son nom sur sa couleur ; une photo est recadrée en carré, centrée. Le nom et la couleur se changent sur le téléviseur (Réglages de l'accueil → Profils).</p>
+<p class="hint">Each profile photo appears at the top right of Home. Without a photo, an initial appears on the profile color. Photos are cropped to a centered square. Change names and colors on the TV (Home Settings → Profiles).</p>
 
-<h2>Météo</h2>
+<h2>Weather</h2>
 <div class="seg" id="weather">
-  <button data-on="true">Activée</button>
-  <button data-on="false">Désactivée</button>
+  <button data-on="true">On</button>
+  <button data-on="false">Off</button>
 </div>
 <p class="hint" id="weatherPlace"></p>
 <form class="type" id="weatherForm" style="margin-top:12px">
-  <input type="search" id="weatherQuery" placeholder="Ville" aria-label="Ville de la météo"
+  <input type="search" id="weatherQuery" placeholder="City" aria-label="Weather City"
     autocomplete="off" autocorrect="off" spellcheck="false" enterkeyhint="search">
 </form>
 <div class="results" id="weatherResults" aria-live="polite"></div>
-<p class="hint">La température s'affiche à côté de l'horloge de l'accueil, et les prévisions sur cinq jours dans le Centre de contrôle (bouton Météo). Prévisions d'Open-Meteo ; tant qu'aucune ville n'est choisie, le téléviseur devine le lieu une fois d'après son adresse IP publique (ip-api.com).</p>
-<h2>Paroles</h2>
+<p class="hint">Temperature appears beside the Home clock, with a five-day forecast in Control Center (Weather). Forecasts come from Open-Meteo; until a city is chosen, the TV estimates its location once from its public IP address (ip-api.com).</p>
+<h2>Lyrics</h2>
 <div class="seg" id="lyrics">
-  <button data-on="true">Activées</button>
-  <button data-on="false">Désactivées</button>
+  <button data-on="true">On</button>
+  <button data-on="false">Off</button>
 </div>
 <p class="hint" id="lyricsHint"></p>
-<p class="hint">Quand une app lit de la musique, une capsule en haut à gauche de l'accueil montre la pochette, le titre et l'artiste. À chaque nouveau titre, le téléviseur demande à <a href="https://lrclib.net" target="_blank" rel="noopener noreferrer">LRCLIB</a>, une base ouverte et gratuite (aucune clé ni aucun compte à créer), s'il a ses paroles : il envoie le titre, l'artiste, l'album et la durée du morceau, rien d'autre, et n'enregistre rien. Quand LRCLIB en a, sélectionnez la capsule avec la télécommande : un bouton Paroles sort à sa droite, OK affiche les paroles synchronisées sur le fond assombri (la ligne chantée s'éclaire et défile), OK encore les retire. Sans paroles synchronisées, le bouton n'apparaît pas. Désactivées, rien n'est envoyé à LRCLIB.</p>
+<p class="hint">When an app plays music, a capsule at the top left of Home shows artwork, title and artist. For each new track, the TV asks <a href="https://lrclib.net" target="_blank" rel="noopener noreferrer">LRCLIB</a>, a free open database (no key or account), for lyrics: it sends title, artist, album and duration, nothing else, and records nothing. When synced lyrics are available, select the capsule with the remote: a Lyrics button appears to its right. OK shows synced lyrics over the darkened wallpaper; OK again hides them. Without synced lyrics, the button stays hidden. When off, nothing is sent to LRCLIB.</p>
 <h2>Top Shelf (TMDB)</h2>
 <form class="type" id="tmdbForm" autocomplete="off">
-  <input id="tmdbKey" type="password" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="Clé d'API TMDB">
-  <p style="margin-top:12px"><button class="primary" id="tmdbSave" type="submit">Enregistrer</button></p>
+  <input id="tmdbKey" type="password" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="TMDB API key">
+  <p style="margin-top:12px"><button class="primary" id="tmdbSave" type="submit">Save</button></p>
 </form>
 <p class="hint" id="tmdbHint"></p>
-<p class="hint" id="tmdbNote">Avec une clé, le Top Shelf de Netflix, Prime Video, Disney+, Apple TV, Max, Paramount+, Canal+ et Crunchyroll affiche les titres populaires de la semaine sur ce service en France (quand l'app ne publie pas de ligne « Continuer à regarder », ou si celle-ci est désactivée). Clé gratuite : <a href="https://www.themoviedb.org/settings/api" target="_blank" rel="noopener noreferrer">themoviedb.org/settings/api</a> (la « clé d'API » ou le « jeton d'accès en lecture »). La clé est enregistrée sur le téléviseur uniquement.</p>
+<p class="hint" id="tmdbNote">With a key, Top Shelf for Netflix, Prime Video, Disney+, Apple TV, Max, Paramount+, Canal+ and Crunchyroll shows popular weekly titles on that service in France (when the app does not publish Continue Watching, or that row is off). Free key: <a href="https://www.themoviedb.org/settings/api" target="_blank" rel="noopener noreferrer">themoviedb.org/settings/api</a> (API key or read access token). The key is stored only on the TV.</p>
 
-<h2>Fond d'écran Unsplash</h2>
+<h2>Unsplash Wallpaper</h2>
 <form class="type" id="unsplashForm" autocomplete="off">
-  <input id="unsplashKey" type="password" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="Clé d'accès Unsplash">
-  <p style="margin-top:12px"><button class="primary" id="unsplashSave" type="submit">Enregistrer</button></p>
+  <input id="unsplashKey" type="password" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="Unsplash access key">
+  <p style="margin-top:12px"><button class="primary" id="unsplashSave" type="submit">Save</button></p>
 </form>
 <p class="hint" id="unsplashHint"></p>
-<p class="hint">La source « Unsplash » du fond d'écran puise dans les sélections éditoriales Fonds d'écran et Nature d'Unsplash, en 4K sur un téléviseur 4K. Clé gratuite : <a href="https://unsplash.com/developers" target="_blank" rel="noopener noreferrer">unsplash.com/developers</a> (créez une app et copiez l'« Access Key » ; 50 requêtes par heure suffisent largement). La clé reste sur le téléviseur.</p>
-<h2>Sur l'écran d'accueil du téléphone</h2>
-<p class="hint">iPhone : Partager → Sur l'écran d'accueil. Android : menu ⋮ → Ajouter à l'écran d'accueil. L'icône garde le code actuel de la page : elle ne fonctionnera plus après « Régénérer le code » sur le téléviseur.</p>
+<p class="hint">The Unsplash wallpaper source uses editorial Wallpapers and Nature collections, in 4K on a 4K TV. Free key: <a href="https://unsplash.com/developers" target="_blank" rel="noopener noreferrer">unsplash.com/developers</a> (create an app and copy its Access Key; 50 requests per hour are enough). The key stays on the TV.</p>
+<h2>Add to Phone Home Screen</h2>
+<p class="hint">iPhone: Share → Add to Home Screen. Android: menu ⋮ → Add to Home Screen. The icon keeps the current page code: regenerate the code on the TV and the old icon stops working.</p>
 </section>
 
 <section class="tab" data-tab="apps" id="tab-apps" role="tabpanel" aria-label="Apps" hidden>
-<h2>Apps de l'accueil</h2>
-<div class="apps" id="apps"><div class="empty" style="padding:12px">Chargement…</div></div>
-<p class="hint">Touchez un nom pour le modifier ; videz-le pour reprendre le nom d'origine. « Ouvrir » lance l'app, ouvre le dossier ou passe sur l'entrée HDMI sur le téléviseur (hors de l'accueil canvasOS, une app demande le débogage local) ; les dossiers et les entrées se renomment et se rangent sur le téléviseur. Une image en paysage 16:9 convient le mieux : le téléviseur la recadre au centre (20&nbsp;Mo au maximum). Sur le téléviseur, un appui long sur une app propose aussi « Renommer » et « Image d'origine ». Si le téléviseur a plusieurs profils, les noms et les apps masquées sont ceux du profil affiché ; les images valent pour tous les profils.</p>
-<h2 id="hiddenTitle" hidden>Masquées sur l'accueil</h2>
+<h2>Home Apps</h2>
+<div class="apps" id="apps"><div class="empty" style="padding:12px">Loading…</div></div>
+<p class="hint">Tap a name to edit it; clear it to restore the original name. Open launches an app, opens a folder or switches HDMI input on the TV (outside canvasOS Home, app launching needs local debugging). Rename and arrange folders and inputs on the TV. Landscape 16:9 images work best: the TV crops them to the center (20 MB maximum). Holding an app on the TV also offers Rename and Original Image. With multiple profiles, names and hidden apps belong to the current profile; images apply to all profiles.</p>
+<h2 id="hiddenTitle" hidden>Hidden from Home</h2>
 <div class="apps" id="hiddenApps"></div>
 
-<h2>Installer une app (APK)</h2>
-<p class="note adbNote" hidden>Pour installer des apps, autorisez une fois le débogage local sur le téléviseur : Réglages de l'accueil → Système → Débogage local, puis « Toujours autoriser ».</p>
-<label class="primary" id="pickApk" style="margin-top:12px">Choisir un fichier APK<input type="file" id="apkFile" hidden></label>
+<h2>Install an App (APK)</h2>
+<p class="note adbNote" hidden>To install apps, allow local debugging once on the TV: Home Settings → System → Local Debugging, then Always allow.</p>
+<label class="primary" id="pickApk" style="margin-top:12px">Choose an APK File<input type="file" id="apkFile" hidden></label>
 <p class="hint" id="apkStatus" aria-live="polite"></p>
-<p class="hint">Le fichier est envoyé au téléviseur et installé tel quel (200&nbsp;Mo au maximum) ; seuls les fichiers .apk sont acceptés, pas les paquets .xapk ni .apks ; l'app apparaît ensuite d'elle-même sur l'écran d'accueil. N'installez que des apps de sources de confiance : les apps installées ainsi sont sous votre responsabilité.</p>
+<p class="hint">The file is sent to the TV and installed as-is (200 MB maximum); only .apk files are accepted, not .xapk or .apks bundles. The app then appears on Home. Install apps only from trusted sources; you are responsible for apps installed this way.</p>
 </section>
 
-<footer>Le code dans l'adresse de cette page est sa seule protection : toute personne qui la connaît, sur le même réseau, peut commander le téléviseur. Ne la partagez pas. Si un téléphone qui l'a ouverte est perdu, régénérez le code sur le téléviseur (Réglages de l'accueil → Page téléphone → Régénérer le code).</footer>
+<footer>The code in this page address is its only protection: anyone who knows it on the same network can control the TV. Do not share it. If a phone that opened the page is lost, regenerate the code on the TV (Home Settings → Phone Page → Regenerate Code).</footer>
 
 <nav class="tabbar" role="tablist" aria-label="Sections">
-  <button role="tab" data-tab="telecommande" aria-controls="tab-telecommande"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="2" width="10" height="20" rx="5"/><circle cx="12" cy="8" r="2"/><path d="M10.5 14h3M10.5 17.5h3"/></svg>Télécommande</button>
+  <button role="tab" data-tab="telecommande" aria-controls="tab-telecommande"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="2" width="10" height="20" rx="5"/><circle cx="12" cy="8" r="2"/><path d="M10.5 14h3M10.5 17.5h3"/></svg>Remote</button>
   <button role="tab" data-tab="apps" aria-controls="tab-apps"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="7" height="7" rx="2"/><rect x="13" y="4" width="7" height="7" rx="2"/><rect x="4" y="13" width="7" height="7" rx="2"/><path d="M16.5 13.5v6M13.5 16.5h6"/></svg>Apps</button>
-  <button role="tab" data-tab="reglages" aria-controls="tab-reglages"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h9M19 7h1M4 17h2M12 17h8"/><circle cx="16" cy="7" r="2.5"/><circle cx="9" cy="17" r="2.5"/></svg>Réglages</button>
+  <button role="tab" data-tab="reglages" aria-controls="tab-reglages"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h9M19 7h1M4 17h2M12 17h8"/><circle cx="16" cy="7" r="2.5"/><circle cx="9" cy="17" r="2.5"/></svg>Settings</button>
 </nav>
 
 <div class="toast" id="toast" role="status"></div>
@@ -382,18 +382,18 @@
 const base = location.pathname.replace(/\/?$/, '/');
 let state = null;
 const $ = id => document.getElementById(id);
-const LOST = 'Téléviseur injoignable, ou code changé : scannez à nouveau le code';
-const NO_ADB = 'Autorisez d\'abord le débogage local sur le téléviseur (Réglages de l\'accueil → Débogage local)';
-const ADB_DOWN = 'Le débogage local ne répond pas : vérifiez que le débogage ADB est toujours activé sur le téléviseur';
+const LOST = 'TV unreachable or code changed: scan the code again';
+const NO_ADB = 'First allow local debugging on the TV (Home Settings → System → Local Debugging)';
+const ADB_DOWN = 'Local debugging is not responding: check that ADB debugging is still on';
 
 function toast(msg, ms) {
   const t = $('toast'); t.textContent = msg; t.classList.add('on');
   clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove('on'), ms || 2200);
 }
 
-const TABS = { telecommande: 'Télécommande', apps: 'Apps', reglages: 'Réglages' };
+const TABS = { telecommande: 'Remote', apps: 'Apps', reglages: 'Settings' };
 function showTab(id, remember) {
-  if (id === 'fond') id = 'reglages'; // the old Fond d'écran tab lives in Réglages now
+  if (id === 'fond') id = 'reglages'; // the old Wallpaper tab lives in Settings now
   if (!TABS[id]) id = 'telecommande';
   document.querySelectorAll('.tab').forEach(s => { s.hidden = s.dataset.tab !== id; });
   document.documentElement.classList.toggle('remote', !$('tab-telecommande').hidden);
@@ -429,13 +429,13 @@ async function send(path, data) {
   const abort = new AbortController(), timer = setTimeout(() => abort.abort(), 10000);
   try {
     const r = await fetch(base + path, { method: 'POST', body: new URLSearchParams(data), keepalive: true, signal: abort.signal });
-    if (!r.ok) { toast(r.status === 404 ? LOST : 'Refusé par le téléviseur'); return null; }
+    if (!r.ok) { toast(r.status === 404 ? LOST : 'Refused by the TV'); return null; }
     const res = await r.json();
     // Pressed straight into canvasOS ("direct") says nothing about local debugging.
     if (res.ok) { if (res.via === 'adb') showAdb(false); }
-    else if (res.reason === 'adb') { showAdb(true); toast('Pour commander cette app, autorisez d\'abord le débogage local (Réglages de l\'accueil → Système → Débogage local)', 4000); }
+    else if (res.reason === 'adb') { showAdb(true); toast('To control this app, first allow local debugging (Home Settings → System → Local Debugging)', 4000); }
     else if (res.reason === 'unreachable') toast(ADB_DOWN, 4000);
-    else if (res.reason === 'empty') toast('Aucun caractère transmissible dans ce texte');
+    else if (res.reason === 'empty') toast('This text contains no supported characters');
     return res;
   } catch (_) { toast(LOST); return null; } finally { clearTimeout(timer); }
 }
@@ -659,12 +659,12 @@ if (window.visualViewport) {
 
 function photos(el, source, names) {
   el.innerHTML = '';
-  if (!names.length) { el.innerHTML = '<div class="empty">Aucune pour l\'instant</div>'; return; }
+  if (!names.length) { el.innerHTML = '<div class="empty">None yet</div>'; return; }
   for (const n of names) {
     const d = document.createElement('div'); d.className = 'ph';
     const img = document.createElement('img'); img.loading = 'lazy'; img.src = base + 'thumb/' + source + '/' + n;
-    const b = document.createElement('button'); b.textContent = '✕'; b.title = 'Supprimer';
-    b.onclick = () => post('api/delete', { source, id: n }).then(() => toast('Supprimée'));
+    const b = document.createElement('button'); b.textContent = '✕'; b.title = 'Delete';
+    b.onclick = () => post('api/delete', { source, id: n }).then(() => toast('Deleted'));
     d.append(img, b); el.append(d);
   }
 }
@@ -674,7 +674,7 @@ function render(s) {
   showAdb(!s.adb);
   document.querySelectorAll('#intro button').forEach(b => {
     b.setAttribute('aria-pressed', s.intro === b.dataset.mode);
-    b.onclick = () => post('api/intro', { mode: b.dataset.mode }).then(() => toast('Animation de démarrage : ' + b.textContent));
+    b.onclick = () => post('api/intro', { mode: b.dataset.mode }).then(() => toast('Startup Animation : ' + b.textContent));
   });
   document.querySelectorAll('#brand button').forEach(b => {
     b.setAttribute('aria-pressed', s.brand === b.dataset.brand);
@@ -683,40 +683,40 @@ function render(s) {
   document.querySelectorAll('#introSource button').forEach(b => {
     b.setAttribute('aria-pressed', s.introSource === b.dataset.source);
     b.disabled = b.dataset.source === 'video' && !s.introVideo;
-    b.onclick = () => post('api/intro/source', { source: b.dataset.source }).then(() => toast('Contenu de l\'animation : ' + b.textContent));
+    b.onclick = () => post('api/intro/source', { source: b.dataset.source }).then(() => toast('Animation content: ' + b.textContent));
   });
   document.querySelectorAll('#iconSource button').forEach(b => {
     b.setAttribute('aria-pressed', s.settingsIcon === b.dataset.source);
     b.disabled = b.dataset.source === 'own' && !s.icon;
-    b.onclick = () => post('api/icon', { source: b.dataset.source }).then(() => toast('Icône des réglages : ' + b.textContent));
+    b.onclick = () => post('api/icon', { source: b.dataset.source }).then(() => toast('Settings Icon : ' + b.textContent));
   });
   if (s.icon) {
-    $('iconHint').innerHTML = 'Image importée disponible : l\'icône « Réglages de l\'accueil » sur l\'accueil et la grande image à gauche des réglages. <a href="#" id="iconDel">Supprimer l\'image</a>';
-    $('iconDel').onclick = e => { e.preventDefault(); post('api/icon/delete', {}).then(() => toast('Image supprimée : retour au logo')); };
+    $('iconHint').innerHTML = 'Uploaded image available for the Home Settings icon and the large image on the settings page. <a href="#" id="iconDel">Delete image</a>';
+    $('iconDel').onclick = e => { e.preventDefault(); post('api/icon/delete', {}).then(() => toast('Image deleted: logo restored')); };
   } else {
-    $('iconHint').textContent = 'Votre propre image pour l\'icône « Réglages de l\'accueil » sur l\'accueil et la grande image à gauche des réglages ; idéalement une image 16:9 en paysage.';
+    $('iconHint').textContent = 'Your image for the Home Settings icon and the large image on the settings page; ideally a landscape 16:9 image.';
   }
   const hint = $('introHint');
   if (s.introVideo) {
-    hint.innerHTML = 'Importée (' + (s.introVideo / 1048576).toFixed(1).replace('.', ',') + ' Mo). <a href="#" id="introDel">Supprimer</a>';
-    $('introDel').onclick = e => { e.preventDefault(); post('api/intro/delete', {}).then(() => toast('Vidéo supprimée : retour au film du logo')); };
+    hint.innerHTML = 'Uploaded (' + (s.introVideo / 1048576).toFixed(1) + ' MB). <a href="#" id="introDel">Delete</a>';
+    $('introDel').onclick = e => { e.preventDefault(); post('api/intro/delete', {}).then(() => toast('Video deleted: logo film restored')); };
   } else {
-    hint.textContent = 'Idéalement une courte vidéo qui se termine sur un logo sur fond noir : le logo s\'agrandit et ouvre l\'accueil. Sans vidéo, le logo canvasOS s\'affiche.';
+    hint.textContent = 'Ideally a short video ending with a logo on black: the logo grows and opens Home. Without a video, the canvasOS logo appears.';
   }
   // The key itself never comes back from the TV: only whether there is one.
-  $('tmdbKey').placeholder = s.tmdbKey ? 'Clé enregistrée (masquée)' : 'Clé d\'API TMDB';
-  $('unsplashKey').placeholder = s.unsplashKey ? 'Clé enregistrée (masquée)' : 'Clé d\'accès Unsplash';
+  $('tmdbKey').placeholder = s.tmdbKey ? 'Saved key (hidden)' : 'TMDB API key';
+  $('unsplashKey').placeholder = s.unsplashKey ? 'Saved key (hidden)' : 'Unsplash access key';
   if (s.unsplashKey) {
-    $('unsplashHint').innerHTML = 'Une clé est enregistrée ; collez-en une autre pour la remplacer. <a href="#" id="unsplashDel">Supprimer la clé</a>';
-    $('unsplashDel').onclick = e => { e.preventDefault(); post('api/unsplash', { key: '' }).then(() => toast('Clé Unsplash supprimée')); };
+    $('unsplashHint').innerHTML = 'A key is saved; paste another to replace it. <a href="#" id="unsplashDel">Delete key</a>';
+    $('unsplashDel').onclick = e => { e.preventDefault(); post('api/unsplash', { key: '' }).then(() => toast('Unsplash key deleted')); };
   } else {
-    $('unsplashHint').textContent = 'Aucune clé enregistrée.';
+    $('unsplashHint').textContent = 'No saved key.';
   }
   if (s.tmdbKey) {
-    $('tmdbHint').innerHTML = 'Une clé est enregistrée ; collez-en une autre pour la remplacer. <a href="#" id="tmdbDel">Supprimer la clé</a>';
-    $('tmdbDel').onclick = e => { e.preventDefault(); post('api/tmdb', { key: '' }).then(() => toast('Clé TMDB supprimée')); };
+    $('tmdbHint').innerHTML = 'A key is saved; paste another to replace it. <a href="#" id="tmdbDel">Delete key</a>';
+    $('tmdbDel').onclick = e => { e.preventDefault(); post('api/tmdb', { key: '' }).then(() => toast('TMDB key deleted')); };
   } else {
-    $('tmdbHint').textContent = 'Aucune clé enregistrée.';
+    $('tmdbHint').textContent = 'No saved key.';
   }
   if (document.activeElement !== $('links')) $('links').value = s.links;
   renderWeather(s);
@@ -728,27 +728,27 @@ function render(s) {
 
 $('file').onchange = async e => {
   const files = [...e.target.files]; if (!files.length) return;
-  const pick = $('pick'); pick.firstChild.textContent = 'Importation de ' + files.length + ' photo(s)…';
+  const pick = $('pick'); pick.firstChild.textContent = 'Uploading ' + files.length + ' photo(s)…';
   try {
     const fd = new FormData();
     files.forEach((f, i) => fd.append('photo' + (i || ''), f, f.name));
     const r = await fetch(base + 'api/upload', { method: 'POST', body: fd });
     const s = await r.json(); render(s);
-    toast(s.added ? s.added + ' photo(s) importée(s)' : 'Aucune image utilisable');
-  } catch (err) { toast('Échec de l\'importation : ' + err.message); }
-  pick.firstChild.textContent = 'Choisir des photos à importer'; e.target.value = '';
+    toast(s.added ? s.added + ' photo(s) uploaded' : 'No usable image');
+  } catch (err) { toast('Upload failed: ' + err.message); }
+  pick.firstChild.textContent = 'Choose Photos to Upload'; e.target.value = '';
 };
 
 $('introFile').onchange = async e => {
   const f = e.target.files[0]; if (!f) return;
-  const pick = $('pickIntro'); pick.firstChild.textContent = 'Importation…';
+  const pick = $('pickIntro'); pick.firstChild.textContent = 'Uploading…';
   try {
     const fd = new FormData(); fd.append('video', f, f.name);
     const r = await fetch(base + 'api/intro/upload', { method: 'POST', body: fd });
     const s = await r.json(); render(s);
-    toast(s.ok ? 'Importée : prévisualisez-la dans les réglages du téléviseur' : 'Le téléviseur ne peut pas lire ce fichier');
-  } catch (err) { toast('Échec de l\'importation : ' + err.message); }
-  pick.firstChild.textContent = 'Importer une vidéo d\'animation'; e.target.value = '';
+    toast(s.ok ? 'Uploaded: preview it in TV settings' : 'The TV cannot play this file');
+  } catch (err) { toast('Upload failed: ' + err.message); }
+  pick.firstChild.textContent = 'Upload Animation Video'; e.target.value = '';
 };
 
 $('iconFile').onchange = async e => {
@@ -756,8 +756,8 @@ $('iconFile').onchange = async e => {
   try {
     const fd = new FormData(); fd.append('icon', f, f.name);
     const s = await (await fetch(base + 'api/icon/upload', { method: 'POST', body: fd })).json(); render(s);
-    toast(s.ok ? 'C\'est fait : visible en revenant à l\'accueil' : 'Image inutilisable');
-  } catch (err) { toast('Échec de l\'importation : ' + err.message); }
+    toast(s.ok ? 'Done: visible when you return to Home' : 'Unusable image');
+  } catch (err) { toast('Upload failed: ' + err.message); }
   e.target.value = '';
 };
 
@@ -769,31 +769,31 @@ $('apkFile').onchange = async e => {
   // would be greyed out. Check the name instead; a name without extension (iOS share sheet) passes, the TV checks the zip.
   if (!/\.apk$/i.test(f.name) && /\.[a-z0-9]{1,5}$/i.test(f.name)) {
     status.textContent = /\.(xapk|apks|apkm)$/i.test(f.name)
-      ? 'Les paquets .xapk, .apks et .apkm ne sont pas pris en charge : choisissez un fichier .apk.'
-      : 'Choisissez un fichier .apk.';
+      ? '.xapk, .apks and .apkm bundles are unsupported: choose an .apk file.'
+      : 'Choose an .apk file.';
     return;
   }
   // Fresh: local debugging may have been authorised on the TV since the page loaded.
   await refresh();
   if (state && !state.adb) { status.textContent = NO_ADB + '.'; return; }
-  if (f.size > 200 * 1048576) { status.textContent = 'Fichier trop volumineux : 200 Mo au maximum.'; return; }
-  pick.classList.add('busy'); pick.firstChild.textContent = 'Envoi…';
-  status.textContent = 'Envoi de ' + f.name + '…';
+  if (f.size > 200 * 1048576) { status.textContent = 'File too large: 200 MB maximum.'; return; }
+  pick.classList.add('busy'); pick.firstChild.textContent = 'Sending…';
+  status.textContent = 'Sending ' + f.name + '…';
   const done = r => {
-    pick.classList.remove('busy'); pick.firstChild.textContent = 'Choisir un fichier APK';
-    if (!r) { status.textContent = 'Échec : ' + LOST + '.'; toast('Échec de l\'envoi'); return; }
+    pick.classList.remove('busy'); pick.firstChild.textContent = 'Choose an APK File';
+    if (!r) { status.textContent = 'Failed: ' + LOST + '.'; toast('Upload failed'); return; }
     if (r.reason === 'adb') { showAdb(true); status.textContent = NO_ADB + '.'; return; }
     if (r.reason === 'unreachable') { status.textContent = ADB_DOWN + '.'; return; }
-    status.textContent = (r.ok ? '✓ ' : 'Échec : ') + r.message;
-    toast(r.ok ? r.message : 'Installation refusée : détails sous le bouton', r.ok ? 2600 : 4000);
+    status.textContent = (r.ok ? '✓ ' : 'Failed: ') + r.message;
+    toast(r.ok ? r.message : 'Installation refused: see details below the button', r.ok ? 2600 : 4000);
   };
   const fd = new FormData(); fd.append('apk', f, f.name);
   const xhr = new XMLHttpRequest();
   xhr.open('POST', base + 'api/apk/upload');
   xhr.upload.onprogress = ev => {
-    if (ev.lengthComputable) status.textContent = 'Envoi de ' + f.name + ' : ' + Math.floor(ev.loaded * 100 / ev.total) + ' %';
+    if (ev.lengthComputable) status.textContent = 'Sending ' + f.name + ' : ' + Math.floor(ev.loaded * 100 / ev.total) + ' %';
   };
-  xhr.upload.onload = () => { pick.firstChild.textContent = 'Installation…'; status.textContent = 'Installation sur le téléviseur…'; };
+  xhr.upload.onload = () => { pick.firstChild.textContent = 'Installing…'; status.textContent = 'Installing on the TV…'; };
   xhr.onload = () => { let r = null; try { r = JSON.parse(xhr.responseText); } catch (_) {} done(r); };
   xhr.onerror = xhr.onabort = () => done(null);
   xhr.send(fd);
@@ -802,36 +802,36 @@ $('apkFile').onchange = async e => {
 $('tmdbForm').onsubmit = async e => {
   e.preventDefault();
   const input = $('tmdbKey'), key = input.value.trim();
-  if (!key) { toast('Collez d\'abord la clé'); return; }
-  const b = $('tmdbSave'); b.classList.add('busy'); b.textContent = 'Vérification…';
+  if (!key) { toast('Paste the key first'); return; }
+  const b = $('tmdbSave'); b.classList.add('busy'); b.textContent = 'Checking…';
   try {
     const s = await post('api/tmdb', { key });
     input.value = '';
-    toast(s.tmdbOk === true ? 'Clé enregistrée : le Top Shelf suit les tendances' :
-      s.tmdbOk === false ? 'Clé enregistrée, mais TMDB la refuse : vérifiez-la' :
-      'Clé enregistrée ; TMDB est injoignable pour la vérifier', 3500);
+    toast(s.tmdbOk === true ? 'Key saved: Top Shelf shows trending content' :
+      s.tmdbOk === false ? 'Key saved, but TMDB rejected it: check the key' :
+      'Key saved; cannot reach TMDB to verify it', 3500);
   } catch (_) { toast(LOST, 4000); }
-  b.classList.remove('busy'); b.textContent = 'Enregistrer';
+  b.classList.remove('busy'); b.textContent = 'Save';
 };
 
 $('unsplashForm').onsubmit = async e => {
   e.preventDefault();
   const input = $('unsplashKey'), key = input.value.trim();
-  if (!key) { toast('Collez d\'abord la clé'); return; }
-  const b = $('unsplashSave'); b.classList.add('busy'); b.textContent = 'Vérification…';
+  if (!key) { toast('Paste the key first'); return; }
+  const b = $('unsplashSave'); b.classList.add('busy'); b.textContent = 'Checking…';
   try {
     const s = await post('api/unsplash', { key });
     input.value = '';
-    toast(s.unsplashOk === true ? 'Clé enregistrée : choisissez « Unsplash » comme fond d\'écran' :
-      s.unsplashOk === false ? 'Clé enregistrée, mais Unsplash la refuse : vérifiez-la' :
-      'Clé enregistrée ; Unsplash est injoignable pour la vérifier', 3500);
+    toast(s.unsplashOk === true ? 'Key saved: choose Unsplash as the wallpaper source' :
+      s.unsplashOk === false ? 'Key saved, but Unsplash rejected it: check the key' :
+      'Key saved; cannot reach Unsplash to verify it', 3500);
   } catch (_) { toast(LOST, 4000); }
-  b.classList.remove('busy'); b.textContent = 'Enregistrer';
+  b.classList.remove('busy'); b.textContent = 'Save';
 };
 
 $('save').onclick = async () => {
   await post('api/links', { links: $('links').value });
-  toast(state.links ? 'Enregistré : le téléviseur récupère les images' : 'Liens effacés');
+  toast(state.links ? 'Saved: the TV is fetching images' : 'Links cleared');
   // Pictures arrive over the next half minute or so.
   let n = 0; const t = setInterval(async () => {
     if (++n > 10) return clearInterval(t);
@@ -859,29 +859,29 @@ async function saveLabel(a, input) {
     if (!r.ok) throw new Error(r.status);
     const res = await r.json();
     const now = (res.apps || []).find(x => x.id === a.id);
-    if (!res.ok || !now) { toast('Cette app n\'est plus sur le téléviseur'); return; }
+    if (!res.ok || !now) { toast('This app is no longer on the TV'); return; }
     a.label = now.label;
     const row = document.querySelector('.app[data-id="' + CSS.escape(a.id) + '"]');
     if (row) {
       const field = row.querySelector('input:not([type])');
       if (document.activeElement !== field) field.value = now.label;
-      row.querySelector('small').textContent = now.label !== now.originalLabel ? 'Nom d\'origine : ' + now.originalLabel : '';
+      row.querySelector('small').textContent = now.label !== now.originalLabel ? 'Original name: ' + now.originalLabel : '';
     }
-    toast(now.label !== now.originalLabel ? 'Renommée : ' + now.label : 'Nom d\'origine : ' + now.label);
+    toast(now.label !== now.originalLabel ? 'Renamed: ' + now.label : 'Original name: ' + now.label);
   } catch (_) { toast(LOST); }
 }
 
-/** « Ouvrir »: the TV opens the app or the folder, or switches to the input; the list comes back in the home's new order. */
+/** « Open »: the TV opens the app or the folder, or switches to the input; the list comes back in the home's new order. */
 async function openOnTv(a, btn) {
   btn.classList.add('busy');
   try {
     const r = await fetch(base + 'api/app/open', { method: 'POST', body: new URLSearchParams({ pkg: a.id }) });
     if (!r.ok) throw new Error(r.status);
     const res = await r.json();
-    if (res.ok) toast(a.kind === 'folder' ? 'Dossier ouvert sur le téléviseur' : (a.kind === 'input' ? 'Source : ' : 'Ouverte : ') + a.label);
+    if (res.ok) toast(a.kind === 'folder' ? 'Folder opened on the TV' : (a.kind === 'input' ? 'Input: ' : 'Opened: ') + a.label);
     else if (res.reason === 'adb') toast(NO_ADB, 4000);
     else if (res.reason === 'unreachable') toast(ADB_DOWN, 4000);
-    else toast(res.message || 'Impossible d\'ouvrir ' + a.label, 4000);
+    else toast(res.message || 'Could not open ' + a.label, 4000);
     renderApps(res.apps);
     // « Récents » moves what was opened to the front once the TV has opened it.
     if (res.ok) setTimeout(refreshApps, 1500);
@@ -899,48 +899,48 @@ function appRow(a, nested) {
   if (kind === 'app') {
     const name = document.createElement('input');
     name.value = a.label; name.placeholder = a.originalLabel; name.maxLength = 60; name.enterKeyHint = 'done';
-    name.autocomplete = 'off'; name.spellcheck = false; name.setAttribute('aria-label', 'Nom de ' + a.originalLabel);
+    name.autocomplete = 'off'; name.spellcheck = false; name.setAttribute('aria-label', 'Name of ' + a.originalLabel);
     name.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); name.blur(); } };
     name.onchange = () => saveLabel(a, name);
-    sub.textContent = a.label !== a.originalLabel ? 'Nom d\'origine : ' + a.originalLabel : '';
+    sub.textContent = a.label !== a.originalLabel ? 'Original name: ' + a.originalLabel : '';
     body.append(name, sub);
   } else {
     // Folders and inputs are renamed on the TV.
     const name = document.createElement('b'); name.className = 'name'; name.textContent = a.label;
     const n = (a.apps || []).length;
-    sub.textContent = kind === 'input' ? 'Entrée HDMI' : n ? 'Dossier · ' + n + (n > 1 ? ' apps' : ' app') : 'Dossier vide';
+    sub.textContent = kind === 'input' ? 'HDMI Input' : n ? 'Folder · ' + n + (n > 1 ? ' apps' : ' app') : 'Empty folder';
     body.append(name, sub);
   }
   const acts = document.createElement('div'); acts.className = 'acts';
   if (!a.hidden) {
-    const open = document.createElement('button'); open.type = 'button'; open.className = 'open'; open.textContent = 'Ouvrir';
+    const open = document.createElement('button'); open.type = 'button'; open.className = 'open'; open.textContent = 'Open';
     open.onclick = () => openOnTv(a, open);
     acts.append(open);
   }
   if (kind === 'app' && a.tile) {
-    const pick = document.createElement('label'); pick.textContent = 'Changer l\'image';
+    const pick = document.createElement('label'); pick.textContent = 'Change Image';
     const file = document.createElement('input'); file.type = 'file'; file.accept = 'image/*'; file.hidden = true;
     file.onchange = async () => {
       const f = file.files[0]; file.value = ''; if (!f) return;
-      if (f.size > 20 * 1048576) { toast('Image trop volumineuse : 20 Mo au maximum'); return; }
-      pick.classList.add('busy'); pick.firstChild.textContent = 'Envoi…';
+      if (f.size > 20 * 1048576) { toast('Image too large: 20 MB maximum'); return; }
+      pick.classList.add('busy'); pick.firstChild.textContent = 'Sending…';
       try {
         const fd = new FormData(); fd.append('pkg', a.id); fd.append('image', f, f.name);
         const res = await postApps('api/app/tile', fd);
-        toast(res.ok ? 'Image changée : visible sur l\'accueil' : (res.message || 'Image inutilisable'));
-      } catch (_) { toast(LOST); pick.classList.remove('busy'); pick.firstChild.textContent = 'Changer l\'image'; }
+        toast(res.ok ? 'Image changed: visible on Home' : (res.message || 'Unusable image'));
+      } catch (_) { toast(LOST); pick.classList.remove('busy'); pick.firstChild.textContent = 'Change Image'; }
     };
     pick.append(file); acts.append(pick);
   }
   if (kind === 'app' && a.custom) {
-    const b = document.createElement('button'); b.type = 'button'; b.textContent = 'Image d\'origine';
-    b.onclick = () => postApps('api/app/tile/delete', { pkg: a.id }).then(() => toast('Image d\'origine rétablie')).catch(() => toast(LOST));
+    const b = document.createElement('button'); b.type = 'button'; b.textContent = 'Original Image';
+    b.onclick = () => postApps('api/app/tile/delete', { pkg: a.id }).then(() => toast('Original image restored')).catch(() => toast(LOST));
     acts.append(b);
   }
   if (kind === 'app') {
-    const vis = document.createElement('button'); vis.type = 'button'; vis.textContent = a.hidden ? 'Afficher' : 'Masquer';
+    const vis = document.createElement('button'); vis.type = 'button'; vis.textContent = a.hidden ? 'Show' : 'Hide';
     vis.onclick = () => postApps('api/app/hidden', { pkg: a.id, on: !a.hidden })
-      .then(() => toast((a.hidden ? 'Affichée : ' : 'Masquée : ') + a.label)).catch(() => toast(LOST));
+      .then(() => toast((a.hidden ? 'Shown: ' : 'Hidden: ') + a.label)).catch(() => toast(LOST));
     acts.append(vis);
   }
   row.append(img, body, acts);
@@ -957,7 +957,7 @@ function renderApps(list) {
   const shown = $('apps'), hidden = $('hiddenApps');
   shown.innerHTML = ''; hidden.innerHTML = '';
   for (const a of list) (a.hidden ? hidden : shown).append(appRow(a, false));
-  if (!shown.childElementCount) shown.innerHTML = '<div class="empty" style="padding:12px">Rien n\'est affiché sur l\'accueil</div>';
+  if (!shown.childElementCount) shown.innerHTML = '<div class="empty" style="padding:12px">Nothing is shown on Home</div>';
   $('hiddenTitle').hidden = !hidden.childElementCount;
 }
 
@@ -972,7 +972,7 @@ async function refreshApps() {
   } catch (_) { /* refresh() already says the TV is unreachable */ }
 }
 
-// ------------------------------------------------------------------ Profiles (Réglages tab)
+// ------------------------------------------------------------------ Profiles (Settings tab)
 
 function profileRow(p) {
   const row = document.createElement('div'); row.className = 'app profile';
@@ -981,27 +981,27 @@ function profileRow(p) {
   const body = document.createElement('div');
   const name = document.createElement('b'); name.textContent = p.name;
   const sub = document.createElement('small');
-  sub.textContent = (p.current ? 'Affiché en ce moment · ' : '') + 'identifiant ' + p.id;
+  sub.textContent = (p.current ? 'Currently shown · ' : '') + 'ID ' + p.id;
   body.append(name, sub);
   const acts = document.createElement('div'); acts.className = 'acts';
-  const pick = document.createElement('label'); pick.textContent = 'Changer la photo';
+  const pick = document.createElement('label'); pick.textContent = 'Change Photo';
   const file = document.createElement('input'); file.type = 'file'; file.accept = 'image/*'; file.hidden = true;
   file.onchange = async () => {
     const f = file.files[0]; file.value = ''; if (!f) return;
-    if (f.size > 20 * 1048576) { toast('Image trop volumineuse : 20 Mo au maximum'); return; }
-    pick.classList.add('busy'); pick.firstChild.textContent = 'Envoi…';
+    if (f.size > 20 * 1048576) { toast('Image too large: 20 MB maximum'); return; }
+    pick.classList.add('busy'); pick.firstChild.textContent = 'Sending…';
     try {
       const fd = new FormData(); fd.append('id', p.id); fd.append('photo', f, f.name);
       const r = await fetch(base + 'api/profile/photo', { method: 'POST', body: fd });
       if (!r.ok) throw new Error(r.status);
       const s = await r.json(); pick.classList.remove('busy'); render(s);
-      toast(s.ok ? 'Photo de « ' + p.name + ' » changée' : (s.message || 'Image inutilisable'));
-    } catch (_) { toast(LOST); pick.classList.remove('busy'); pick.firstChild.textContent = 'Changer la photo'; }
+      toast(s.ok ? 'Photo for “' + p.name + '” changed' : (s.message || 'Unusable image'));
+    } catch (_) { toast(LOST); pick.classList.remove('busy'); pick.firstChild.textContent = 'Change Photo'; }
   };
   pick.append(file); acts.append(pick);
   if (p.photo) {
-    const b = document.createElement('button'); b.type = 'button'; b.textContent = 'Supprimer la photo';
-    b.onclick = () => post('api/profile/photo/delete', { id: p.id }).then(() => toast('Photo supprimée : l\'initiale revient')).catch(() => toast(LOST));
+    const b = document.createElement('button'); b.type = 'button'; b.textContent = 'Remove Photo';
+    b.onclick = () => post('api/profile/photo/delete', { id: p.id }).then(() => toast('Photo deleted: initial restored')).catch(() => toast(LOST));
     acts.append(b);
   }
   row.append(img, body, acts);
@@ -1020,19 +1020,19 @@ function renderProfiles(list) {
 function renderLyrics(s) {
   document.querySelectorAll('#lyrics button').forEach(b => {
     b.setAttribute('aria-pressed', String(s.lyrics) === b.dataset.on);
-    b.onclick = () => post('api/lyrics', { on: b.dataset.on }).then(() => toast('Paroles : ' + b.textContent));
+    b.onclick = () => post('api/lyrics', { on: b.dataset.on }).then(() => toast('Lyrics : ' + b.textContent));
   });
-  $('lyricsHint').textContent = s.homePlayer ? '' : 'Le lecteur de l\'accueil est désactivé (Réglages de l\'accueil → Lecture et notifications) : le bouton Paroles ne s\'affiche pas.';
+  $('lyricsHint').textContent = s.homePlayer ? '' : 'Home Player is off (Home Settings → Playback and Notifications): the Lyrics button is hidden.';
 }
 
 function renderWeather(s) {
   document.querySelectorAll('#weather button').forEach(b => {
     b.setAttribute('aria-pressed', String(s.weather) === b.dataset.on);
-    b.onclick = () => post('api/weather', { on: b.dataset.on }).then(() => toast('Météo : ' + b.textContent));
+    b.onclick = () => post('api/weather', { on: b.dataset.on }).then(() => toast('Weather : ' + b.textContent));
   });
   $('weatherPlace').textContent = s.weatherPlace
-    ? 'Lieu : ' + s.weatherPlace + (s.weatherAuto ? ' (détecté d\'après l\'adresse IP du téléviseur)' : '') + '. Cherchez une ville pour en changer.'
-    : 'Pas encore de lieu : le téléviseur le devinera d\'après son adresse IP publique, ou cherchez une ville.';
+    ? 'Location: ' + s.weatherPlace + (s.weatherAuto ? ' (estimated from the TV IP address)' : '') + '. Search for a city to change it.'
+    : 'No location yet: the TV will estimate it from its public IP address, or search for a city.';
 }
 
 // The TV looks the city up (Open-Meteo's geocoding): the page talks to the TV only.
@@ -1046,8 +1046,8 @@ async function searchWeather() {
     const res = await r.json();
     if (seq !== wxSeq) return;  // a newer search is on its way
     list.innerHTML = '';
-    if (!res.ok) { list.innerHTML = '<div class="empty">Recherche impossible : le téléviseur n\'arrive pas à joindre Open-Meteo</div>'; return; }
-    if (!res.results.length) { list.innerHTML = '<div class="empty">Aucune ville trouvée</div>'; return; }
+    if (!res.ok) { list.innerHTML = '<div class="empty">Search failed: the TV cannot reach Open-Meteo</div>'; return; }
+    if (!res.results.length) { list.innerHTML = '<div class="empty">No city found</div>'; return; }
     for (const p of res.results) {
       const b = document.createElement('button'); b.type = 'button';
       const n = document.createElement('span'); n.textContent = p.name;
@@ -1055,7 +1055,7 @@ async function searchWeather() {
       b.append(n, d);
       b.onclick = () => post('api/weather/place', { lat: p.lat, lon: p.lon, name: p.name }).then(() => {
         list.innerHTML = ''; $('weatherQuery').value = '';
-        toast('Météo : ' + p.name + ', à l\'accueil dans une minute environ');
+        toast('Weather : ' + p.name + ', on Home in about a minute');
       }).catch(() => toast(LOST));
       list.append(b);
     }

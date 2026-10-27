@@ -1,4 +1,4 @@
-package com.getisolated.canvasos
+package com.aksamitsah.canvasos.en
 
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue

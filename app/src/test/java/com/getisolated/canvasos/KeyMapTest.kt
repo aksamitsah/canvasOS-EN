@@ -1,4 +1,4 @@
-package com.getisolated.canvasos
+package com.aksamitsah.canvasos.en
 
 import android.view.KeyEvent
 import org.junit.Assert.assertEquals
@@ -48,21 +48,21 @@ class KeyMapTest {
         assertNull(KeyMap.reserved(KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE, false))
     }
 
-    @Test fun namesReadInFrench() {
-        assertEquals("Touche rouge", KeyMap.keyName(KeyEvent.KEYCODE_PROG_RED, false))
-        assertEquals("Touche 1 (appui long)", KeyMap.keyName(KeyEvent.KEYCODE_1, true))
-        assertEquals("Retour (appui long)", KeyMap.keyName(KeyEvent.KEYCODE_BACK, true))
-        assertEquals("Profil", KeyMap.keyName(KeyEvent.KEYCODE_PROFILE_SWITCH, false))
+    @Test fun namesReadInEnglish() {
+        assertEquals("Red Button", KeyMap.keyName(KeyEvent.KEYCODE_PROG_RED, false))
+        assertEquals("Button 1 (long press)", KeyMap.keyName(KeyEvent.KEYCODE_1, true))
+        assertEquals("Back (long press)", KeyMap.keyName(KeyEvent.KEYCODE_BACK, true))
+        assertEquals("Profile", KeyMap.keyName(KeyEvent.KEYCODE_PROFILE_SWITCH, false))
         // The TV's own keys the service catches for the shortcuts; the home screen's never.
         assertTrue(KeyEvent.KEYCODE_SETTINGS in KeyCapture.CAPTURED && KeyEvent.KEYCODE_PROFILE_SWITCH in KeyCapture.CAPTURED)
         assertFalse(KeyEvent.KEYCODE_BACK in KeyCapture.CAPTURED || KeyEvent.KEYCODE_HOME in KeyCapture.CAPTURED)
         assertNull(KeyMap.reserved(KeyEvent.KEYCODE_SETTINGS, false))
         // An unknown key without Android's names (the unit tests have none): its code.
-        assertTrue(KeyMap.keyName(KeyEvent.KEYCODE_F7, false).startsWith("Touche") || KeyMap.keyName(KeyEvent.KEYCODE_F7, false) == "F7")
-        assertEquals("Centre de contrôle", KeyMap.label(KeyMap.CONTROL_CENTER))
-        assertEquals("Ouvrir Spotify", KeyMap.label("app:com.spotify.tv.android") { "Spotify" })
-        assertEquals("Ouvrir com.x", KeyMap.label("app:com.x"))
-        assertEquals("Source HDMI 1 · PS5", KeyMap.label(input.action) { "HDMI 1 · PS5" })
-        assertEquals("Touche rouge=control_center; Touche 1 (appui long)=app:com.spotify.tv.android", KeyMap.describe(listOf(red, oneLong)))
+        assertTrue(KeyMap.keyName(KeyEvent.KEYCODE_F7, false).startsWith("Button") || KeyMap.keyName(KeyEvent.KEYCODE_F7, false) == "F7")
+        assertEquals("Control Center", KeyMap.label(KeyMap.CONTROL_CENTER))
+        assertEquals("Open Spotify", KeyMap.label("app:com.spotify.tv.android") { "Spotify" })
+        assertEquals("Open com.x", KeyMap.label("app:com.x"))
+        assertEquals("Input HDMI 1 · PS5", KeyMap.label(input.action) { "HDMI 1 · PS5" })
+        assertEquals("Red Button=control_center; Button 1 (long press)=app:com.spotify.tv.android", KeyMap.describe(listOf(red, oneLong)))
     }
 }

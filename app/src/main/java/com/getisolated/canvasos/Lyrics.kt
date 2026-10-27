@@ -1,4 +1,4 @@
-package com.getisolated.canvasos
+package com.aksamitsah.canvasos.en
 
 import android.util.Log
 import org.json.JSONArray
@@ -20,7 +20,7 @@ object Lyrics {
     private const val TAG = "canvasOSLyrics"
     private const val BASE = "https://lrclib.net/api"
     /** LRCLIB asks clients to say who they are. */
-    private const val AGENT = "canvasOS/${BuildConfig.VERSION_NAME} (https://github.com/getisolated/canvasOS)"
+    private const val AGENT = "canvasOS/${BuildConfig.VERSION_NAME} (https://github.com/aksamitsah/canvasOS-EN)"
     private const val KEEP = 8
 
     class Line(val ms: Long, val text: String)

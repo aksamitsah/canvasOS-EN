@@ -1,384 +1,189 @@
-# Installer canvasOS — instructions pour les agents IA
+# Installing canvasOS EN — instructions for AI agents
 
-Vous installez canvasOS, un lanceur Android TV, sur le téléviseur de l'utilisateur depuis son ordinateur. Vous trouvez vous-même le téléviseur sur le réseau local, puis vous accompagnez l'utilisateur pas à pas jusqu'à ce que canvasOS soit son écran d'accueil. Suivez les étapes ci-dessous dans l'ordre. Parlez à l'utilisateur dans sa langue (la plupart des utilisateurs écrivent en français). Le téléviseur est l'appareil d'un foyer : chaque fois qu'une étape dit de demander, demandez d'abord.
+Install the English canvasOS launcher from the user's computer onto their identified Android TV, then verify Home behavior together. Follow these steps in order. Speak the user's language. This is a household device: ask whenever a step below requires a choice or approval.
 
-Ce dépôt (getisolated/canvasOS) est public ; l'interface de l'app est en français. Dans l'app, l'écran d'accueil s'appelle « Accueil ».
+This edition uses `com.aksamitsah.canvasos.en`, **not** upstream's `com.getisolated.canvasos`. Its TV interface and phone page are English. Do not follow the upstream French guide's package IDs when operating this edition. `AGENTS.fr.md` preserves the original upstream reference; it is not this fork's installation command source.
 
-## Accompagner l'utilisateur
+## Guiding the owner
 
-L'utilisateur n'a en général jamais utilisé adb, et il a la télécommande en main. Vous faites tout ce qui se fait depuis l'ordinateur ; il ne fait que ce qui se fait sur le téléviseur.
+Explain the sequence: find TV, enable debugging if needed, install, verify; allow about ten minutes. Explain that it is reversible. Do computer work yourself; the owner uses only the remote.
 
-- Commencez par annoncer le déroulé en quelques lignes : trouver le téléviseur, activer le débogage si besoin, installer, vérifier ensemble. Dites que cela prend une dizaine de minutes et que tout est réversible.
-- Une seule action à la fois. Pour chaque action sur le téléviseur, dites dans quel menu aller et quelle touche presser, ce qui va s'afficher et quoi choisir, puis attendez qu'il confirme. Ne lui donnez jamais une liste de consignes à suivre seul.
-- Ne lui demandez pas ce que vous pouvez découvrir : l'adresse du téléviseur (étape 1), sa marque, son modèle et sa version d'Android (étape 2). Ne lui demandez que ce qui relève de son choix : les étapes qui disent « demandez ».
-- Ne lui montrez pas les sorties des commandes : traduisez-les (« J'ai trouvé votre téléviseur, la TV du salon, un Thomson 240G »). Ne lui donnez que les commandes qu'il doit garder pour revenir en arrière (section Désinstaller).
-- Dès que le débogage fonctionne, regardez l'écran vous-même (`adb -s <TV_IP>:5555 exec-out screencap -p > tv.png`) : vérifiez que la fenêtre attendue est bien affichée avant de lui dire quoi choisir, et dites-lui ce que vous voyez après son action.
-- Prévenez-le avant tout ce qui change l'écran (touche Accueil, ouverture d'une app) et avant tout ce qui demande une réponse de sa part sur le téléviseur.
-- Si quelque chose échoue, dites simplement ce qui s'est passé et ce que vous allez essayer ensuite ; ne lui laissez pas une erreur à déchiffrer.
-- À la fin, résumez : ce qui a été installé et activé, les services en ligne que canvasOS contacte par défaut (météo, paroles : section 8), comment revenir en arrière (section Désinstaller) et comment mettre à jour plus tard sans ordinateur (étape 3).
+Give **one TV action at a time**: menu, button, expected screen, choice. Wait for confirmation before the next action. Discover IP, model and Android version yourself where possible. Translate command output into ordinary language. Once ADB works, inspect screenshots before giving directions. Warn before any action that changes the displayed screen or opens a permission prompt. Do not press OK blindly.
 
-## Règles absolues
+At completion report what was installed/enabled, default weather/lyrics/notification behavior, how to update and exact rollback commands using saved original values.
 
-- N'exécutez jamais `svc power shutdown`, `svc power reboot`, `reboot` ni `input keyevent KEYCODE_POWER` / `KEYCODE_SLEEP` sans demander. Un téléviseur éteint ne peut être rallumé qu'avec sa télécommande.
-- Ne faites jamais `pm uninstall` sur une app système ni sur le lanceur du téléviseur.
-- **Ne désactivez jamais le lanceur d'origine sur Xiaomi / Redmi** (`com.mitv.tvhome`) : l'écran d'accueil de secours refuse lui aussi les lanceurs tiers, et le téléviseur démarre sur un écran noir. Sur les autres téléviseurs, essayez d'abord la protection de l'accueil (section 10) et ne désactivez un lanceur qu'avec l'accord de l'utilisateur (étape 5), en lui expliquant comment annuler.
-- N'envoyez `adb connect` qu'au téléviseur que l'utilisateur a confirmé (étape 1) : chaque connexion fait apparaître une demande d'autorisation sur l'appareil visé.
-- Avant d'envoyer `KEYCODE_DPAD_CENTER` / `ENTER` au téléviseur, vérifiez ce qui est sélectionné (étape 6). Beaucoup de boutons de canvasOS éteignent le téléviseur ou le mettent en veille.
-- Ne modifiez aucun autre réglage du téléviseur (échelles d'animation, autorisations des apps, restrictions d'arrière-plan) sauf si l'utilisateur le demande.
+## Absolute rules
 
-## 0. Ce qu'il faut
+- Never power off, reboot or sleep the TV without explicit approval. Do not run `svc power shutdown`, `svc power reboot`, `reboot`, `KEYCODE_POWER` or `KEYCODE_SLEEP` during installation.
+- Never uninstall system apps or any TV launcher. Ask before uninstalling or disabling anything, including a previous canvasOS build.
+- **Never disable Xiaomi/Redmi's `com.mitv.tvhome`.** Its fallback may also reject third-party launchers, resulting in a black screen.
+- Connect with ADB only to the TV the user confirmed: connection can show an authorization dialog on the target.
+- Before sending DPAD_CENTER or ENTER, inspect focus by screenshot and/or UI dump. Power and Sleep buttons exist in Control Center.
+- Do not change unrelated TV settings or optional canvasOS settings without the user's request.
+- Do not replace an installed app with a differently signed build by uninstalling it without approval.
 
-- Un ordinateur sur le même réseau local que le téléviseur, avec `adb` installé (Android SDK Platform-Tools). Vérifiez avec `adb version`. S'il manque, installez-le : Windows `winget install Google.PlatformTools`, macOS `brew install android-platform-tools`, Debian/Ubuntu `apt install adb`. Dites à l'utilisateur ce que vous installez et pourquoi.
-- `curl` (ou un navigateur) pour télécharger l'APK depuis les Releases publiques du dépôt (étape 3). La CLI GitHub (`gh`) et un clone local sont facultatifs.
-- Le débogage ADB activé sur le téléviseur. La plupart des utilisateurs ne l'ont jamais fait : l'étape 1 permet de le savoir sans rien leur demander, et explique comment les guider.
+## 0. Prerequisites
 
-## 1. Trouver le téléviseur et se connecter
+Check `adb version`; install Android SDK Platform-Tools if missing, explaining why. `curl` is sufficient for APK downloads; GitHub CLI and a source clone are optional. The computer and TV must share a trusted LAN. Android 9/API 28 is the minimum.
 
-Ne demandez pas l'adresse IP : cherchez-la. Dites à l'utilisateur que vous cherchez son téléviseur et qu'il doit être allumé.
+## 1. Find the TV and connect
 
-### 1.1 Chercher sur le réseau local
+Keep the TV on. Cross-check these sources by IP without first issuing `adb connect` to every address:
 
-Croisez trois sources par adresse IP.
+1. `adb devices -l`: an IP at `device` is already authorized.
+2. mDNS `_androidtvremote2._tcp` and `_googlecast._tcp`. Cast TXT has `fn` (friendly name) and `md` (model). Audio devices advertise Cast too; require Android TV remote service or open port 5555.
+3. Scan port 5555 on the computer's own subnet using short TCP probes. Do not scan unrelated networks.
 
-**a. Ce qu'adb connaît déjà** : `adb devices -l`. Une entrée `<ip>:5555` à l'état `device` est un téléviseur déjà autorisé pour cet ordinateur.
+On macOS, `dns-sd -B` discovers service instances; `dns-sd -L` resolves the chosen instance, and `dns-sd -G v4` resolves its host. Stop each discovery process after a few seconds; use a terminal if output is buffered. On Linux use `avahi-browse -rpt`. Discover subnet/interface from the local routing table, not by asking the user for an address first.
 
-**b. mDNS.** Les Android TV et Google TV s'annoncent sur le réseau comme cible de télécommande (`_androidtvremote2._tcp`) et comme appareil Cast (`_googlecast._tcp`), même quand le débogage est désactivé. L'annonce Cast donne le nom que l'utilisateur a choisi (`fn=`, par exemple « TV du salon ») et le modèle (`md=`). Les enceintes et les Chromecast audio s'annoncent aussi en `_googlecast` : ne retenez que les appareils qui ont aussi `_androidtvremote2`, ou dont le port 5555 est ouvert.
+Present names/models and ask which TV is theirs. If only an unnamed ADB candidate exists, explain that the authorization prompt will identify it and get agreement before connecting. If none is found, confirm the TV is on, connected and on the same non-guest network; retry. Ask the owner to read the IP in network settings only as a last resort.
 
-macOS (`dns-sd` ne s'arrête jamais : coupez-le après quelques secondes) :
+### Enable debugging, one remote action at a time
 
-```sh
-( dns-sd -B _androidtvremote2._tcp local. & sleep 3; kill $! ) 2>/dev/null           # instances
-( dns-sd -B _googlecast._tcp local. & sleep 3; kill $! ) 2>/dev/null
-( dns-sd -L "<instance>" _googlecast._tcp local. & sleep 2; kill $! ) 2>/dev/null    # « can be reached at <hôte>.local.:8009 » et TXT (fn=, md=)
-( dns-sd -G v4 "<hôte>.local." & sleep 2; kill $! ) 2>/dev/null                       # adresse IPv4
-```
+- Google TV / recent Sony: Settings → System → About → Android TV OS Build; press OK seven times. Then System → Developer Options → USB Debugging (sometimes Network/ADB Debugging).
+- Older Android TV: Settings → Device Preferences → About → Build; seven OK presses. Then Device Preferences → Developer Options → USB Debugging.
+- Fire TV: Settings → My Fire TV → About; on firmware that hides developer options, select the device name seven times. Then My Fire TV → Developer Options → ADB Debugging. Labels depend on firmware: ask what appears if needed.
 
-Dans le TXT, les espaces sont échappés (`md=Thomson\ 240G`). L'instance `_androidtvremote2` porte directement le nom du téléviseur (« Téléviseur du salon ») ; celle de `_googlecast` commence par le modèle.
+Do not give the entire sequence for the owner to perform unassisted. Verify port 5555 after enabling debugging.
 
-Linux : `avahi-browse -rpt _androidtvremote2._tcp` et `avahi-browse -rpt _googlecast._tcp` (les lignes qui commencent par `=` donnent le nom, l'adresse, le port et le TXT). Windows n'a pas d'outil mDNS intégré : passez au balayage.
-
-**c. Balayage du port 5555** (le port d'adb, ouvert seulement si le débogage est activé), sur le sous-réseau de l'ordinateur, supposé en /24 comme sur presque toutes les box :
+Before connection, explain the “Allow USB debugging?” dialog. The owner should select “Always allow from this computer”, then “Allow”.
 
 ```sh
-# macOS
-IP=$(ipconfig getifaddr "$(route -n get default | awk '/interface:/{print $2}')")
-# Linux : IP=$(ip route get 1.1.1.1 | awk '{for(i=1;i<NF;i++) if($i=="src") print $(i+1)}')
-NET=${IP%.*}
-for i in $(seq 1 254); do (nc -z -G 1 "$NET.$i" 5555 2>/dev/null && echo "$NET.$i") & done; wait   # Linux : nc -z -w 1
+adb connect TV_IP:5555
+adb -s TV_IP:5555 get-state
 ```
 
-```powershell
-# Windows PowerShell
-$ip = (Get-NetIPConfiguration | Where-Object IPv4DefaultGateway | Select-Object -First 1).IPv4Address.IPAddress
-$net = $ip -replace '\.\d+$', ''
-$probes = 1..254 | ForEach-Object { $c = [Net.Sockets.TcpClient]::new(); [pscustomobject]@{ ip = "$net.$_"; c = $c; t = $c.ConnectAsync("$net.$_", 5555) } }
-Start-Sleep -Seconds 2
-$probes | Where-Object { $_.t.Status -eq 'RanToCompletion' } | ForEach-Object ip
-$probes | ForEach-Object { $_.c.Dispose() }
-```
+If unauthorized, check the state periodically while waiting for the owner; do not repeatedly ask whether they finished. If the prompt vanished, disconnect/reconnect the same confirmed TV. If refused, revisit debugging.
 
-Ne lancez pas `adb connect` sur les adresses trouvées pour les identifier : attendez la confirmation de l'étape 1.2.
-
-### 1.2 Confirmer le bon téléviseur
-
-- Un seul téléviseur trouvé : « J'ai trouvé <nom> (<modèle>). C'est bien celui sur lequel installer canvasOS ? »
-- Plusieurs : présentez-les par nom et modèle (pas par adresse IP) et demandez lequel. Si les noms ne suffisent pas, proposez de lancer la connexion sur l'un d'eux : la demande d'autorisation n'apparaîtra que sur celui-là.
-- Aucun : vérifiez avec l'utilisateur que le téléviseur est allumé et connecté, et que l'ordinateur est sur le même réseau (pas sur un réseau invité, ni sur le partage de connexion d'un téléphone). Relancez la recherche. En dernier recours seulement, demandez-lui l'adresse : Paramètres → Réseau et Internet → le réseau connecté, sur Android TV et Google TV.
-
-### 1.3 Activer le débogage si le port 5555 est fermé
-
-Un téléviseur trouvé par mDNS dont le port 5555 est fermé (ou un `adb connect` refusé) a le débogage ADB désactivé. Déduisez la marque du modèle (`md=`) ou du nom ; ne la demandez que si vous ne pouvez pas la déduire. Guidez l'utilisateur une étape à la fois, en attendant sa confirmation entre chaque :
-
-| Téléviseur | Comment activer ADB |
-|---|---|
-| **Google TV** (box, Chromecast avec Google TV, Philips, Hisense, Thomson, Sony récents…) | Paramètres → Système → À propos → appuyez 7 fois sur OK sur **Build du système d'exploitation Android TV** ; un message annonce que le mode développeur est activé. Puis Paramètres → Système → **Options pour les développeurs** → activez **Débogage USB** (parfois appelé Débogage réseau ou Débogage ADB). |
-| **Android TV** (avant Google TV) | Paramètres → Préférences de l'appareil → À propos → appuyez 7 fois sur **Build**. Puis Préférences de l'appareil → **Options pour les développeurs** → activez **Débogage USB**. |
-| **Sony BRAVIA** (Android TV) | Paramètres → Système → À propos → appuyez 7 fois sur OK sur **Build**. Puis Paramètres → Système → Options pour les développeurs → activez **Débogage USB**. |
-
-Les noms exacts varient selon le modèle : si l'utilisateur ne trouve pas une ligne, demandez-lui ce qu'il voit à l'écran et adaptez. Quand il a fini, vérifiez vous-même que le port s'est ouvert (`nc -z -G 2 <TV_IP> 5555` sur macOS, `nc -z -w 2` sur Linux, `Test-NetConnection <TV_IP> -Port 5555` sous Windows).
-
-### 1.4 Se connecter
-
-Avant de lancer la connexion, prévenez l'utilisateur : une fenêtre « Autoriser le débogage USB ? » va s'afficher sur le téléviseur ; il doit cocher **Toujours autoriser depuis cet ordinateur**, puis choisir **Autoriser**.
+## 2. Inspect and record original settings
 
 ```sh
-adb connect <TV_IP>:5555
-adb -s <TV_IP>:5555 get-state     # doit afficher "device"
+adb -s TV_IP:5555 shell getprop ro.build.version.sdk
+adb -s TV_IP:5555 shell getprop ro.product.manufacturer
+adb -s TV_IP:5555 shell getprop ro.product.model
+adb -s TV_IP:5555 shell cmd package resolve-activity -a android.intent.action.MAIN -c android.intent.category.HOME
+adb -s TV_IP:5555 shell settings get secure screensaver_components
+adb -s TV_IP:5555 shell settings get secure enabled_accessibility_services
+adb -s TV_IP:5555 exec-out screencap -p > tv-before.png
 ```
 
-Tant que l'état est `unauthorized`, la fenêtre attend sa réponse : relancez `get-state` toutes les quelques secondes pendant une minute au lieu de lui demander s'il a fini. Si la fenêtre n'est pas apparue ou a disparu, faites `adb disconnect <TV_IP>:5555` puis reconnectez-vous. Si la connexion est refusée, le débogage est désactivé (étape 1.3). Dans la suite, `<TV_IP>` désigne l'adresse trouvée ; utilisez `-s <TV_IP>:5555` dans toutes les commandes.
+Save the original home component, screensaver and accessibility list for rollback. Stop if API < 28. Check for both English and upstream canvasOS packages. Explain that this edition coexists with the French app and does not migrate its preferences. Never disable the other edition's services without agreement.
 
-## 2. Examiner le téléviseur
+## 3. Install the English edition
+
+Explain that installation is starting and no remote action is required. Download from **this fork**, not upstream:
 
 ```sh
-adb -s <TV_IP>:5555 shell getprop ro.build.version.sdk          # doit être >= 28 (Android 9)
-adb -s <TV_IP>:5555 shell getprop ro.product.manufacturer
-adb -s <TV_IP>:5555 shell getprop ro.product.model
-adb -s <TV_IP>:5555 shell cmd package resolve-activity -a android.intent.action.MAIN -c android.intent.category.HOME
-adb -s <TV_IP>:5555 shell settings get secure screensaver_components
-adb -s <TV_IP>:5555 shell settings get secure enabled_accessibility_services
+curl -fLo canvasOS.apk https://github.com/aksamitsah/canvasOS-EN/releases/latest/download/canvasOS.apk
+adb -s TV_IP:5555 install -r canvasOS.apk
 ```
 
-Notez l'activité d'accueil actuelle (le lanceur d'origine), l'économiseur d'écran actuel et les services d'accessibilité : il vous les faudra pour annuler l'installation. Si la version d'Android est inférieure à 9, dites à l'utilisateur que canvasOS ne peut pas s'installer sur ce téléviseur et arrêtez-vous. Sinon, dites-lui en deux ou trois phrases ce que canvasOS va lui apporter sur ce modèle (Sony : luminosité et sources dans le Centre de contrôle, étape 7). La section 9 explique comment adapter l'app quand quelque chose ne marche pas.
+Verify published checksums and signing fingerprint when available. If the repository is private, unauthenticated URLs and the in-app updater cannot retrieve releases; use the signed local build or an authenticated download. Some TCL package verifiers require `canvasOS-guard.apk`, which does not declare HOME.
 
-## 3. Installer
+Every English release must carry this fork's stable key. `INSTALL_FAILED_UPDATE_INCOMPATIBLE` means a different key signed the installed English package. Explain settings loss and get approval before removing that package; first turn off its Home Protection. Never uninstall upstream or system launchers as an automatic workaround.
 
-Dites à l'utilisateur que l'installation commence et qu'il n'a rien à faire sur le téléviseur pendant ce temps. Le dépôt est public : téléchargez l'APK de la dernière Release par son URL directe (ou, si vous préférez, avec `gh release download --repo getisolated/canvasOS --pattern canvasOS.apk`) :
+For local builds see `docs/BUILD_AND_RELEASE.md`. Debug-signed builds cannot update stable-key releases. Later updates can be installed in Home Settings → System → Update after local debugging authorization: press once to check, again to download/install. The daily check does not automatically download.
+
+## 4. Make it Home
+
+Warn that the display will change. Explain notification access and overlays before enabling them: banners read notification titles/text locally for display, and Now Playing reads media metadata; both are on by default. Explain secure settings access is used to maintain Home Protection.
 
 ```sh
-curl -fLo canvasOS.apk https://github.com/getisolated/canvasOS/releases/latest/download/canvasOS.apk
-adb -s <TV_IP>:5555 install -r canvasOS.apk
+adb -s TV_IP:5555 shell cmd package set-home-activity com.aksamitsah.canvasos.en/com.aksamitsah.canvasos.en.HomeActivity
+adb -s TV_IP:5555 shell input keyevent KEYCODE_HOME
+adb -s TV_IP:5555 shell pm grant com.aksamitsah.canvasos.en android.permission.WRITE_SECURE_SETTINGS
+adb -s TV_IP:5555 shell cmd notification allow_listener com.aksamitsah.canvasos.en/com.aksamitsah.canvasos.en.RevivalListener
+adb -s TV_IP:5555 shell appops set com.aksamitsah.canvasos.en SYSTEM_ALERT_WINDOW allow
+adb -s TV_IP:5555 shell pm grant com.aksamitsah.canvasos.en android.permission.READ_TV_LISTINGS
 ```
 
-**Signature : une seule clé pour toutes les Releases.** Les APK sont compilés par GitHub Actions et signés avec la clé stable du projet : toutes les Releases publiées avec cette clé ont la même signature, donc `adb install -r` met canvasOS à jour sur place et l'app garde ses réglages et ses autorisations. `INSTALL_FAILED_UPDATE_INCOMPATIBLE` n'apparaît plus que si la version installée est une ancienne Release signée avec la clé debug jetable du runner, ou un APK compilé localement (signé avec la clé de l'ordinateur qui l'a compilé). Il faut alors d'abord `adb -s <TV_IP>:5555 uninstall com.getisolated.canvasos`, ce qui efface les réglages et les autorisations de l'app : demandez l'accord de l'utilisateur avant, puis refaites l'étape 4, et l'utilisateur devra de nouveau autoriser le débogage local (étape 6). Avant de désinstaller, désactivez la protection comme indiqué dans la section « Désinstaller ». (Mainteneurs : la clé se crée une seule fois avec `tools/make-keystore.sh`.)
+On Android 12+ also grant `android.permission.BLUETOOTH_CONNECT`. Older Android versions do not have it. READ_TV_LISTINGS may be refused on devices without TvProvider; explain this only limits Continue Watching.
 
-Une fois canvasOS installé et le débogage local autorisé (étape 6), les APK suivants peuvent aussi être envoyés depuis la page téléphone (section 8, onglet Apps), jamais la première installation ni canvasOS lui-même.
-
-Si GitHub est inaccessible, compilez depuis les sources : clonez le dépôt (https://github.com/getisolated/canvasOS), puis `./gradlew assembleStandardRelease` (nécessite JDK 17 et un SDK Android ; renseignez `sdk.dir` dans `local.properties`). L'APK se trouve dans `app/build/outputs/apk/standard/release/app-standard-release.apk`. Une version compilée localement n'a pas la clé des Releases (elle est signée avec la clé debug de cet ordinateur) : même règle de désinstallation que ci-dessus, et aussi dans l'autre sens, pour repasser plus tard à une Release.
-
-**Mises à jour suivantes.** Une fois canvasOS installé et le débogage local autorisé (étape 6), l'utilisateur n'a plus besoin de l'ordinateur : Réglages de l'accueil → Système → **Mise à jour** cherche la dernière Release du dépôt public (`canvasOS.apk`), puis l'installe sur place, avec les réglages et les autorisations. Une première pression vérifie, la seconde télécharge et installe ; sans débogage local, la ligne demande de l'autoriser. canvasOS vérifie aussi une fois par jour qu'une version existe (rien n'est téléchargé sans cette seconde pression) et l'annonce dans le Centre de contrôle, sous « Réglages » quand ce bouton y est une capsule (taille 2 × 1). Un `adb install -r` depuis un ordinateur marche toujours. Pour savoir si une version plus récente existe, depuis l'ordinateur :
+If the stock launcher opens despite assignment, open the English activity directly and enable Home Protection:
 
 ```sh
-adb -s <TV_IP>:5555 shell am broadcast -a com.getisolated.canvasos.CONFIG -n com.getisolated.canvasos/.ConfigReceiver --ez check_update true
-# data="… update=<version|none|unavailable>" : la version à installer, none si canvasOS est à jour, unavailable si GitHub est injoignable ou n'a pas de Release publique
+adb -s TV_IP:5555 shell am start -n com.aksamitsah.canvasos.en/com.aksamitsah.canvasos.en.HomeActivity
+adb -s TV_IP:5555 shell am broadcast -a com.aksamitsah.canvasos.en.CONFIG -n com.aksamitsah.canvasos.en/com.aksamitsah.canvasos.en.ConfigReceiver --ez guard true
 ```
 
-## 4. En faire l'écran d'accueil
+Home Protection observes window changes and returns canvasOS when the stock launcher appears; it does not read screen contents. It can be turned off in Home Settings → System → Home Protection. Never treat command success as proof the physical Home button works. Fire TV may ignore assignment or restrict the service.
 
-Prévenez l'utilisateur : l'écran du téléviseur va passer sur canvasOS.
+## 5. Verify
+
+Take and view a screenshot, then ask the owner if they see the same screen. Expected: photo background (a gradient during initial downloads), compact clock, controls/profile at the top right, app tiles in a glass Dock near the bottom. A media capsule may appear at the top left.
+
+Warn before testing Home. Check the foreground activity after pressing Home, and after opening a harmless app and leaving with Back. It must be `com.aksamitsah.canvasos.en.HomeActivity`. Press Back on Home only to inspect Control Center; do not select Power or Sleep. Record any unsupported brightness/input/Bluetooth controls.
+
+If Home still fails, retry assignment once and Home Protection. Do not silently disable a launcher. On non-Xiaomi devices only, if all protection methods fail, explain any proposed stock-launcher disable operation and its exact `pm enable` rollback; ask first. Never uninstall it. If the firmware will not accept a replacement, say so: canvasOS remains usable as an app.
+
+## 6. Local debugging authorization
+
+First launch shows “Enable Power and Memory Controls”, with “Start” and “Later”. This grants capability; it must not actually power off the TV. Tell the owner that Start will open “Allow debugging?”. Inspect the screen, guide selection one action at a time, and have them select “Always allow” and “Allow”. If they choose Later, revisit Home Settings → System → Local Debugging.
+
+For any automated OK press, inspect `focused="true"` text/bounds:
 
 ```sh
-adb -s <TV_IP>:5555 shell cmd package set-home-activity com.getisolated.canvasos/.HomeActivity
-adb -s <TV_IP>:5555 shell input keyevent KEYCODE_HOME
+adb -s TV_IP:5555 shell uiautomator dump /sdcard/u.xml
+adb -s TV_IP:5555 shell cat /sdcard/u.xml
 ```
 
-Accordez ensuite ce que seul adb peut accorder. C'est nécessaire sur tout téléviseur dont le système réserve la touche Accueil à son propre lanceur. Ailleurs, l'écouteur de notifications sert encore (grâce à lui, le nettoyage de la mémoire épargne ce qui est en cours de lecture), `READ_TV_LISTINGS` sert au Top Shelf sur tous les téléviseurs, et le reste est sans effet :
+Local debugging supports APK installation, updates, full phone remote, memory cleanup and system controls. Do not test its power capability by turning off or sleeping the TV.
+
+## 7. Sony BRAVIA only
+
+For brightness, volume and inputs, register client `tvhome:1` via the TV's `/sony/accessControl` API using `actRegister`, nickname `TVHome`, level `private`. Warn that a four-digit PIN will appear. Read it by screenshot or ask the owner, then repeat registration with HTTP authentication `:<PIN>`. If remote control is disabled, guide the owner in the TV's remote-device/network settings before retrying.
+
+Check Control Center's brightness and current-input indicators without changing volume/inputs unexpectedly. Skip this section on non-Sony devices.
+
+## 8. Optional settings and data sources
+
+Mention the following; change only at the owner's request. Settings groups: Appearance, Wallpaper and Photo Frame, Top Shelf, Playback and Notifications, Memory and Power, Apps, Profiles, Phone Page, Remote Control, System.
+
+- Wallpaper: Daily Photos (Bing), Unsplash with the user's key, Scenery, Cute Animals, Anime, Masterpieces, My Photos, Custom Link, or gradients. Choose change interval or Never. Phone page uploads photos/links; source selection is on the TV.
+- Phone Page: same-LAN QR code, HTTP port 8790, trackpad/keyboard, photos, icon/video uploads, profile photos, app artwork and APK installs. URL secret is its protection. Regenerate Code invalidates old links; switch off to stop serving. `canvasos.local` works on recent phones. Do not publish its secret URL.
+- Photo Frame: screensaver, idle delay, per-photo duration, photos or streaming aerial videos. Aerials stream from Apple at roughly 15–20 Mbit/s. Record original screensaver before changing it.
+- Folders: hold an app to create/add to a folder; hold folders to rename, add apps, move or delete. Folder deletion returns apps to Home. No CONFIG folder API.
+- Profiles: independent Home layout, hidden apps, names, folders, inputs and wallpaper; other settings shared. Child PIN is 4–6 digits, required to leave/open settings/uninstall. It does not protect the TV's own settings. Main profile cannot be deleted. Avatar uploads are available on the phone page. Never publish PINs.
+- App artwork/names: phone Apps tab; 16:9 image, 20 MB maximum. Long-press menus offer Rename and Original Image. Names are profile-specific, artwork shared.
+- HDMI: Control Center → Input → Show on Home. Availability depends on manufacturer APIs.
+- Bluetooth: lists paired devices; headphones/speakers can connect or disconnect where firmware permits. Pairing remains in TV settings. Nearby Devices permission on Android 12+.
+- Memory cleanup preserves active playback, foreground services, accessibility services, keyboard and configured Apps to Keep. Last Cleanup shows results. Do not run cleanup merely to test navigation.
+- Sleep Timer: explicit user-selected delay only; does not survive reboot. Never set it during setup without request.
+- Top Shelf: local Watch Next/Continue Watching, then TMDB/JustWatch with user key and supported web feeds. English metadata; provider availability region remains France. Modes Full, Android TV Only, Off. Keys stay on TV.
+- Weather on by default: Open-Meteo forecasts; initial ip-api.com public-IP location estimate. Explain this. User may choose a city or switch weather off.
+- Now Playing/Home Player on by default: local media metadata through notification access, not audio recording. Home capsule opens the playing app; Control Center holds playback controls.
+- Lyrics on by default: track title, artist, album and duration sent to LRCLIB on each new track. Explain this. Disable in Playback and Notifications or phone Settings to stop requests.
+- Notification banners on by default: non-excluded app notification titles/text read locally, shown for six seconds, not stored; overlays allow display above other apps. Disable or exclude apps as requested.
+- Appearance: clock, profile photo, Recent/Fixed Dock, selection effects, Glass/Panel Control Center, logo, startup animation and delay. Do not fetch additional protected brand clips.
+- Control Center editing: hold OK on its Home button, or Appearance → Customize Control Center. 4×6 grid, up to three pages. Move, resize, remove/add controls or pages, reset. Back finishes. No CONFIG layout API.
+- Remote shortcuts: choose function then press/hold a button. Home/volume/power/arrows/OK cannot be rebound. Capture TV Buttons uses the accessibility service and sees key events in all apps, handling only assigned TV keys on Home; explain this before enabling.
+
+CONFIG uses the English action/component shown in step 4. Supported keys remain unchanged from upstream: `guard`, `keep_adb`, `clock_24`, `clock_style`, `focus_style`, `cc_style`, `intro`, `intro_source`, `intro_sound`, `wake_delay`, `brand`, `settings_icon`, `background`, `phone_server`, `dock_recents`, `weather`, `weather_city`, `now_playing`, `home_player`, `lyrics`, `lyrics_align`, `banners`, `banner_excluded`, `player_style`, `unsplash_key`, `shelf`, `watch_next`, `tmdb_key`, `profile_add`, `profile_restricted`, `profile`, `profile_pin`, `check_update`. Key values and protocol names are not translated. Never log API keys or PINs. A query without extras reports current configuration. Consult `Guard.kt`/`Prefs.kt` for exact accepted values.
+
+## 9. Adapting unsupported TVs
+
+Do this only on request or after approval to investigate a specific missing function. Add a brand adapter under `tv/`, extending AndroidAdapter and registering in TvControls; do not modify unrelated brand behavior. Snapshot original values before any write and restore them after experiments.
+
+Volume: inspect `cmd media_session volume --stream 3 --get`, audio/HDMI-CEC state. Inputs: inspect `dumpsys tv_input`, observe a remote source switch and the relevant intent/logcat. Brightness: compare system/global/secure settings before and after an owner-selected picture-setting adjustment; inspect manufacturer-local APIs. Any test that changes the screen, input or sound needs advance explanation. Build and verify the changed adapter; distinguish working and unsupported functions. An adapted build must retain a stable English signature for in-place updates.
+
+## 10. Home Protection and revival
+
+The accessibility Home guard returns canvasOS after stock Home appears. The notification listener revives the app and restores Home Protection after the system kills it. Secure settings permission lets it restore its service and screensaver. Confirm the service is in `enabled_accessibility_services`, actually bound in `dumpsys accessibility`, and the expected activity is foreground after physical Home.
+
+Do not force a sleep or reboot verification. If the owner expressly agrees later, explain expected behavior first. Protection waits about 1.5 seconds after startup/wake to avoid interfering with HDMI-CEC input selection. If it cannot work on that firmware, report the limitation.
+
+## 11. Preinstalled apps
+
+Only on explicit request. Identify every proposed app by label/package/path and explain its role. Never remove settings, launchers, keyboards, TV/tuner/input players, System UI, updates, Google Play services or unidentified packages. This installation task does not authorize debloating.
+
+## Remove or restore
+
+Use saved original values, never guesses. Warn that the display may return to stock Home. With the owner's approval, first stop English Home Protection, restore the screensaver only if changed, then uninstall only the English package:
 
 ```sh
-P=com.getisolated.canvasos
-adb -s <TV_IP>:5555 shell pm grant $P android.permission.WRITE_SECURE_SETTINGS
-adb -s <TV_IP>:5555 shell pm grant $P android.permission.BLUETOOTH_CONNECT      # Android 12+ ; sur Android 11 et avant, erreur « permission inconnue » : ignorez-la
-adb -s <TV_IP>:5555 shell cmd notification allow_listener $P/$P.RevivalListener
-adb -s <TV_IP>:5555 shell appops set $P SYSTEM_ALERT_WINDOW allow
-adb -s <TV_IP>:5555 shell pm grant $P android.permission.READ_TV_LISTINGS   # refusée sans conséquence là où le téléviseur n'a pas de TvProvider
+adb -s TV_IP:5555 shell am broadcast -a com.aksamitsah.canvasos.en.CONFIG -n com.aksamitsah.canvasos.en/com.aksamitsah.canvasos.en.ConfigReceiver --ez guard false
+adb -s TV_IP:5555 shell settings put secure screensaver_components ORIGINAL_SCREENSAVER
+adb -s TV_IP:5555 uninstall com.aksamitsah.canvasos.en
 ```
 
-| Autorisation | À quoi elle sert |
-|---|---|
-| `WRITE_SECURE_SETTINGS` | Réactive la protection de l'accueil quand le système la coupe ; garde le cadre photo comme économiseur |
-| `BLUETOOTH_CONNECT` | Bluetooth dans le Centre de contrôle sur Android 12+ : lister les appareils déjà associés et en connecter un. Utile sur tous les téléviseurs Android 12+ ; sans elle, l'app la demande à l'écran à la première pression du bouton |
-| Écouteur de notifications | Relance canvasOS environ une demi-seconde après que le système l'a tué, et au démarrage. Permet aussi au nettoyage de la mémoire d'épargner les apps qui lisent quelque chose (sessions média : seuls le nom du paquet et l'état de lecture sont lus ; avec « Lecture en cours », activée par défaut, aussi le titre, l'artiste et la pochette, section 8). Lit aussi les notifications pour les bannières (section 8), activées par défaut : le titre et le texte des notifications de toutes les apps, sauf celles que l'utilisateur a exclues, affichés 6 secondes et jamais enregistrés. Avec les bannières désactivées, aucune notification n'est lue. « Lecture en cours » (activée par défaut) lit les métadonnées de lecture (titre, artiste, pochette). |
-| `SYSTEM_ALERT_WINDOW` | Ouvrir l'écran d'accueil depuis l'arrière-plan après le démarrage ; tant que les bannières de notifications sont activées (par défaut), les afficher par-dessus l'app regardée |
-| `READ_TV_LISTINGS` | Top Shelf : la ligne « Continuer à regarder » (Watch Next) publiée par YouTube, Netflix, Prime… pour l'écran d'accueil d'Android TV, lue sur le téléviseur et affichée au-dessus du Dock, rien d'autre ; sans elle, rien n'est lu |
-
-Si l'étape 5 montre que le lanceur d'origine revient, activez la protection de l'accueil (section 10).
-
-```sh
-adb -s <TV_IP>:5555 shell am broadcast -a com.getisolated.canvasos.CONFIG -n com.getisolated.canvasos/.ConfigReceiver --ez guard true
-# affiche data="guard=true … secure_settings=true"
-```
-
-L'utilisateur peut la désactiver plus tard dans Réglages de l'accueil → Système → Protection de l'accueil. Cette ligne n'apparaît que là où elle sert, c'est-à-dire là où canvasOS n'est pas l'écran d'accueil par défaut.
-
-## 5. Vérifier
-
-Faites une capture d'écran et regardez-la, puis demandez à l'utilisateur s'il voit la même chose :
-
-```sh
-adb -s <TV_IP>:5555 exec-out screencap -p > tv.png
-```
-
-Vous devez voir une horloge compacte, deux commandes rondes et une éventuelle photo de profil en haut à droite, et une rangée de tuiles d'apps sur un Dock en verre près du bas. Si une app lit quelque chose, une capsule en haut à gauche montre sa pochette, le titre et l'artiste (Lecteur sur l'accueil, section 8). La touche Retour ouvre le Centre de contrôle en haut à droite : des commandes en verre flottant séparément (celle qui est sélectionnée devient blanche), ou un panneau sombre si l'utilisateur l'a choisi (Style du Centre de contrôle), rangées sur une grille de 4 colonnes. Par défaut, la page 1 montre une grande tuile Éteindre à côté de deux capsules Réseau (avec l'adresse IP) et Veille, une rangée de quatre boutons ronds (Libérer la mémoire, Photo suivante, Cadre photo, Réglages) et le lecteur (une carte de verre vide tant que rien n'est lu) ; Bas depuis le lecteur fait monter la page 2 (Luminosité, Source, Météo, Bluetooth), signalée par des points verticaux à gauche du panneau. Une commande qui n'a rien à faire reste à sa place, grisée (Source « Aucune entrée », Luminosité « — », Bluetooth « Indisponible »…). L'utilisateur a pu réorganiser ces commandes (section 8, Centre de contrôle personnalisable). Appuyez sur Accueil (`input keyevent KEYCODE_HOME`) et vérifiez à nouveau. Vérifiez aussi la sortie d'une app : ouvrez-en une depuis le Dock (ou `am start` sur n'importe quelle app installée), appuyez sur Retour (`input keyevent KEYCODE_BACK`) jusqu'à la quitter, et confirmez avec `dumpsys activity activities | grep -m1 ResumedActivity` que c'est `com.getisolated.canvasos/.HomeActivity` qui est au premier plan, pas le lanceur d'origine.
-
-Si c'est le lanceur d'origine qui apparaît :
-
-- Refaites l'étape 4 et appuyez encore sur Accueil. S'il revient toujours, activez la protection de l'accueil (étape 4, section 10) : c'est nécessaire sur les téléviseurs dont le système garde la touche Accueil pour son propre lanceur, comme certains Google TV.
-- Seulement si la protection échoue, et jamais sur Xiaomi / Redmi, demandez à l'utilisateur s'il faut désactiver le lanceur du fabricant, et seulement alors :
-
-```sh
-adb -s <TV_IP>:5555 shell pm disable-user --user 0 <paquet du lanceur d'origine>
-# annuler : adb -s <TV_IP>:5555 shell pm enable <paquet du lanceur d'origine>
-```
-
-Au premier lancement, l'app télécharge les photos de fond (connexion Internet nécessaire). Pendant la première minute, un dégradé peut s'afficher.
-
-## 6. Autorisation du débogage local (extinction, veille, nettoyage complet de la mémoire)
-
-Au premier lancement, canvasOS propose d'activer ces fonctions (« Activer l'extinction et la mémoire »). Si l'utilisateur a choisi « Plus tard », la demande se refait dans Réglages de l'accueil → Système → Débogage local. Quand l'utilisateur appuie sur « Commencer » (ou « Autoriser maintenant » dans les réglages), le téléviseur affiche de nouveau une demande d'autorisation, « Autoriser le débogage ? », cette fois du téléviseur vers lui-même. L'utilisateur doit cocher « Toujours autoriser » et appuyer sur « Autoriser ». Annoncez-lui cette fenêtre avant qu'il appuie sur « Commencer », vérifiez l'écran avec `screencap` et guidez-le. Vous pouvez vérifier ensuite : dans le Centre de contrôle (touche Retour sur l'écran d'accueil), Veille ouvre directement ses choix (Maintenant, Dans 15 min…) au lieu de la demande « Autoriser le débogage local ». Une fois cette autorisation donnée, canvasOS peut aussi s'accorder lui-même les autorisations de l'étape 4 (Réglages de l'accueil → Système → Protection de l'accueil s'en charge).
-
-Si vous devez appuyer sur des boutons à la place de l'utilisateur, trouvez d'abord l'élément sélectionné :
-
-```sh
-adb -s <TV_IP>:5555 shell uiautomator dump /sdcard/u.xml && adb -s <TV_IP>:5555 shell cat /sdcard/u.xml
-```
-
-Cherchez `focused="true"` et ses attributs `text` / `bounds` avant d'envoyer `KEYCODE_DPAD_CENTER`.
-
-## 7. Sony BRAVIA uniquement : luminosité, volume et HDMI côté téléviseur
-
-Sautez cette étape si le fabricant n'est pas Sony. L'API de contrôle IP du téléviseur doit accepter l'enregistrement du client `tvhome:1` :
-
-```sh
-BODY='{"method":"actRegister","id":1,"version":"1.0","params":[{"clientid":"tvhome:1","nickname":"TVHome","level":"private"},[{"value":"yes","function":"WOL"}]]}'
-curl -s http://<TV_IP>/sony/accessControl -d "$BODY"
-```
-
-Le téléviseur affiche alors un code PIN à 4 chiffres pendant environ une minute. Demandez à l'utilisateur de le lire à voix haute, ou lisez-le sur une `screencap`. Puis :
-
-```sh
-curl -s -u ":<PIN>" http://<TV_IP>/sony/accessControl -d "$BODY"   # {"result":[]} signifie succès
-```
-
-Si le premier appel renvoie une erreur ou rien du tout, demandez à l'utilisateur d'activer Paramètres → Réseau et Internet → Paramètres des appareils distants → « Contrôler à distance » (le nom du menu varie selon le modèle), puis réessayez. Pour vérifier : ouvrez le Centre de contrôle et passez à la page 2 (touche Bas). Le curseur de luminosité n'est plus grisé (il affiche une valeur au lieu de « — ») et la commande Source indique « Actuelle : … ».
-
-## 8. Réglages facultatifs
-
-Signalez à l'utilisateur qu'ils existent ; ne les modifiez que s'il le demande. Ils se trouvent tous dans Centre de contrôle → Réglages (engrenage), ou sur la page « Réglages de l'accueil », rangés en dix groupes : Apparence, Fond d'écran et cadre photo, Top Shelf, Lecture et notifications, Mémoire et alimentation, Apps, Profils, Page téléphone, Télécommande et Système. Chaque groupe s'ouvre sur ses réglages, séparés par de petits titres (Horloge, Météo, Animation de démarrage…) :
-
-- Fond d'écran (aussi la tuile **Fond d'écran** de l'accueil) : chaque choix est présenté en image et se sélectionne d'un seul appui — Photos du jour (Bing, en 3840×2160 sur un téléviseur 4K), Unsplash (sélections éditoriales Fonds d'écran et Nature, 4K ; demande une clé d'accès gratuite, https://unsplash.com/developers, collée dans l'onglet Réglages de la page téléphone ou passée avec `--es unsplash_key`), Paysages, Animaux mignons, Anime, Chefs-d'œuvre, Mes photos (importées), Lien personnalisé, ou un dégradé ; plus la fréquence de changement (Changer de photo ; « Jamais » laisse la photo jusqu'au bouton Photo suivante). La même page affiche le QR code de la page téléphone (ci-dessous), où l'utilisateur peut importer ses propres photos, coller des liens d'images (une image, une API d'images aléatoires, ou une page / un JSON qui liste des images ; récupérés chaque jour). Le fond d'écran lui-même se choisit sur le téléviseur.
-- Page téléphone : accessible à tout moment depuis un téléphone sur le même Wi-Fi, en scannant le QR code de Réglages de l'accueil → Page téléphone → Afficher le QR code (ou celui de la tuile **Fond d'écran**). Elle importe des photos et des liens d'images (le fond d'écran et l'économiseur se choisissent sur le téléviseur), règle l'animation de démarrage, la ville de la météo et les paroles (section Paroles : activer ou non, et d'où elles viennent), renomme les apps de l'accueil et change leurs vignettes, sert de télécommande, et installe des APK. La télécommande est un pavé tactile, comme l'app Apple TV Remote : glisser déplace la sélection (un glissement long envoie plusieurs touches), toucher fait OK, maintenir le doigt fait un appui long sur OK (menus des apps, modification du Centre de contrôle) ; dessous, Retour, Accueil et Clavier (ce qu'on tape sur le téléphone s'écrit aussitôt sur le téléviseur, en ASCII seulement), puis le volume. Sur les écrans de canvasOS, la télécommande et le clavier marchent aussitôt (le volume, partout) ; pour commander les autres apps, comme pour installer des APK, il faut le débogage local (autorisation de l'étape 6). Le code dans l'adresse est la seule protection de la page ; Régénérer le code (même section) rend les anciennes adresses inutilisables, par exemple si un téléphone est perdu, et la ligne Page téléphone la désactive entièrement. La page répond aussi à http://canvasos.local:8790/… (mDNS) : les iPhone et les téléphones Android 12+ résolvent ce nom dans le navigateur, pas les Android plus anciens ; le QR code garde l'adresse IP. Quand l'adresse du téléviseur change, une bannière sur le téléviseur le signale. La page s'ajoute à l'écran d'accueil du téléphone (iPhone : Partager → Sur l'écran d'accueil, en plein écran ; Android : menu → Ajouter à l'écran d'accueil, un raccourci qui s'ouvre dans le navigateur, Chrome réservant le mode plein écran aux pages HTTPS) ; l'icône garde le code en cours et cesse de marcher après Régénérer le code.
-- Le bouton rond « Photo suivante » du Centre de contrôle passe tout de suite à la photo de fond d'écran suivante (le bouton Redémarrer a disparu ; `svc power reboot` reste possible par adb, avec l'accord de l'utilisateur).
-- Le cadre photo comme économiseur système (Réglages de l'accueil → Fond d'écran et cadre photo → Cadre photo en économiseur), le délai d'inactivité (Délai avant le cadre photo) et son contenu (Contenu de l'économiseur) : photos ou Vues aériennes (Apple TV) (lues en streaming depuis Apple, environ 15–20 Mbit/s ; retour aux photos sans connexion).
-- Entrées HDMI sur l'écran d'accueil : Centre de contrôle → Source → Afficher sur l'accueil….
-- Dossiers, comme sur tvOS : sur l'accueil, l'appui long sur une app propose « Nouveau dossier… » (le nom se tape au clavier du téléviseur ; laissé vide, le dossier s'appelle « Dossier »), qui met l'app dans un nouveau dossier à sa place, et « Ajouter au dossier… » dès qu'un dossier existe. OK ouvre le dossier par-dessus l'accueil : OK y lance une app, Retour ou Menu le referme, et l'appui long sur une de ses apps propose « Retirer du dossier » (elle revient à la fin de l'accueil), « Renommer » et « Infos sur l'app ». L'appui long sur un dossier propose « Ouvrir », « Modifier l'accueil » (un dossier se déplace comme une app, Dock compris), « Renommer le dossier », « Ajouter des apps… » (cocher ou décocher les apps de l'accueil) et « Supprimer le dossier » (ses apps reviennent sur l'accueil à sa place). Les entrées HDMI épinglées vont aussi dans un dossier. Une app masquée reste dans son dossier sans s'y afficher ; une app désinstallée en disparaît. Réglages de l'accueil → Apps → Dossiers les liste. Il n'y a ni commande adb ni clé CONFIG : les dossiers sont enregistrés avec les réglages de l'app et effacés par une désinstallation (étape 3).
-- Profils (Réglages de l'accueil → Profils → Gérer les profils) : chaque profil a son propre accueil, c'est-à-dire l'ordre des apps, les apps masquées, les dossiers, les noms des apps, les entrées HDMI épinglées et le fond d'écran (avec Changer de photo) ; tous les autres réglages valent pour le téléviseur entier, quel que soit le profil. Le profil principal est l'accueil d'avant les profils (rien n'est migré) et ne peut pas être supprimé ; un nouveau profil commence avec l'ordre des apps par défaut, sans apps masquées ni dossiers, et avec le fond d'écran du profil principal. La photo de profil en haut à droite de l'accueil montre, comme sur tvOS, l'initiale du nom du profil en blanc sur sa couleur (« P » pour le profil principal tant qu'il n'a pas de nom), ou une vraie photo : l'utilisateur l'importe depuis la page téléphone (onglet Réglages, section Profils, « Changer la photo » / « Supprimer la photo »), ou vous la poussez avec `adb push <photo>.jpg /sdcard/Android/data/com.getisolated.canvasos/files/avatars/<id>.jpg` (recadrée en cercle à l'affichage ; une photo importée depuis le téléphone l'emporte sur celle poussée par adb, et la supprimer depuis le téléphone ou les réglages efface les deux). L'identifiant `<id>` du profil s'affiche sur la page téléphone, et dans la réponse de la diffusion `CONFIG` pour le profil affiché (`profile="Enfants" profile_id=abc123` ; le profil principal a l'identifiant `main`). La même image apparaît dans la liste des profils et dans la page Profils des réglages. OK ouvre la liste des profils pour en changer, et « Gérer les profils… » ouvre la page Profils des réglages (renommer, couleur parmi six, « Photo… », « Supprimer la photo », « Profil enfant », supprimer, « Nouveau profil… », « Code PIN »). Elle reste affichée tant qu'il existe plusieurs profils, même si « Photo de profil » est désactivée. Un **profil enfant** demande le code PIN (4 à 6 chiffres) pour passer à un autre profil, ouvrir les réglages de l'accueil (par la photo de profil, l'engrenage du Centre de contrôle ou la tuile des réglages) et supprimer une app ; trois codes faux referment la demande. « Masquer », « Infos sur l'app » et « Image d'origine » n'y sont pas proposés ; Éteindre, Veille et Libérer la mémoire restent disponibles. Depuis la photo de profil, on n'entre dans un profil enfant qu'une fois un code PIN choisi. Le code lui-même n'est pas enregistré, seulement son empreinte SHA-256 salée. Il ne protège pas les réglages du téléviseur lui-même : proposez à l'utilisateur de masquer leur tuile dans le profil enfant (Réglages de l'accueil → Apps → Apps masquées, ouvert depuis ce profil). L'onglet Apps de la page téléphone agit sur le profil affiché à ce moment. Code oublié : supprimez-le par adb (`profile_pin`, ci-dessous), qui ne demande jamais de code. Comme les autres réglages, les profils sont effacés par une désinstallation (étape 3).
-- Bluetooth, bouton du Centre de contrôle (page 2 par défaut ; sans Bluetooth, il reste à sa place, grisé, « Indisponible ») : il indique l'appareil connecté (« Casque WH-1000XM4 · connecté · 80 % », la batterie quand l'appareil la communique) ou le nombre d'appareils connectés, et ouvre la liste des appareils déjà associés. Une pression sur un casque ou une enceinte le connecte ou le déconnecte (le téléviseur demande cette connexion à Android ; selon le firmware, Android peut la refuser aux apps : l'app envoie alors vers les réglages Bluetooth du téléviseur). Les manettes, claviers et télécommandes s'affichent sans action : une manette se reconnecte d'elle-même quand on l'allume. « Associer un appareil… » ouvre les réglages Bluetooth du téléviseur : l'association (et son code) reste là-bas, canvasOS ne cherche aucun appareil. Sur Android 12+, la première pression affiche la demande « Appareils à proximité » ; vous pouvez l'éviter avec `pm grant` de l'étape 4.
-- Vignettes et noms des apps : l'onglet Apps de la page téléphone liste les apps de l'accueil dans leur ordre, puis celles qui sont masquées. Pour chacune, l'utilisateur modifie le nom (vide, l'app reprend le sien), choisit une image (« Changer l'image », jusqu'à 20 Mo, recadrée au centre en 16:9 et enregistrée en 800×450), revient à l'« Image d'origine », et la masque ou l'affiche. L'onglet suit l'accueil dans son ordre, apps, dossiers (leurs apps en dessous) et entrées HDMI, et « Ouvrir » les ouvre sur le téléviseur (l'app, le dossier, ou l'entrée comme source), ce qui ne demande le débogage local (étape 6) que si canvasOS n'est pas au premier plan. Sur le téléviseur, l'appui long sur une tuile propose « Renommer » (au clavier du téléviseur) et, si l'image a été changée, « Image d'origine ». Par adb, poussez une image JPEG 16:9 nommée d'après le paquet de l'app : `adb -s <TV_IP>:5555 push vignette.jpg /sdcard/Android/data/com.getisolated.canvasos/files/tiles/<paquet>.jpg` (par exemple `tiles/com.netflix.ninja.jpg` ; `pm list packages` donne les noms). Aucun `am broadcast` n'est nécessaire : l'accueil la prend au prochain retour à l'accueil (touche Accueil). Une image importée depuis le téléphone passe avant celle poussée par adb et la remplace ; pour revenir à l'image d'origine, supprimez le fichier (`adb shell rm …/tiles/<paquet>.jpg`) ou utilisez « Image d'origine ». Les écrans de canvasOS et les entrées HDMI se renomment mais gardent leur image (l'icône des réglages s'importe dans l'onglet Réglages de la page téléphone). Comme les autres réglages, noms et vignettes sont effacés par une désinstallation (étape 3).
-- Minuteur de veille, depuis le bouton Veille du Centre de contrôle : Maintenant, ou dans 15 min, 30 min, 1 h, 1 h 30, avec un avertissement une minute avant si l'écran d'accueil est affiché. Il demande le débogage local (étape 6), ne survit pas à un redémarrage, et la touche de veille n'est envoyée que parce que l'utilisateur a choisi ce délai.
-- Top Shelf : quand une app du Dock est sélectionnée, ses contenus remplissent l'écran au-dessus du Dock, une image toutes les 8 s (OK ouvre l'app). Ils viennent de la première source qui a quelque chose : la ligne « Continuer à regarder » (Watch Next) que l'app publie pour Android TV (YouTube, Netflix…), la seule source Android TV lue — elle demande l'autorisation `READ_TV_LISTINGS` de l'étape 4 et se désactive dans Réglages de l'accueil → Top Shelf → Continuer à regarder —, puis, pour Netflix, Prime Video, Disney+, Apple TV, Max, Paramount+, Canal+ et Crunchyroll, les titres populaires de la semaine sur ce service en France d'après TMDB (The Movie Database). TMDB demande une clé d'API gratuite à l'utilisateur (https://www.themoviedb.org/settings/api) : il la colle dans l'onglet Réglages de la page téléphone (section « Top Shelf (TMDB) »), ou vous la passez avec `--es tmdb_key` (ci-dessous). Elle reste sur le téléviseur ; ne la recopiez nulle part ailleurs. Pour voir ce que fait le Top Shelf : `adb -s <TV_IP>:5555 logcat -d -s Shelf`. Réglages de l'accueil → Top Shelf permet de se limiter à la ligne Android TV (sans TMDB) ou de le désactiver ; avec « Continuer à regarder » désactivée, seul TMDB reste, si le mode Complet l'autorise.
-- Apps conservées lors du nettoyage de la mémoire (Réglages de l'accueil → Mémoire et alimentation → Apps à conserver). Les apps en cours d'utilisation sont épargnées automatiquement, sans figurer dans cette liste : celles qui lisent du son ou de la vidéo (reconnues grâce à l'écouteur de notifications de l'étape 4), celles qui font tourner un service au premier plan, comme la diffusion d'écran, un serveur Plex ou Jellyfin, un VPN (reconnues grâce au débogage local de l'étape 6), ainsi que les services d'accessibilité et le clavier actifs. Réglages de l'accueil → Mémoire et alimentation → Dernier nettoyage liste les apps fermées la dernière fois ; `adb logcat -d -s canvasOSClean` montre aussi celles qui ont été épargnées.
-- Météo (activée par défaut) : la température et une icône à gauche de la petite horloge, ou une ligne « 14° · Nuageux » sous la date de la grande horloge, et un bouton Météo dans le Centre de contrôle qui ouvre les prévisions sur cinq jours. Les prévisions viennent d'Open-Meteo (sans clé), mises à jour au plus toutes les 30 minutes pendant que l'accueil est affiché, et disparaissent hors connexion. Tant qu'aucune ville n'est choisie, le téléviseur devine le lieu une fois d'après son adresse IP publique (ip-api.com) ; Réglages de l'accueil → Apparence → Lieu de la météo l'affiche alors suivi de « (détecté) ». La ville se choisit depuis la page téléphone (onglet Réglages, section Météo) ou par adb (`weather_city`, ci-dessous). Signalez-la à l'utilisateur : elle est active d'emblée et contacte ces deux services.
-- Lecture en cours (Réglages de l'accueil → Lecture et notifications), activée par défaut : tant qu'une app lit quelque chose (ou est en pause), le lecteur du Centre de contrôle (page 1 par défaut) montre la pochette, le titre et l'artiste ; le reste du temps, il garde sa place, carte de verre vide. Dans le lecteur 4 × 1, la pochette suit les proportions de la capsule « Lecture en cours » d'iOS : 0,706 de la hauteur de la capsule, à 0,147 de la hauteur du bord (et autant avant le texte), coins arrondis à 0,174 de son côté. Sa forme suit sa taille dans la grille (Centre de contrôle personnalisable, ci-dessous, ou `player_style`) ; le réglage « Lecteur » a disparu des réglages. **4 × 1, une ligne** : une capsule avec lecture/pause au bout ; OK met en lecture ou en pause. **4 × 2, deux lignes** (par défaut) : une carte avec les commandes et une barre de progression (temps écoulé, temps restant) ; OK met en lecture ou en pause, Gauche revient au début du morceau (ou au morceau précédent dans ses 3 premières secondes : deux pressions pour le précédent), Droite passe au suivant, et Gauche ou Droite maintenues reculent ou avancent de 10 s toutes les 0,4 s. Dans les deux cas, un **appui long sur OK** (le lecteur gonfle légèrement pendant l'appui) fait grandir le lecteur, sur place, en **grand lecteur** pendant que le reste du panneau s'efface : grande pochette, titre, barre de progression, puis retour / lecture-pause / suivant. La sélection arrive sur la barre (sur lecture-pause sans durée connue) ; on passe d'un élément à l'autre avec les flèches. La pochette est sélectionnable au-dessus de la barre : OK ferme le Centre de contrôle et ouvre l'app qui lit. Sur la barre, Gauche et Droite déplacent un curseur de 10 s sans toucher à la lecture, OK s'y rend et Retour annule le curseur ; Retour sans curseur fait rétrécir le grand lecteur dans le lecteur du panneau. Sans durée connue (flux en direct), la barre et les temps sont masqués. Toutes les apps n'acceptent pas qu'on change la position. Elle lit les métadonnées des sessions média grâce à l'écouteur de notifications de l'étape 4 ; aucune notification n'est lue pour cela.
-- Lecteur sur l'accueil (même section, « Lecteur sur l'accueil »), activé par défaut avec Lecture en cours : tant qu'une app lit quelque chose (ou est en pause), une capsule de verre en haut à gauche de l'accueil (le verre vivant du Centre de contrôle, dessiné sur un échantillon flouté de la scène, repris quand le fond, le Top Shelf ou les paroles changent) montre la pochette (0,62 de la hauteur, marge de 0,2 de la hauteur à gauche et avant le texte, coins et texte au ratio d'iOS ; le lecteur 4 × 1 du Centre de contrôle a la même marge), le titre et l'artiste, et six barres symétriques qui bougent pendant la lecture (six points en pause ; animées d'après l'horloge, pas d'après le son : canvasOS n'écoute pas l'audio). Un titre ou un artiste trop long défile, estompé aux deux bouts, après une pause au début. Sans commande : OK ouvre l'app qui lit ; lecture, pause et piste suivante restent dans le Centre de contrôle. On l'atteint avec Haut depuis les deux premières colonnes du Dock, ou Gauche depuis le bouton Réseau ; Bas ou Retour ramènent au Dock, Droite va au bouton Réseau. Elle reste par-dessus le Top Shelf, comme l'horloge, et disparaît d'elle-même quand plus rien ne lit (au plus 2 s après). Rien de plus n'est lu que pour le lecteur du Centre de contrôle. Désactivée avec Lecture en cours, ou seule par `home_player false` (ci-dessous).
-- Paroles (même section, « Paroles »), activées par défaut avec le lecteur de l'accueil : **à chaque nouveau titre lu**, canvasOS demande à LRCLIB s'il a ses paroles synchronisées (titre, artiste, album, durée ; rien d'autre, rien d'enregistré ; des paroles non synchronisées comptent pour rien) ; désactivées, rien n'est envoyé. Quand il en a et que la capsule est sélectionnée, un bouton rond de verre Paroles sort de derrière elle, à sa droite (Droite depuis la capsule le sélectionne ; Droite encore va au bouton Réseau) ; il rentre avec le focus. Sans paroles (ou LRCLIB injoignable), pas de bouton, et des paroles affichées se retirent avec un message. OK l'active : le fond d'écran s'assombrit, le Dock et la grille descendent d'une rangée (le Dock ne fait plus que dépasser en bas, comme la deuxième rangée d'ordinaire) et les lignes s'affichent en grand, la ligne chantée en blanc qui glisse avec la lecture ; OK encore les retire (ni Retour ni le Dock ne les ferment ; la fin de la lecture ou un titre sans paroles le font). Tout reste navigable : Bas vers le Dock le fait remonter et laisse les paroles en transparence derrière, Haut vers la capsule les rétablit. Les paroles ne prennent jamais le focus. « Position des paroles » (Gauche sous le lecteur par défaut, Centre, Droite ; `--es lyrics_align left|center|right`). Elles viennent de LRCLIB (https://lrclib.net), base ouverte et gratuite, sans clé (les derniers titres restent en mémoire le temps de l'app). `adb logcat -d -s canvasOSLyrics` dit pourquoi une recherche a échoué. Dites-le à l'utilisateur à l'installation : chaque titre écouté est envoyé à lrclib.net tant que c'est activé ; il peut désactiver les paroles ici, sur la page téléphone (onglet Réglages, section Paroles, qui explique aussi d'où elles viennent) ou par `lyrics false`.
-- Bannières de notifications (même section), activées par défaut : les notifications de toutes les apps s'affichent 6 secondes en haut à droite, sur l'accueil et, si `SYSTEM_ALERT_WINDOW` est accordée (étape 4), par-dessus l'app regardée. Leur titre et leur texte sont lus pour cela et jamais enregistrés. Les apps cochées dans « Apps exclues des bannières » ne sont ni lues ni affichées ; désactivées, aucune notification n'est lue. Dites-le à l'utilisateur à l'installation : il peut les désactiver, ou exclure des apps (`adb shell pm list packages` pour trouver leur paquet). Les deux options demandent l'écouteur de notifications de l'étape 4 ; si le débogage local est autorisé (étape 6), les activer sur le téléviseur l'approuve aussi.
-- Dans Réglages de l'accueil → Apparence : Horloge (Format de l'heure, qui suit le format du téléviseur tant que l'utilisateur n'a rien choisi ; Horloge), Dock (Récents ou Fixe : si l'app ouverte passe en tête de l'accueil), animation de sélection (Effet de sélection), et sous « Centre de contrôle » : Style du Centre de contrôle, Personnaliser le Centre de contrôle et Réinitialiser le panneau (ci-dessous). Effet de sélection et Style du Centre de contrôle sont sur Auto par défaut, ce qui choisit l'aspect le plus léger sur les téléviseurs peu puissants.
-- Centre de contrôle personnalisable : ses commandes sont rangées sur une grille de 4 colonnes × 6 lignes, sur trois pages au plus empilées verticalement (Bas depuis la dernière ligne d'une page fait monter la suivante, Haut depuis la première revient ; des points verticaux à gauche du panneau indiquent la page). Chaque commande y figure au plus une fois, à une place libre (les trous sont permis) et à l'une de ses tailles, largeur × hauteur en cases : Éteindre 2 × 2 (tuile) ou 2 × 1 ; Veille et Réseau 2 × 1 ou 1 × 1 ; Libérer la mémoire, Photo suivante, Cadre photo et Réglages 1 × 1 (bouton rond) ou 2 × 1 (capsule avec son nom) ; Luminosité 4 × 1 ; Source 4 × 1 ou 2 × 1 ; Lecteur 4 × 2 (deux lignes) ou 4 × 1 (une ligne) ; Météo 4 × 1 ou 4 × 2 (avec les trois jours suivants : jour, icône, minimum et maximum) ; Bluetooth 4 × 1 ou 2 × 1. Disposition par défaut : page 1, Éteindre 2 × 2, Réseau et Veille à côté, les quatre boutons ronds, puis le lecteur 4 × 2 (4 × 1 si l'ancien réglage « Lecteur » était sur une ligne) ; page 2, Luminosité, Source, Météo et Bluetooth. Pour la modifier, sur le téléviseur uniquement : un **appui long sur OK sur le bouton du Centre de contrôle** (l'icône ronde en haut à droite de l'accueil, à côté de la photo de profil), ou Réglages de l'accueil → Apparence → Personnaliser le Centre de contrôle, ouvre le panneau en mode modification (la commande sélectionnée oscille). OK sur une commande propose alors : Déplacer (les flèches la déplacent case par case, et d'une page à l'autre en passant la dernière ou la première ligne ; elle s'affiche estompée là où elle chevaucherait une autre commande ; OK la pose, Retour l'annule), Taille (la taille suivante, refusée s'il n'y a pas la place), Retirer, Ajouter une commande… (à la première place libre de la page, sinon d'une autre, sinon sur une nouvelle page), Ajouter une page, Réinitialiser le panneau et Terminer ; une page vide affiche « Page vide », avec Supprimer cette page. Retour quitte le mode modification. Hors de ce mode, un appui long sur une commande ne fait rien de particulier (sur le lecteur, il ouvre le grand lecteur). Réglages de l'accueil → Apparence → Réinitialiser le panneau remet la disposition par défaut. Il n'y a pas de clé CONFIG pour la disposition ; elle est enregistrée avec les réglages de l'app et effacée par une désinstallation (étape 3).
-- Télécommande (Réglages de l'accueil → Télécommande) : des touches de la télécommande associées à des fonctions de canvasOS, sur l'accueil seulement (les touches ne sont pas lues dans les autres apps ; rien ne passe par le service d'accessibilité). Aucun raccourci par défaut. « Ajouter un raccourci… » demande la fonction, puis la touche : un appui bref l'associe à l'appui simple, un appui maintenu à l'appui long (Retour annule). Fonctions : Centre de contrôle, Lecture / pause, Piste suivante, Piste précédente, Ouvrir l'app qui lit, Paroles, Photo suivante, Cadre photo, Minuteur de veille, Libérer la mémoire (ces deux-là avec le garde-fou du débogage local), Réglages de l'accueil, Réglages du téléviseur, Liste des profils, Ouvrir une app (n'importe laquelle, masquées comprises), Source HDMI (une entrée précise, lue comme pour les tuiles épinglées). Refusées : les touches du téléviseur (Accueil, Volume, Marche, Assistant), les flèches et OK (appui simple comme long), Retour et Menu en appui simple (leur appui long reste libre). Une touche déjà associée est réaffectée après confirmation ; OK sur un raccourci propose Changer la touche, Changer la fonction, Supprimer. Un raccourci agit même si le Centre de contrôle, un dossier ou une fenêtre est ouvert (ils se ferment d'abord ; Centre de contrôle et Paroles servent de bascule), sauf pendant la saisie au clavier. Une touche dont seul l'appui long est associé garde son rôle en appui simple. Il n'y a pas de clé CONFIG ni de section sur la page téléphone : la réponse de la diffusion `CONFIG` liste seulement les raccourcis (`key_map="Touche rouge=control_center; Touche 1 (appui long)=app:com.spotify.tv.android"`) et `capture_keys=`, et une désinstallation les efface (étape 3). **Capter les touches du téléviseur** (même groupe, désactivé par défaut) : les touches Réglages et Profil des télécommandes Google TV (et Guide, Source, TV, Apps, Notifications) sont prises par le système avant toute app ; activé, le service d'accessibilité de canvasOS (celui de la Protection de l'accueil, activé pour cela même si la protection est désactivée, et sans ses autres effets) filtre les touches : il voit alors chaque touche pressée dans toutes les apps, et ne retient que celles-là, seulement sur l'accueil et seulement si elles sont associées ; tout le reste passe. Pendant l'apprentissage d'une touche dans les réglages, toutes les touches lui sont transmises. Dites-le à l'utilisateur, comme pour les bannières. Demande `WRITE_SECURE_SETTINGS` (étape 4) ou le débogage local. Certaines apps voient un appui comme maintenu quand le filtrage est actif (note dans Guard.kt).
-- Logo (Réglages de l'accueil → Apparence, sous « Logo », ou l'onglet Réglages de la page téléphone) : l'APK embarque deux cartes-titres et deux films de démarrage, ceux de canvasOS (par défaut) et ceux de l'Apple TV (« tvOS »). Le logo choisi sert d'icône aux réglages (la tuile « Réglages de l'accueil » et la grande image de la page des réglages) et de film à l'animation de démarrage. Deux lignes permettent d'en sortir : Icône des réglages (Logo, Image importée, Engrenage) et Contenu de l'animation (Film du logo, Vidéo importée, Nom canvasOS). Image et vidéo importées viennent de la page téléphone, ou d'un `adb push` vers `/sdcard/Android/data/com.getisolated.canvasos/files/settings_icon.png` (16:9) et `files/intro.mp4` ; tant qu'il n'y a rien d'importé, ces deux choix ne sont pas proposés. Ne téléchargez pas pour l'utilisateur d'autre clip protégé par une marque. La page des réglages n'a pas de fond à importer : elle reprend le fond d'écran de l'accueil, flouté et assombri.
-- Animation de démarrage (même page, sous « Animation de démarrage »), désactivée par défaut : Au démarrage, ou Démarrage et réveil. Le film se termine sur un logo qui s'agrandit et ouvre l'accueil ; une touche la passe.
-
-Chacun de ces réglages peut aussi être modifié par adb, par exemple :
-
-```sh
-adb -s <TV_IP>:5555 shell am broadcast -a com.getisolated.canvasos.CONFIG -n com.getisolated.canvasos/.ConfigReceiver   --ez clock_24 true --es clock_style corner --es focus_style auto --es cc_style auto --es intro boot --ez intro_sound true
-# clock_style corner|large|off · focus_style / cc_style auto|tvos|simple / auto|glass|panel · intro off|boot|wake
-# intro_source brand|video|wordmark (le film du logo choisi, la vidéo importée, ou le nom canvasOS ; video sans vidéo importée joue le film du logo)
-# --es brand canvasos|tvos (le logo : carte-titre de l'icône des réglages et film de l'animation de démarrage ; canvasos par défaut)
-# --ei wake_delay <ms> (intro=wake : écran noir avant l'animation à la sortie de veille, 5000 par défaut ; les dalles OLED s'allument tard)
-# --es settings_icon brand|own|gear (l'icône des réglages : la carte-titre du logo, l'image importée, ou l'engrenage ; own sans image importée affiche la carte-titre ;
-#   l'ancienne clé own_icon true|false reste acceptée et vaut own|gear ; le fichier importé est conservé dans tous les cas)
-# background daily|scenery|fresh|anime|art|mine|custom|green|blue|purple|orange|graphite (source du fond d'écran de l'accueil, ou un dégradé intégré)
-# phone_server true|false (la page téléphone, activée par défaut ; désactivée, son adresse ne répond plus du tout)
-# dock_recents true|false (true par défaut : l'app ouverte passe en tête de l'accueil ; false : l'ordre choisi avec « Modifier l'accueil » est conservé)
-# weather true|false (la météo sur l'accueil et dans le Centre de contrôle, activée par défaut ; désactivée, rien n'est téléchargé)
-# --es weather_city "Lyon" (lieu de la météo : le téléviseur cherche la ville sur Open-Meteo et garde le premier résultat, ce qui prend quelques secondes ;
-#   introuvable ou Open-Meteo injoignable, le lieu ne change pas et `adb logcat -d -s canvasOSWeather` dit pourquoi ; la réponse indique weather_place="Lyon")
-# now_playing true|false (Lecture en cours) · banners true|false (bannières de notifications) : true par défaut ; false si l'utilisateur ne veut pas qu'elles lisent
-# home_player true|false (la capsule « Lecteur sur l'accueil » en haut à gauche, true par défaut ; sans effet quand now_playing est false ; la réponse indique home_player=…)
-# lyrics true|false (le bouton Paroles de cette capsule et les paroles LRCLIB, true par défaut ; sans effet sans la capsule ; la réponse indique lyrics=…)
-# --es banner_excluded "pkg1,pkg2" (les apps dont les notifications ne sont ni lues ni affichées ; "" vide la liste ; la réponse indique banner_excluded=…)
-# --es player_style one|two (la taille du lecteur dans la grille du Centre de contrôle : one = 4 × 1, une ligne ; two = 4 × 2, avec les commandes et la progression ;
-#   appliquée seulement si la place est libre, la réponse donne la taille réelle ; la disposition elle-même n'a pas de clé CONFIG)
-# la réponse indique aussi listener=true|false (écouteur de notifications approuvé, nécessaire aux deux) et overlay=true|false (bannières par-dessus les apps)
-# --es unsplash_key <clé> (clé d'accès Unsplash pour la source de fond d'écran « Unsplash » ; --es unsplash_key "''" l'efface ; le résultat n'affiche que unsplash_key=set|unset)
-# --es shelf all|tv|off (Top Shelf : complet, ligne Android TV seule sans TMDB, ou désactivé ; Réglages de l'accueil → Top Shelf)
-# watch_next true|false (Top Shelf : la ligne « Continuer à regarder » publiée par les apps pour Android TV, true par défaut ; false : TMDB seulement)
-# --es tmdb_key <clé> (clé d'API TMDB v3 ou jeton d'accès en lecture v4, pour le Top Shelf ; --es tmdb_key "''" l'efface ; le résultat n'affiche que tmdb_key=set|unset)
-# --es profile_add "Enfants" (crée ce profil ; avec --ez profile_restricted true, un profil enfant, protégé seulement une fois profile_pin donné ;
-#   s'il existe déjà, rien n'est créé et profile_restricted s'applique à lui)
-# --es profile "Enfants" (affiche ce profil, sans code PIN ; "Principal" désigne le profil principal tant qu'il n'a pas de nom)
-# --es profile_pin 1234 (le code PIN des profils enfants, 4 à 6 chiffres ; --es profile_pin "''" le supprime)
-# la réponse indique profile="Enfants" profile_id=abc123 profiles=2 pin=set|unset, plus profile_unknown="…" si le nom n'existe pas et profile_pin=invalid si le code n'a pas 4 à 6 chiffres
-```
-
-## 9. Adapter canvasOS à un téléviseur mal pris en charge
-
-Ne le faites que si l'utilisateur le demande, ou s'il est d'accord après que vous lui avez signalé ce qui ne marche pas. Lacunes typiques sur les téléviseurs qui ne sont pas des Sony :
-
-- Le curseur de luminosité reste grisé, avec « — ». Android n'a pas d'API standard pour le rétroéclairage.
-- La commande Source du Centre de contrôle est grisée et indique « Aucune entrée » (aucune entrée lisible, comme sur un boîtier), ou choisir une entrée HDMI ne fait rien.
-
-Ces fonctions (et le volume, que les adaptateurs savent toujours lire et régler, même si le Centre de contrôle n'a plus de curseur de volume) se trouvent dans le paquet [`tv/`](app/src/main/java/com/getisolated/canvasos/tv/), avec un adaptateur par marque :
-
-```
-tv/
-├── TvControls.kt      # choisit le premier adaptateur dont matches() renvoie true
-├── AndroidAdapter.kt  # l'interface TvAdapter + Android standard, dont hérite chaque marque
-├── SonyAdapter.kt     # API de contrôle IP BRAVIA sur 127.0.0.1
-└── …Adapter.kt        # les autres marques prises en charge
-```
-
-Une nouvelle marque, c'est un nouveau `<Marque>Adapter.kt` qui hérite d'`AndroidAdapter`, redéfinit `matches()` (en général d'après `Build.MANUFACTURER` / `Build.BRAND`) et uniquement ce que le firmware fait différemment, et qui est ajouté à `TvControls.brands`. Ne modifiez pas les adaptateurs des autres marques ni le comportement d'`AndroidAdapter`. Ce que font les adaptateurs existants :
-
-- Sony (`SonyAdapter`) : rétroéclairage, volume et sources via l'API BRAVIA ; chaque fonction se rabat sur Android standard quand l'API ne répond pas.
-
-### 9.1 Préparer une compilation
-
-- Clonez https://github.com/getisolated/canvasOS (`git clone https://github.com/getisolated/canvasOS.git`). Il faut JDK 17+ (`java -version`) et un SDK Android avec `platforms;android-36` et `build-tools` (installez-les avec `sdkmanager`). Mettez `sdk.dir=<chemin>` dans `local.properties`. Compilez avec `./gradlew assembleStandardRelease`.
-- Votre version est signée avec la clé debug de cet ordinateur, pas avec la clé stable des Releases : elle ne peut pas se mettre à jour par-dessus l'APK d'une Release installé. `adb install -r` échouera avec `INSTALL_FAILED_UPDATE_INCOMPATIBLE`. Demandez à l'utilisateur avant de faire d'abord `adb uninstall com.getisolated.canvasos` : cela efface les réglages et les autorisations de l'app, et ensuite vous devez refaire l'étape 4 et l'utilisateur doit de nouveau autoriser le débogage local (étape 6). Pour repasser plus tard à une Release, la même désinstallation sera nécessaire.
-
-### 9.2 Trouver ce que propose le téléviseur
-
-Travaillez depuis adb. Avant d'écrire quoi que ce soit, notez chaque valeur lue ; remettez les valeurs d'origine quand vous avez terminé.
-
-- **Volume** : `adb shell cmd media_session volume --stream 3 --get` montre ce que règle l'adaptateur Android standard. Modifiez-le avec `--set <n>` et demandez à l'utilisateur si le son a changé. Si ce n'est pas le cas, cherchez dans `dumpsys audio` la sortie audio active et si le contrôle du volume par HDMI-CEC est utilisé (`dumpsys hdmi_control`).
-- **Entrées HDMI** : `adb shell dumpsys tv_input` liste les entrées avec leurs identifiants et leurs états ; les entrées HDMI ont en général `HDMI` ou `HW` dans leur identifiant. Testez un changement de la même manière que l'app :
-  `adb shell am start -a android.intent.action.VIEW -d "content://android.media.tv/passthrough/<identifiant d'entrée encodé pour URL>"`
-  Si rien ne se passe, lancez `adb logcat -c`, demandez à l'utilisateur de changer de source avec la télécommande, puis lisez `adb logcat -d | grep -iE "START u0|tune|input"` pour trouver l'activité du lecteur du fabricant et l'intent qu'elle utilise.
-- **Luminosité / rétroéclairage** : prenez un instantané avec `adb shell settings list system; settings list global; settings list secure`. Demandez à l'utilisateur de modifier le rétroéclairage dans les réglages d'image du téléviseur, reprenez l'instantané et comparez les deux. Une clé qui a changé (avec un nom comme `backlight`, `picture_backlight`) est une candidate. Testez-la avec `settings put`, demandez à l'utilisateur si l'écran a changé, puis remettez la valeur d'origine. Regardez aussi logcat pendant le changement, et `adb shell ss -ltn` pour repérer des services de contrôle du fabricant sur localhost, comme le port 80 de Sony.
-
-### 9.3 Implémenter et vérifier
-
-- Écrivez l'adaptateur de la marque dans `tv/` et ajoutez-le à `TvControls.brands`. Si `brightness()` renvoie un `Level(value, min, max)` non nul, le curseur apparaît ; `setBrightness` est alors appelé avec des valeurs dans cette plage. Toutes ces fonctions sauf les deux intents s'exécutent sur un thread d'arrière-plan : les E/S bloquantes ne posent pas de problème. Les tuiles de sources épinglées appellent `setInput` avec des uri enregistrées auparavant : gardez stable le format d'uri d'une marque.
-- Écrire des réglages : les réglages secure et global peuvent être écrits directement une fois `WRITE_SECURE_SETTINGS` accordée (étape 4 ; vérifiez avec `Guard.hasSecureSettings`). Pour la table system, accordez `WRITE_SETTINGS` avec `adb shell appops set com.getisolated.canvasos WRITE_SETTINGS allow`, ou exécutez la commande via l'adb local de l'app, `LocalAdb.shell(ctx, "settings put …")` dans `Cleaner.kt`, qui fonctionne une fois que l'utilisateur a autorisé le débogage local.
-- Compilez, installez, ouvrez le Centre de contrôle (touche Retour sur l'écran d'accueil) et faites une `screencap`. Allez jusqu'au curseur avec les touches directionnelles, en vérifiant d'abord l'élément sélectionné (étape 6). Relisez ensuite la valeur de la même manière qu'en 9.2 pour confirmer le changement.
-
-### 9.4 Terminer
-
-Dites à l'utilisateur ce qui fonctionne désormais et ce qui ne fonctionne toujours pas. Sa version adaptée reste sur son téléviseur. S'il veut la partager, proposez-lui de committer la modification dans ce dépôt, en indiquant le modèle du téléviseur et la version d'Android.
-
-## 10. Protection de l'accueil (téléviseurs qui rejettent les lanceurs tiers)
-
-Certains téléviseurs ne laissent pas un autre lanceur prendre la touche Accueil : `set-home-activity` et le rôle HOME annoncent un succès, et pourtant la touche Accueil ouvre toujours le lanceur du fabricant (par exemple quand le lanceur Google TV, `com.google.android.apps.tv.launcherx`, se déclare prioritaire). Certains systèmes arrêtent aussi les apps tierces en veille, ce qui coupe leurs services d'accessibilité, ou réécrivent leur propre économiseur d'écran au démarrage.
-
-canvasOS gère cela sans root, et sans rien désactiver ni désinstaller :
-
-1. **Protection de l'accueil**, un service d'accessibilité (« Protection de l'accueil »). Quand l'écran d'accueil du lanceur d'origine passe au premier plan, canvasOS revient par-dessus (l'utilisateur voit le lanceur d'origine pendant environ une demi-seconde). Quand l'utilisateur ouvre volontairement le lanceur d'origine depuis sa tuile, la touche Accueil ramène à canvasOS. Le service ne surveille que les changements de fenêtre, jamais le contenu de l'écran.
-2. **Relance** : l'écouteur de notifications de l'étape 4. Android le relie à nouveau environ une demi-seconde après que le système a tué canvasOS : canvasOS redémarre alors et réactive la protection (avec `WRITE_SECURE_SETTINGS`). Il lance aussi canvasOS au démarrage.
-3. Avec la protection activée, canvasOS remet aussi son économiseur d'écran en place quand le firmware l'écrase.
-
-Activez-la avec les autorisations de l'étape 4 et la diffusion `CONFIG`, ou sur le téléviseur dans Réglages de l'accueil → Système → Protection de l'accueil (qui s'accorde les autorisations via l'adb local une fois l'étape 6 faite). Puis vérifiez :
-
-```sh
-adb -s <TV_IP>:5555 shell settings get secure enabled_accessibility_services   # contient com.getisolated.canvasos/com.getisolated.canvasos.HomeGuardService
-adb -s <TV_IP>:5555 shell input keyevent KEYCODE_HOME; sleep 2
-adb -s <TV_IP>:5555 shell dumpsys activity activities | grep -m1 ResumedActivity  # com.getisolated.canvasos/.HomeActivity
-adb -s <TV_IP>:5555 logcat -d -s canvasOSGuard                                     # ce qu'a fait la protection, et pourquoi
-```
-
-Demandez ensuite à l'utilisateur de mettre le téléviseur en veille avec la télécommande puis de le réveiller, et prévenez-le de ce qu'il devrait voir, et vérifiez de nouveau que canvasOS est au premier plan et que la protection est toujours listée. Si l'utilisateur accepte un redémarrage, vérifiez aussi après le démarrage. La protection attend 1,5 s après le démarrage ou la sortie de veille avant de prendre la main, pour ne pas gêner une console de jeu ou un boîtier qui bascule le téléviseur sur son entrée HDMI via CEC.
-
-Si la protection est listée mais que `dumpsys accessibility` n'indique aucun service lié pour elle, canvasOS la réenregistre de lui-même quelques secondes après son ouverture ; si elle reste non liée, désactivez-la puis réactivez-la dans Réglages de l'accueil → Système → Protection de l'accueil.
-
-Si rien ne marche, dites-le clairement à l'utilisateur : le système de ce téléviseur n'accepte pas de lanceur de remplacement, mais canvasOS peut toujours être ouvert comme une app.
-
-## 11. Facultatif : supprimer des apps préinstallées
-
-Uniquement sur demande. Le menu d'appui long de canvasOS peut supprimer les apps préinstallées qui apparaissent sur l'écran d'accueil (Supprimer l'app), et les restaurer depuis Réglages de l'accueil → Apps → Apps préinstallées supprimées. Pour celles qui ne tournent qu'en arrière-plan (services de publicité, de push ou de suivi sans icône), listez-les avec `pm list packages -s`, identifiez chacune par son libellé et son chemin, et proposez une liste à l'utilisateur. Expliquez chaque entrée et demandez avant de supprimer quoi que ce soit.
-
-- Supprimez avec `adb shell pm uninstall -k --user 0 <paquet>`. Restaurez avec `adb shell cmd package install-existing <paquet>`. Donnez les deux commandes à l'utilisateur.
-- Ne supprimez jamais les réglages, les lanceurs, la méthode de saisie, le lecteur / tuner TV / `tvinput`, l'interface système, la mise à jour, les services Google Play, ni rien que vous ne savez pas identifier.
-- Après la suppression, ne redémarrez que si l'utilisateur est d'accord, puis vérifiez que le téléviseur démarre toujours, que les entrées HDMI fonctionnent et que les apps vidéo lisent.
-
-## Désinstaller
-
-Désactivez d'abord la protection, pour que la liste d'accessibilité revienne à sa valeur d'origine (celle notée à l'étape 2), et remettez l'économiseur d'origine si le cadre photo était devenu l'économiseur :
-
-```sh
-adb -s <TV_IP>:5555 shell am broadcast -a com.getisolated.canvasos.CONFIG -n com.getisolated.canvasos/.ConfigReceiver --ez guard false
-adb -s <TV_IP>:5555 shell settings put secure screensaver_components <valeur d'origine>
-adb -s <TV_IP>:5555 uninstall com.getisolated.canvasos
-```
-
-Le téléviseur revient à son lanceur d'origine. Donnez ces commandes à l'utilisateur à la fin de l'installation, avec les valeurs notées à l'étape 2, pour qu'il puisse revenir en arrière sans vous. Si vous avez désactivé un lanceur à l'étape 5, réactivez-le avec `pm enable <paquet>`.
+Restore original Home assignment if needed, using the recorded component. Verify the original accessibility list is preserved. If a stock launcher was disabled with approval, re-enable its exact package first. Never run placeholder commands literally. Provide the owner a rollback note with actual device address and original values. The French package is separate and remains untouched unless removal is separately requested.

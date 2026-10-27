@@ -1,4 +1,4 @@
-package com.getisolated.canvasos.tv
+package com.aksamitsah.canvasos.en.tv
 
 import android.content.ComponentName
 import android.content.Context
@@ -7,7 +7,7 @@ import android.media.tv.TvInputInfo
 import android.os.Build
 import android.provider.Settings
 import android.util.Log
-import com.getisolated.canvasos.Guard
+import com.aksamitsah.canvasos.en.Guard
 
 /**
  * Xiaomi / Redmi China firmware (PatchWall, HyperOS TV). From Aerial's device notes

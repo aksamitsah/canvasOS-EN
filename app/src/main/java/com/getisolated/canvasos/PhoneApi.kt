@@ -1,4 +1,4 @@
-package com.getisolated.canvasos
+package com.aksamitsah.canvasos.en
 
 import java.io.File
 import java.security.MessageDigest
@@ -156,14 +156,14 @@ object PhoneApi {
     /** A short French explanation for the install failures people actually meet, or null. */
     fun installHint(pmOutput: String): String? = when {
         "INSTALL_FAILED_VERIFICATION_FAILURE" in pmOutput ->
-            "Le téléviseur refuse les installations par le débogage (c'est le cas des TCL) : installez cette app depuis le téléviseur, avec son gestionnaire de fichiers."
+            "The TV refuses installations through debugging (as on TCL): install this app on the TV using its file manager."
         "INSTALL_FAILED_UPDATE_INCOMPATIBLE" in pmOutput ->
-            "Une autre version de cette app est déjà installée avec une signature différente : désinstallez-la d'abord."
-        "INSTALL_FAILED_VERSION_DOWNGRADE" in pmOutput -> "Une version plus récente de cette app est déjà installée."
-        "INSTALL_FAILED_OLDER_SDK" in pmOutput -> "Cette app demande une version d'Android plus récente que celle du téléviseur."
-        "INSTALL_FAILED_NO_MATCHING_ABIS" in pmOutput -> "Cette app n'est pas compilée pour le processeur de ce téléviseur."
-        "INSTALL_FAILED_INSUFFICIENT_STORAGE" in pmOutput -> "Le téléviseur n'a plus assez d'espace de stockage."
-        "INSTALL_PARSE_FAILED" in pmOutput || "INSTALL_FAILED_INVALID_APK" in pmOutput -> "Ce fichier n'est pas un APK valide, ou il est incomplet."
+            "Another version of this app is installed with a different signature: uninstall it first."
+        "INSTALL_FAILED_VERSION_DOWNGRADE" in pmOutput -> "A newer version of this app is already installed."
+        "INSTALL_FAILED_OLDER_SDK" in pmOutput -> "This app requires a newer Android version than the TV provides."
+        "INSTALL_FAILED_NO_MATCHING_ABIS" in pmOutput -> "This app is not built for this TV's processor."
+        "INSTALL_FAILED_INSUFFICIENT_STORAGE" in pmOutput -> "The TV does not have enough storage space."
+        "INSTALL_PARSE_FAILED" in pmOutput || "INSTALL_FAILED_INVALID_APK" in pmOutput -> "This file is not a valid APK, or it is incomplete."
         else -> null
     }
 

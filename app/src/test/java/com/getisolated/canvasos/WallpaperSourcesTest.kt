@@ -1,4 +1,4 @@
-package com.getisolated.canvasos
+package com.aksamitsah.canvasos.en
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -29,16 +29,16 @@ class WallpaperSourcesTest {
         val labels = Wallpapers.SOURCES.map { Wallpapers.label(it) }
         assertTrue(labels.toString(), labels.all { it.isNotBlank() })
         assertEquals("two sources must not read alike in the settings", labels.size, labels.toSet().size)
-        assertEquals("Photos du jour", Wallpapers.label(Wallpapers.BING))
-        assertEquals("Mes photos", Wallpapers.label(Wallpapers.MINE))
-        assertEquals("Lien personnalisé", Wallpapers.label(Wallpapers.CUSTOM))
+        assertEquals("Daily Photos", Wallpapers.label(Wallpapers.BING))
+        assertEquals("My Photos", Wallpapers.label(Wallpapers.MINE))
+        assertEquals("Custom Link", Wallpapers.label(Wallpapers.CUSTOM))
     }
 
     @Test fun aGradientOrAnUnknownValueFallsBackToBing() {
         for (g in Backgrounds.THEMES.keys) assertEquals(Wallpapers.BING, Wallpapers.sourceFor(g))
         for (v in listOf("", "unknown", "DAILY", "daily ", "anime-backup")) assertEquals(v, Wallpapers.BING, Wallpapers.sourceFor(v))
         for (s in Wallpapers.SOURCES) assertEquals(s, Wallpapers.sourceFor(s))
-        assertEquals("Photos du jour", Wallpapers.label("anything else"))
+        assertEquals("Daily Photos", Wallpapers.label("anything else"))
     }
 
     @Test fun theBackupFeedIsNotASourceTheUserCanPick() {

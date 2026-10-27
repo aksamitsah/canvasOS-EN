@@ -1,4 +1,4 @@
-package com.getisolated.canvasos
+package com.aksamitsah.canvasos.en
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -30,8 +30,8 @@ class CustomTilesTest {
     }
 
     @Test fun uploadedPictureIsLookedForBeforePushedOne() {
-        val files = File("/data/user/0/com.getisolated.canvasos/files")
-        val ext = File("/sdcard/Android/data/com.getisolated.canvasos/files")
+        val files = File("/data/user/0/com.aksamitsah.canvasos.en/files")
+        val ext = File("/sdcard/Android/data/com.aksamitsah.canvasos.en/files")
         assertEquals(
             listOf(File(files, "tiles/com.netflix.ninja.jpg"), File(ext, "tiles/com.netflix.ninja.jpg")),
             AppRepo.customTilePaths(files, ext, "com.netflix.ninja"),
@@ -42,7 +42,7 @@ class CustomTilesTest {
     @Test fun onlyPackageNamesMapToAFile() {
         val files = File("/f")
         for (key in listOf(
-            "com.getisolated.canvasos:WallpaperActivity",          // canvasOS's own screen
+            "com.aksamitsah.canvasos.en:WallpaperActivity",          // canvasOS's own screen
             "input:content://android.media.tv/passthrough/x%2FHW2", // a pinned TV input
             "../../shared_prefs/tvhome",
             "com.example/../x",

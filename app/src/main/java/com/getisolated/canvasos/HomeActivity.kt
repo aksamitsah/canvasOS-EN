@@ -1,4 +1,4 @@
-package com.getisolated.canvasos
+package com.aksamitsah.canvasos.en
 
 import android.app.Activity
 import android.app.ActivityOptions
@@ -35,8 +35,8 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.getisolated.canvasos.tv.Input
-import com.getisolated.canvasos.tv.TvControls
+import com.aksamitsah.canvasos.en.tv.Input
+import com.aksamitsah.canvasos.en.tv.TvControls
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -48,13 +48,13 @@ import java.util.concurrent.Executors
 class HomeActivity : Activity(), TileAdapter.Listener {
     companion object {
         const val SHELF_SECONDS = 8
-        private const val EXTRA_GUARD = "com.getisolated.canvasos.GUARD"
-        private const val EXTRA_WAKE = "com.getisolated.canvasos.WAKE"
+        private const val EXTRA_GUARD = "com.aksamitsah.canvasos.en.GUARD"
+        private const val EXTRA_WAKE = "com.aksamitsah.canvasos.en.WAKE"
         /** From the settings ("Personnaliser le Centre de contrôle"): the home opens with the Control Center in edit mode. */
-        const val EXTRA_EDIT_CC = "com.getisolated.canvasos.EDIT_CC"
+        const val EXTRA_EDIT_CC = "com.aksamitsah.canvasos.en.EDIT_CC"
         /** From the phone page's « Ouvrir » ([PhoneServer]): open the grid entry [EXTRA_KEY] as OK on its tile would. */
-        const val ACTION_OPEN = "com.getisolated.canvasos.OPEN"
-        const val EXTRA_KEY = "com.getisolated.canvasos.KEY"
+        const val ACTION_OPEN = "com.aksamitsah.canvasos.en.OPEN"
+        const val EXTRA_KEY = "com.aksamitsah.canvasos.en.KEY"
         private const val REQUEST_BLUETOOTH = 41
 
         /**
@@ -361,7 +361,7 @@ class HomeActivity : Activity(), TileAdapter.Listener {
                 homePlayer.lyricsAvailable = ok == true
                 if (ok == false && lyricsOn) {
                     setLyricsShown(false)
-                    Toast.makeText(this@HomeActivity, "Pas de paroles synchronisées pour ce titre", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this@HomeActivity, "No synced lyrics for this track", Toast.LENGTH_SHORT).show()
                 }
             }
         }
@@ -428,15 +428,15 @@ class HomeActivity : Activity(), TileAdapter.Listener {
         ccButton = IconButton(this, R.drawable.ic_toggles) { control.open() }
         // A long press on OK opens it in edit mode, to move, resize, remove or add its controls.
         ccButton.setOnLongClickListener { control.open(edit = true); true }
-        netButton.contentDescription = "Réglages réseau"
-        ccButton.contentDescription = "Centre de contrôle"
+        netButton.contentDescription = "Network Settings"
+        ccButton.contentDescription = "Control Center"
         icons.addView(clockText, LinearLayout.LayoutParams(-2, -2).apply { marginEnd = dp(10) })
         buildWeather(icons)
         icons.addView(netButton, LinearLayout.LayoutParams(dp(28), dp(28)).apply { marginEnd = dp(6) })
         icons.addView(ccButton, LinearLayout.LayoutParams(dp(28), dp(28)))
         avatar = IconButton(this, 0, portrait = true) { profileSheet() }.apply {
             id = View.generateViewId()
-            contentDescription = "Profils"
+            contentDescription = "Profiles"
         }
         showAvatar()
         icons.addView(avatar, LinearLayout.LayoutParams(dp(28), dp(28)).apply { marginStart = dp(6) })
@@ -558,10 +558,10 @@ class HomeActivity : Activity(), TileAdapter.Listener {
      */
     fun nextWallpaper(report: (String) -> Unit) {
         val theme = prefs.background
-        if (!Wallpapers.isPhoto(theme)) { report("Fond d'écran : dégradé fixe, choisissez une source de photos"); return }
+        if (!Wallpapers.isPhoto(theme)) { report("Wallpaper: fixed gradient; choose a photo source"); return }
         if (refreshing) return
         refreshing = true
-        report("Photo suivante…")
+        report("Next Photo…")
         io.execute {
             val walls = Wallpapers(this, Wallpapers.sourceFor(theme))
             val changed = runCatching { walls.refresh(); walls.advance(prefs.wallMinutes, force = true) }.getOrDefault(false)
@@ -570,7 +570,7 @@ class HomeActivity : Activity(), TileAdapter.Listener {
             main.post {
                 if (isDestroyed) return@post
                 if (prefs.background == theme) showBackground(theme, photo)
-                report(if (changed) "" else if (photo == null) "Aucune photo pour l'instant" else "Une seule photo disponible pour l'instant")
+                report(if (changed) "" else if (photo == null) "No photos yet" else "Only one photo available so far")
             }
         }
     }
@@ -880,7 +880,7 @@ class HomeActivity : Activity(), TileAdapter.Listener {
     private fun updateClock() {
         val now = Date()
         clockText.text = SimpleDateFormat(if (prefs.clock24) "HH:mm" else "h:mm a", Locale.US).format(now)
-        bigDate.text = SimpleDateFormat("EEEE d MMMM", Locale.FRANCE).format(now).replaceFirstChar { it.titlecase(Locale.FRANCE) }
+        bigDate.text = SimpleDateFormat("EEEE d MMMM", Locale.ENGLISH).format(now).replaceFirstChar { it.titlecase(Locale.ENGLISH) }
         // The large clock leaves out AM/PM, as tvOS did; at that size it reads as the time of day.
         bigTime.text = SimpleDateFormat(if (prefs.clock24) "HH:mm" else "h:mm", Locale.US).format(now)
     }
@@ -1053,7 +1053,7 @@ class HomeActivity : Activity(), TileAdapter.Listener {
             startActivity(intent, opts?.toBundle())
             rememberOpened(recent)
         } catch (e: Exception) {
-            Toast.makeText(this, "Impossible d'ouvrir ${app.label}", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "Could not open ${app.label}", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -1075,39 +1075,39 @@ class HomeActivity : Activity(), TileAdapter.Listener {
         if (app.folder != null) { folderMenu(app, pos); return }
         app.input?.let { i ->
             val s = Sheet(root).title(app.label).message(null)
-                .button("Modifier l'accueil") { startMove(pos) }
-                .button("Renommer") { rename(app, pos) }
+                .button("Edit Home") { startMove(pos) }
+                .button("Rename") { rename(app, pos) }
             // An input opens from a folder like from the grid.
             folderButtons(s, app, pos)
-            showSheet(s.button("Retirer de l'accueil") { pinInput(i, false) }
-                .button("Annuler") {}, restoreFocusTo = pos)
+            showSheet(s.button("Remove from Home") { pinInput(i, false) }
+                .button("Cancel") {}, restoreFocusTo = pos)
             return
         }
         val s = Sheet(root).title(app.label).message(null)
-            .button("Modifier l'accueil") { startMove(pos) }
-            .button("Renommer") { rename(app, pos) }
+            .button("Edit Home") { startMove(pos) }
+            .button("Rename") { rename(app, pos) }
         folderButtons(s, app, pos)
         // A restricted profile neither hides apps nor reaches what is shared with every profile (pictures, system screens).
         val kid = prefs.restricted
         // A picture of the user's, from the phone page or pushed over adb (AppRepo.customTileFile).
-        if (app.tileStamp != 0L && !kid) s.button("Image d'origine") {
+        if (app.tileStamp != 0L && !kid) s.button("Original Image") {
             repo.invalidate(app.pkg)
             io.execute {
                 AppRepo.clearCustomTile(this, app.pkg)
                 main.post { reload(app.pkg) }
             }
         }
-        if (!kid) s.button("Masquer") {
+        if (!kid) s.button("Hide") {
             prefs.hidden = prefs.hidden + app.pkg
             reload()
         }
         if (repo.isOwn(app.pkg)) {
-            showSheet(s.button("Annuler") {}, restoreFocusTo = pos)
+            showSheet(s.button("Cancel") {}, restoreFocusTo = pos)
             return
         }
-        if (!kid) s.button("Infos sur l'app") { appInfo(app) }
-        if (!repo.isEssential(app.pkg)) s.button("Supprimer l'app") { unlocked("Supprimer l'app") { confirmDelete(app, pos) } }
-        s.button("Annuler") {}
+        if (!kid) s.button("App Info") { appInfo(app) }
+        if (!repo.isEssential(app.pkg)) s.button("Uninstall App") { unlocked("Uninstall App") { confirmDelete(app, pos) } }
+        s.button("Cancel") {}
         showSheet(s, restoreFocusTo = pos)
     }
 
@@ -1120,13 +1120,13 @@ class HomeActivity : Activity(), TileAdapter.Listener {
 
     /** "Nouveau dossier…" and, once there are folders, "Ajouter au dossier…", for the entry at [pos] of the grid. */
     private fun folderButtons(s: Sheet, app: AppEntry, pos: Int) {
-        s.button("Nouveau dossier…") { newFolder(app, pos) }
-        if (adapter.apps.any { it.folder != null }) s.button("Ajouter au dossier…") { pickFolder(app, pos) }
+        s.button("New Folder…") { newFolder(app, pos) }
+        if (adapter.apps.any { it.folder != null }) s.button("Add to Folder…") { pickFolder(app, pos) }
     }
 
     /** A folder named on the TV's keyboard ("Dossier" when left empty), in [app]'s place on the grid, with [app] in it. */
     private fun newFolder(app: AppEntry, pos: Int) {
-        showSheet(Sheet(root).title("Nouveau dossier").message("Le dossier prend la place de « ${app.label} » sur l'accueil, avec l'app dedans.")
+        showSheet(Sheet(root).title("New Folder").message("The folder replaces “${app.label}” on Home, with the app inside.")
             .input("", Folders.DEFAULT_NAME) { name ->
                 val id = Folders.newId(prefs.folderList().map { it.id })
                 prefs.editFolders { Folders.create(it, id, name, listOf(app.pkg)) }
@@ -1136,26 +1136,26 @@ class HomeActivity : Activity(), TileAdapter.Listener {
     }
 
     private fun pickFolder(app: AppEntry, pos: Int) {
-        val s = Sheet(root).title("Ajouter au dossier").message("« ${app.label} » quitte l'accueil pour le dossier choisi.")
+        val s = Sheet(root).title("Add to Folder").message("“${app.label}” moves from Home into the selected folder.")
         for (f in adapter.apps.filter { it.folder != null }) s.button(f.label) {
             Folders.idOf(f.pkg)?.let { id -> prefs.editFolders { Folders.add(it, id, app.pkg) } }
             reload()
         }
-        showSheet(s.button("Annuler") {}, restoreFocusTo = pos)
+        showSheet(s.button("Cancel") {}, restoreFocusTo = pos)
     }
 
     private fun folderMenu(f: AppEntry, pos: Int) {
         showSheet(Sheet(root).title(f.label).message(null)
-            .button("Ouvrir") { openFolder(pos) }
-            .button("Modifier l'accueil") { startMove(pos) }
-            .button("Renommer le dossier") { renameFolder(f, pos) }
-            .button("Ajouter des apps…") { pickApps(f) }
-            .button("Supprimer le dossier") { confirmDeleteFolder(f, pos) }
-            .button("Annuler") {}, restoreFocusTo = pos)
+            .button("Open") { openFolder(pos) }
+            .button("Edit Home") { startMove(pos) }
+            .button("Rename Folder") { renameFolder(f, pos) }
+            .button("Add Apps…") { pickApps(f) }
+            .button("Delete Folder") { confirmDeleteFolder(f, pos) }
+            .button("Cancel") {}, restoreFocusTo = pos)
     }
 
     private fun renameFolder(f: AppEntry, pos: Int) {
-        showSheet(Sheet(root).title("Renommer le dossier").message(null)
+        showSheet(Sheet(root).title("Rename Folder").message(null)
             .input(f.label, Folders.DEFAULT_NAME) { name ->
                 Folders.idOf(f.pkg)?.let { id -> prefs.editFolders { Folders.rename(it, id, name) } }
                 reload()
@@ -1168,7 +1168,7 @@ class HomeActivity : Activity(), TileAdapter.Listener {
      */
     private fun pickApps(f: AppEntry) {
         val id = Folders.idOf(f.pkg) ?: return
-        val s = Sheet(root).title("Ajouter des apps").message("Les apps cochées sont dans « ${f.label} » ; les autres restent sur l'accueil.")
+        val s = Sheet(root).title("Add Apps").message("Selected apps are in “${f.label}”; the others stay on Home.")
         for (a in f.folder.orEmpty()) s.toggle(a.label, true) { on -> setInFolder(id, a.pkg, on) }
         for (a in adapter.apps.filter { it.folder == null }) s.toggle(a.label, false) { on -> setInFolder(id, a.pkg, on) }
         // Apps that leave the grid can shift the folder: focus finds it by key.
@@ -1189,8 +1189,8 @@ class HomeActivity : Activity(), TileAdapter.Listener {
     }
 
     private fun confirmDeleteFolder(f: AppEntry, pos: Int) {
-        showSheet(Sheet(root).title("Supprimer « ${f.label} » ?").message("Le dossier disparaît ; ses apps reviennent sur l'accueil à sa place.")
-            .button("Supprimer") {
+        showSheet(Sheet(root).title("Delete “${f.label}”?").message("The folder is removed; its apps return to its position on Home.")
+            .button("Delete") {
                 val id = Folders.idOf(f.pkg) ?: return@button
                 // Every app it held, hidden ones included, so they keep a place in the order.
                 val apps = prefs.folderList().firstOrNull { it.id == id }?.apps.orEmpty()
@@ -1198,7 +1198,7 @@ class HomeActivity : Activity(), TileAdapter.Listener {
                 prefs.order = Folders.orderReplacing(adapter.apps.map { it.pkg }, prefs.order, f.pkg, apps)
                 reload()
             }
-            .button("Annuler") {}, restoreFocusTo = pos)
+            .button("Cancel") {}, restoreFocusTo = pos)
     }
 
     /** Opens the folder at [pos] over the grid; an empty one goes straight to picking its apps. */
@@ -1230,16 +1230,16 @@ class HomeActivity : Activity(), TileAdapter.Listener {
 
         override fun onMenu(app: AppEntry, pos: Int) {
             val s = Sheet(root).title(app.label).message(null)
-                .button("Retirer du dossier") { removeFromFolder(app.pkg) }
-                .button("Renommer") { rename(app, null) }
-            if (!repo.isOwn(app.pkg) && !prefs.restricted) s.button("Infos sur l'app") { appInfo(app) }
-            showSheet(s.button("Annuler") {})
+                .button("Remove from Folder") { removeFromFolder(app.pkg) }
+                .button("Rename") { rename(app, null) }
+            if (!repo.isOwn(app.pkg) && !prefs.restricted) s.button("App Info") { appInfo(app) }
+            showSheet(s.button("Cancel") {})
         }
     }
 
     /** Names the tile; an empty name gives the app back its own. The TV's keyboard does the typing. */
     private fun rename(app: AppEntry, pos: Int?) {
-        showSheet(Sheet(root).title("Renommer « ${app.label} »").message("Laissez le champ vide pour reprendre le nom d'origine, « ${app.originalLabel} ».")
+        showSheet(Sheet(root).title("Rename “${app.label}”").message("Leave blank to restore the original name, “${app.originalLabel}”.")
             .input(app.label, app.originalLabel) { text ->
                 val name = text.trim()
                 prefs.setLabel(app.pkg, name.takeIf { it.isNotEmpty() && it != app.originalLabel })
@@ -1259,19 +1259,19 @@ class HomeActivity : Activity(), TileAdapter.Listener {
                 startActivity(Intent(Intent.ACTION_DELETE, Uri.parse("package:${app.pkg}")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
                 return
             }
-            showSheet(Sheet(root).title("Autoriser le débogage local")
-                .message("Supprimer une app préinstallée nécessite le débogage local. Appuyez sur Commencer : le téléviseur affiche « Autoriser le débogage ? ». Cochez « Toujours autoriser », puis choisissez « Autoriser ».")
-                .button("Commencer") { authorizeAdb() }
-                .button("Annuler") {}, restoreFocusTo = pos)
+            showSheet(Sheet(root).title("Allow Local Debugging")
+                .message("Uninstalling a preinstalled app requires local debugging. Press Start: the TV shows “Allow debugging?”. Select “Always allow”, then “Allow”.")
+                .button("Start") { authorizeAdb() }
+                .button("Cancel") {}, restoreFocusTo = pos)
             return
         }
         val msg = when {
-            system -> "Cette app est préinstallée sur le téléviseur. Une fois supprimée, elle n'apparaît plus sur l'accueil et ne tourne plus en arrière-plan. Vous pourrez la restaurer dans Réglages de l'accueil → Apps → Apps préinstallées supprimées."
-            repo.isLauncher(app.pkg) -> "Cette app est un écran d'accueil, qui peut prendre le relais si celui-ci a un problème. Sans elle, le téléviseur n'aura plus d'accueil de secours si celui-ci ne démarre pas. L'app et ses données seront supprimées."
-            else -> "L'app et ses données seront supprimées."
+            system -> "This app is preinstalled on the TV. Once removed, it no longer appears on Home or runs in the background. Restore it in Home Settings → Apps → Removed Preinstalled Apps."
+            repo.isLauncher(app.pkg) -> "This app is a home screen that can take over if this one has a problem. Without it, the TV will have no backup home screen if this launcher cannot start. The app and its data will be deleted."
+            else -> "The app and its data will be deleted."
         }
-        showSheet(Sheet(root).title("Supprimer « ${app.label} » ?").message(msg)
-            .button("Supprimer") {
+        showSheet(Sheet(root).title("Uninstall “${app.label}”?").message(msg)
+            .button("Delete") {
                 io.execute {
                     val out = LocalAdb.shell(this, if (system) "pm uninstall -k --user 0 ${app.pkg}" else "pm uninstall ${app.pkg}", 15_000)
                     val ok = out?.contains("Success") == true
@@ -1279,11 +1279,11 @@ class HomeActivity : Activity(), TileAdapter.Listener {
                         if (ok) {
                             if (system) prefs.removed = prefs.removed + app.pkg
                             reload()
-                        } else Toast.makeText(this, "Échec de la suppression : ${out?.trim()?.take(80) ?: "débogage local indisponible"}", Toast.LENGTH_LONG).show()
+                        } else Toast.makeText(this, "Uninstall failed: ${out?.trim()?.take(80) ?: "local debugging unavailable"}", Toast.LENGTH_LONG).show()
                     }
                 }
             }
-            .button("Annuler") {}, restoreFocusTo = pos)
+            .button("Cancel") {}, restoreFocusTo = pos)
     }
 
     override fun onTileKey(pos: Int, cell: TileCell, keyCode: Int): Boolean {
@@ -1334,7 +1334,7 @@ class HomeActivity : Activity(), TileAdapter.Listener {
         adapter.movingPkg = adapter.apps[pos].pkg
         adapter.notifyItemChanged(pos)
         grid.post { focusAt(pos) }
-        Toast.makeText(this, "Déplacez avec les flèches, puis appuyez sur OK", Toast.LENGTH_SHORT).show()
+        Toast.makeText(this, "Move with the arrow keys, then press OK", Toast.LENGTH_SHORT).show()
     }
 
     private fun endMove() {
@@ -1363,7 +1363,7 @@ class HomeActivity : Activity(), TileAdapter.Listener {
     private fun showAvatar() {
         val p = prefs.current()
         avatar.setIcon(ProfileAvatar.drawable(this, p, IconButton.PORTRAIT_DP))
-        avatar.contentDescription = "Profil : ${Profiles.displayName(p)}"
+        avatar.contentDescription = "Profile: ${Profiles.displayName(p)}"
         avatar.visibility = if (prefs.showAvatar || prefs.profileList().size > 1) View.VISIBLE else View.GONE
     }
 
@@ -1373,19 +1373,19 @@ class HomeActivity : Activity(), TileAdapter.Listener {
         val current = prefs.currentProfile
         val unprotected = !prefs.hasPin && list.any { it.restricted }
         val msg = when {
-            unprotected -> "Un profil enfant demande un code PIN pour changer de profil, ouvrir les réglages ou supprimer une app. Aucun code n'est encore défini."
-            list.size == 1 -> "Chaque profil a son propre accueil : ordre des apps, apps masquées, dossiers et fond d'écran. Créez-en dans « Gérer les profils… »."
+            unprotected -> "A child profile requires a PIN to switch profiles, open settings or uninstall an app. No PIN has been set yet."
+            list.size == 1 -> "Each profile has its own Home: app order, hidden apps, folders and wallpaper. Create profiles in “Manage Profiles…”."
             else -> null
         }
-        val s = Sheet(root).title("Profils").message(msg)
+        val s = Sheet(root).title("Profiles").message(msg)
         for (p in list) {
             val name = Profiles.displayName(p)
             s.button(if (p.id == current) "✓  $name" else name, ProfileAvatar.drawable(this, p, PillButton.PICTURE_DP)) { if (p.id != current) switchTo(p) }
         }
-        if (unprotected) s.button("Définir un code PIN…") { pins.choose("Code PIN") }
+        if (unprotected) s.button("Set a PIN…") { pins.choose("PIN") }
         // The settings ask for the PIN themselves in a restricted profile, however they are opened.
-        s.button("Gérer les profils…") { openSettings(SettingsActivity.PAGE_PROFILES) }
-        showSheet(s.button("Annuler") {})
+        s.button("Manage Profiles…") { openSettings(SettingsActivity.PAGE_PROFILES) }
+        showSheet(s.button("Cancel") {})
     }
 
     /**
@@ -1394,11 +1394,11 @@ class HomeActivity : Activity(), TileAdapter.Listener {
      */
     private fun switchTo(p: Profile) {
         when {
-            p.restricted && !prefs.hasPin -> pins.choose("Code PIN",
-                "« ${Profiles.displayName(p)} » est un profil enfant : choisissez d'abord le code PIN qui permettra d'en sortir (de ${Profiles.PIN_MIN} à ${Profiles.PIN_MAX} chiffres).") {
+            p.restricted && !prefs.hasPin -> pins.choose("PIN",
+                "“${Profiles.displayName(p)}” is a child profile: first choose the PIN needed to leave it (${Profiles.PIN_MIN} to ${Profiles.PIN_MAX} digits).") {
                 applyProfile(p.id)
             }
-            prefs.restricted -> pins.ask("Changer de profil") { applyProfile(p.id) }
+            prefs.restricted -> pins.ask("Switch Profile") { applyProfile(p.id) }
             else -> applyProfile(p.id)
         }
     }
@@ -1598,7 +1598,7 @@ class HomeActivity : Activity(), TileAdapter.Listener {
             action == KeyMap.SLEEP_TIMER -> control.sleepTimer()
             action == KeyMap.CLEAN -> control.cleanMemory()
             action == KeyMap.HOME_SETTINGS -> openSettings()
-            action == KeyMap.TV_SETTINGS -> unlocked("Réglages du téléviseur") {
+            action == KeyMap.TV_SETTINGS -> unlocked("TV Settings") {
                 runCatching { startActivity(tv.settingsIntent().addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
             }
             action == KeyMap.PROFILES -> profileSheet()
@@ -1616,7 +1616,7 @@ class HomeActivity : Activity(), TileAdapter.Listener {
             reader.shutdown()
             main.post {
                 if (isDestroyed) return@post
-                if (n != null) block(n) else Toast.makeText(this, "Rien en lecture", Toast.LENGTH_SHORT).show()
+                if (n != null) block(n) else Toast.makeText(this, "Nothing Playing", Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -1790,18 +1790,18 @@ class HomeActivity : Activity(), TileAdapter.Listener {
 
     private fun askAdbAuthorization() {
         if (prefs.adbAuthorized || isFinishing) return
-        showSheet(Sheet(root).title("Activer l'extinction et la mémoire")
-            .message("Le débogage local doit être autorisé une fois. Appuyez sur Commencer : le téléviseur affiche « Autoriser le débogage ? ». Cochez « Toujours autoriser », puis choisissez « Autoriser ».")
-            .button("Commencer") { authorizeAdb() }
-            .button("Plus tard") {})
+        showSheet(Sheet(root).title("Enable Power and Memory Controls")
+            .message("Local debugging must be allowed once. Press Start: the TV shows “Allow debugging?”. Select “Always allow”, then “Allow”.")
+            .button("Start") { authorizeAdb() }
+            .button("Later") {})
     }
 
     fun authorizeAdb() {
-        Toast.makeText(this, "Dans la fenêtre qui s'affiche, cochez « Toujours autoriser » puis choisissez « Autoriser »", Toast.LENGTH_LONG).show()
+        Toast.makeText(this, "In the dialog, select “Always allow”, then “Allow”", Toast.LENGTH_LONG).show()
         io.execute {
             val ok = LocalAdb.shell(this, "echo ok", 60_000) != null
             main.post {
-                Toast.makeText(this, if (ok) "C'est fait : l'extinction et la libération de la mémoire sont disponibles" else "Autorisation refusée ; réessayez dans Réglages de l'accueil", Toast.LENGTH_LONG).show()
+                Toast.makeText(this, if (ok) "Ready: power and memory controls are available" else "Permission denied; try again in Home Settings", Toast.LENGTH_LONG).show()
                 control.refresh()
             }
         }

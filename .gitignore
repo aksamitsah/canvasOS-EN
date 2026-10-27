@@ -14,3 +14,6 @@ local.properties
 keystore.properties
 .env
 .claude/worktrees/
+*.password
+__pycache__/
+*.pyc

@@ -1,4 +1,4 @@
-package com.getisolated.canvasos
+package com.aksamitsah.canvasos.en
 
 /** Move the last opened app to the front, keeping every other app's relative order. */
 object RecentOrder {

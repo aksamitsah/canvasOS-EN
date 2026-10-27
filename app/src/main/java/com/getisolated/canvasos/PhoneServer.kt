@@ -1,4 +1,4 @@
-package com.getisolated.canvasos
+package com.aksamitsah.canvasos.en
 
 import android.app.ActivityManager
 import android.content.ComponentName
@@ -13,7 +13,7 @@ import android.os.Build
 import android.os.SystemClock
 import android.provider.Settings
 import android.util.LruCache
-import com.getisolated.canvasos.tv.TvControls
+import com.aksamitsah.canvasos.en.tv.TvControls
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.EncodeHintType
 import com.google.zxing.qrcode.QRCodeWriter
@@ -280,12 +280,12 @@ class PhoneServer private constructor(private val ctx: Context) : NanoHTTPD(PORT
         val length = session.headers["content-length"]?.toLongOrNull() ?: -1L
         if (length > MAX_TILE + 64 * 1024) {
             drain(session, length)
-            return json(state().put("ok", false).put("message", "Image trop volumineuse : 20 Mo au maximum."))
+            return json(state().put("ok", false).put("message", "Image too large: 20 MB maximum."))
         }
         val files = HashMap<String, String>()
         session.parseBody(files)
         val p = Profiles.byId(prefs.profileList(), session.parameters["id"]?.firstOrNull().orEmpty())
-            ?: return json(state().put("ok", false).put("message", "Ce profil n'existe plus."))
+            ?: return json(state().put("ok", false).put("message", "This profile no longer exists."))
         val f = files.values.map { File(it) }.firstOrNull { it.exists() && it.length() in 1..MAX_TILE }
             ?: return json(state().put("ok", false))
         val ok = Profiles.setPhoto(ctx, p.id, f.readBytes())
@@ -305,7 +305,7 @@ class PhoneServer private constructor(private val ctx: Context) : NanoHTTPD(PORT
         known = all.associateBy { it.pkg }
         knownGrid = grid
         val hidden = prefs.hidden
-        val collator = java.text.Collator.getInstance(java.util.Locale.FRANCE)
+        val collator = java.text.Collator.getInstance(java.util.Locale.ENGLISH)
         fun item(a: AppEntry): JSONObject = JSONObject()
             .put("id", a.pkg)
             .put("kind", when { a.folder != null -> "folder"; a.input != null -> "input"; else -> "app" })
@@ -359,9 +359,9 @@ class PhoneServer private constructor(private val ctx: Context) : NanoHTTPD(PORT
         val grid = knownGrid
         val entry = grid.firstOrNull { it.pkg == key } ?: grid.firstNotNullOfOrNull { f -> f.folder?.firstOrNull { it.pkg == key } }
         val res = when {
-            entry == null -> known[key]?.takeIf { it.pkg in prefs.hidden }?.let { fail("« ${it.label} » est masquée sur l'accueil.") }
-                ?: fail("Cet élément n'est plus sur l'accueil.")
-            inFront() -> if (startHome(key)) ok() else fail("Impossible d'ouvrir ${entry.label}.")
+            entry == null -> known[key]?.takeIf { it.pkg in prefs.hidden }?.let { fail("“${it.label}” is hidden from Home.") }
+                ?: fail("This item is no longer on Home.")
+            inFront() -> if (startHome(key)) ok() else fail("Could not open ${entry.label}.")
             entry.input != null -> { tv.setInput(entry.input); ok() }
             entry.folder != null -> openFolderFromBackground(key)
             else -> openAppFromBackground(entry)
@@ -405,13 +405,13 @@ class PhoneServer private constructor(private val ctx: Context) : NanoHTTPD(PORT
                 Thread.sleep(150)
             }
         }
-        return fail("Ouvrez d'abord l'accueil canvasOS.")
+        return fail("Open canvasOS Home first.")
     }
 
     private fun openAppFromBackground(app: AppEntry): JSONObject {
         // The stock launcher (Xiaomi's PatchWall) only opens through the system Home action, as from its tile.
         if (HomeGuardService.isStockHome(app.pkg) && HomeGuardService.openStockLauncher()) return ok()
-        val intent = repo.launchIntent(app) ?: return fail("Impossible d'ouvrir ${app.label}.")
+        val intent = repo.launchIntent(app) ?: return fail("Could not open ${app.label}.")
         return when {
             prefs.adbAuthorized -> {
                 val cmd = StringBuilder("am start -n ").append(PhoneApi.shellQuote((intent.component ?: app.component).flattenToShortString()))
@@ -420,12 +420,12 @@ class PhoneServer private constructor(private val ctx: Context) : NanoHTTPD(PORT
                 val out = LocalAdb.shell(ctx, cmd.toString())
                 when {
                     out == null -> JSONObject().put("ok", false).put("reason", "unreachable")
-                    out.contains("Error") -> fail("Impossible d'ouvrir ${app.label}.")
+                    out.contains("Error") -> fail("Could not open ${app.label}.")
                     else -> ok()
                 }
             }
             Settings.canDrawOverlays(ctx) ->
-                if (runCatching { ctx.startActivity(intent) }.isSuccess) ok() else fail("Impossible d'ouvrir ${app.label}.")
+                if (runCatching { ctx.startActivity(intent) }.isSuccess) ok() else fail("Could not open ${app.label}.")
             else -> JSONObject().put("ok", false).put("reason", "adb")
         }
     }
@@ -435,7 +435,7 @@ class PhoneServer private constructor(private val ctx: Context) : NanoHTTPD(PORT
         val length = session.headers["content-length"]?.toLongOrNull() ?: -1L
         if (length > MAX_TILE + 64 * 1024) {
             drain(session, length)
-            return json(apps().put("ok", false).put("message", "Image trop volumineuse : 20 Mo au maximum."))
+            return json(apps().put("ok", false).put("message", "Image too large: 20 MB maximum."))
         }
         val files = HashMap<String, String>()
         session.parseBody(files)
@@ -556,7 +556,7 @@ class PhoneServer private constructor(private val ctx: Context) : NanoHTTPD(PORT
      */
     private fun installApk(session: IHTTPSession): Response {
         val length = session.headers["content-length"]?.toLongOrNull() ?: -1L
-        if (length > MAX_APK + 64 * 1024) return json(failure("Fichier trop volumineux : 200 Mo au maximum."))
+        if (length > MAX_APK + 64 * 1024) return json(failure("File too large: 200 MB maximum."))
         if (!prefs.adbAuthorized) {
             drain(session, length)
             return json(JSONObject().put("ok", false).put("reason", "adb"))
@@ -564,25 +564,25 @@ class PhoneServer private constructor(private val ctx: Context) : NanoHTTPD(PORT
         val files = HashMap<String, String>()
         session.parseBody(files)
         val part = files.values.map { File(it) }.firstOrNull { it.exists() && it.length() in 1..MAX_APK }
-            ?: return json(failure("Aucun fichier reçu."))
-        if (!PhoneApi.isApk(part)) return json(failure("Ce fichier n'est pas un APK."))
+            ?: return json(failure("No file received."))
+        if (!PhoneApi.isApk(part)) return json(failure("This file is not an APK."))
         val pm = ctx.packageManager
         val info = runCatching { pm.getPackageArchiveInfo(part.path, 0) }.getOrNull()
         // Installing itself would kill this server halfway; and each release is signed differently anyway.
         if (info?.packageName == ctx.packageName)
-            return json(failure("C'est canvasOS lui-même : mettez-le à jour dans Réglages de l'accueil → Système → Mise à jour, ou depuis un ordinateur (AGENTS.md, étape 3)."))
+            return json(failure("This is canvasOS itself: update it in Home Settings → System → Update, or from a computer (AGENTS.md, step 3)."))
         val label = info?.applicationInfo?.let {
             it.sourceDir = part.path
             it.publicSourceDir = part.path
             runCatching { it.loadLabel(pm).toString() }.getOrNull()
-        } ?: info?.packageName ?: "l'app"
-        val dir = ctx.getExternalFilesDir(null) ?: return json(failure("Le stockage partagé du téléviseur est indisponible."))
+        } ?: info?.packageName ?: "the app"
+        val dir = ctx.getExternalFilesDir(null) ?: return json(failure("The TV's shared storage is unavailable."))
         return synchronized(installing) {
             val apk = File(dir, APK_FILE)
             try {
                 part.copyTo(apk, overwrite = true)
                 Installer.install(ctx, apk).fold(
-                    onSuccess = { json(JSONObject().put("ok", true).put("message", "Installée : $label")) },
+                    onSuccess = { json(JSONObject().put("ok", true).put("message", "Installed: $label")) },
                     onFailure = { e ->
                         if ((e as? Installer.Failure)?.unreachable == true) json(JSONObject().put("ok", false).put("reason", "unreachable"))
                         else json(failure(e.message.orEmpty()))
@@ -700,9 +700,9 @@ class PhoneServer private constructor(private val ctx: Context) : NanoHTTPD(PORT
 
         /** Why [url] is null, for the screens that show the QR code. */
         fun unavailable(ctx: Context): String = when {
-            !Prefs(ctx).phoneServer -> "La page téléphone est désactivée (Réglages de l'accueil → Page téléphone)."
-            lanAddress(ctx) == null -> "Le téléviseur n'est pas connecté au réseau. Connectez-le, puis rouvrez cette page."
-            else -> "La page téléphone n'a pas pu démarrer : le port $PORT est peut-être pris par une autre app."
+            !Prefs(ctx).phoneServer -> "The phone page is disabled (Home Settings → Phone Page)."
+            lanAddress(ctx) == null -> "The TV is not connected to the network. Connect it, then reopen this page."
+            else -> "The phone page could not start: another app may be using port $PORT."
         }
 
         /** A new token: every address handed out so far stops working at once. */

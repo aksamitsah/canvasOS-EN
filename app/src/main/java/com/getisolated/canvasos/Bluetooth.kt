@@ -1,4 +1,4 @@
-package com.getisolated.canvasos
+package com.aksamitsah.canvasos.en
 
 import android.annotation.SuppressLint
 import android.bluetooth.BluetoothAdapter
@@ -277,11 +277,11 @@ object Bluetooth {
     /** "Casque", "Enceinte" or "Manette" when the class says so, so a bare model name reads as what it is. */
     fun nounOf(deviceClass: Int, kind: Kind): String? = when (kind) {
         Kind.AUDIO -> when (deviceClass) {
-            0x0404, 0x0418 -> "Casque"   // wearable headset, headphones
-            0x0414, 0x0410 -> "Enceinte" // loudspeaker, portable audio
+            0x0404, 0x0418 -> "Headphones"   // wearable headset, headphones
+            0x0414, 0x0410 -> "Speaker" // loudspeaker, portable audio
             else -> null
         }
-        Kind.CONTROLLER -> "Manette"
+        Kind.CONTROLLER -> "Controller"
         else -> null
     }
 
@@ -294,7 +294,7 @@ object Bluetooth {
     /** "Casque WH-1000XM4 · connecté · 80 %": a sheet line, and the capsule's subtitle for one device. */
     fun status(d: Device): String = buildString {
         append(shorten(d.label))
-        append(if (d.connected) " · connecté" else " · déconnecté")
+        append(if (d.connected) " · connected" else " · disconnected")
         if (d.connected && d.battery != null) append(" · ${d.battery} %")
     }
 
@@ -302,9 +302,9 @@ object Bluetooth {
     fun summary(devices: List<Device>): String {
         val on = devices.filter { it.connected }
         return when (on.size) {
-            0 -> "Aucun appareil connecté"
+            0 -> "No devices connected"
             1 -> status(on[0])
-            else -> "${on.size} appareils connectés"
+            else -> "${on.size} devices connected"
         }
     }
 }

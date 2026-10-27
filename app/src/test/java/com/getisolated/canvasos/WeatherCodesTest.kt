@@ -1,6 +1,6 @@
-package com.getisolated.canvasos
+package com.aksamitsah.canvasos.en
 
-import com.getisolated.canvasos.Weather.Kind
+import com.aksamitsah.canvasos.en.Weather.Kind
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -16,24 +16,24 @@ class WeatherCodesTest {
 
     /** Open-Meteo's documented codes: code to (label, icon by day, icon by night). */
     private val table: Map<Int, Triple<String, Kind, Kind>> = buildMap {
-        put(0, Triple("Ensoleillé", Kind.SUNNY, Kind.CLEAR_NIGHT))
-        put(1, Triple("Peu nuageux", Kind.PARTLY_CLOUDY, Kind.PARTLY_CLOUDY_NIGHT))
-        put(2, Triple("Nuageux", Kind.PARTLY_CLOUDY, Kind.PARTLY_CLOUDY_NIGHT))
-        put(3, Triple("Couvert", Kind.CLOUDY, Kind.CLOUDY))
-        for (c in listOf(45, 48)) put(c, Triple("Brouillard", Kind.FOG, Kind.FOG))
-        for (c in listOf(51, 53, 55)) put(c, Triple("Bruine", Kind.RAIN, Kind.RAIN))
-        for (c in listOf(56, 57, 66, 67)) put(c, Triple("Pluie verglaçante", Kind.RAIN, Kind.RAIN))
-        put(61, Triple("Pluie faible", Kind.RAIN, Kind.RAIN))
-        put(63, Triple("Pluie", Kind.RAIN, Kind.RAIN))
-        put(65, Triple("Forte pluie", Kind.RAIN, Kind.RAIN))
-        put(71, Triple("Neige faible", Kind.SNOW, Kind.SNOW))
-        for (c in listOf(73, 77)) put(c, Triple("Neige", Kind.SNOW, Kind.SNOW))
-        put(75, Triple("Forte neige", Kind.SNOW, Kind.SNOW))
-        for (c in listOf(80, 81)) put(c, Triple("Averses", Kind.RAIN, Kind.RAIN))
-        put(82, Triple("Fortes averses", Kind.RAIN, Kind.RAIN))
-        for (c in listOf(85, 86)) put(c, Triple("Averses de neige", Kind.SNOW, Kind.SNOW))
-        put(95, Triple("Orage", Kind.THUNDER, Kind.THUNDER))
-        for (c in listOf(96, 99)) put(c, Triple("Orage et grêle", Kind.THUNDER, Kind.THUNDER))
+        put(0, Triple("Sunny", Kind.SUNNY, Kind.CLEAR_NIGHT))
+        put(1, Triple("Partly Cloudy", Kind.PARTLY_CLOUDY, Kind.PARTLY_CLOUDY_NIGHT))
+        put(2, Triple("Cloudy", Kind.PARTLY_CLOUDY, Kind.PARTLY_CLOUDY_NIGHT))
+        put(3, Triple("Overcast", Kind.CLOUDY, Kind.CLOUDY))
+        for (c in listOf(45, 48)) put(c, Triple("Fog", Kind.FOG, Kind.FOG))
+        for (c in listOf(51, 53, 55)) put(c, Triple("Drizzle", Kind.RAIN, Kind.RAIN))
+        for (c in listOf(56, 57, 66, 67)) put(c, Triple("Freezing Rain", Kind.RAIN, Kind.RAIN))
+        put(61, Triple("Light Rain", Kind.RAIN, Kind.RAIN))
+        put(63, Triple("Rain", Kind.RAIN, Kind.RAIN))
+        put(65, Triple("Heavy Rain", Kind.RAIN, Kind.RAIN))
+        put(71, Triple("Light Snow", Kind.SNOW, Kind.SNOW))
+        for (c in listOf(73, 77)) put(c, Triple("Snow", Kind.SNOW, Kind.SNOW))
+        put(75, Triple("Heavy Snow", Kind.SNOW, Kind.SNOW))
+        for (c in listOf(80, 81)) put(c, Triple("Showers", Kind.RAIN, Kind.RAIN))
+        put(82, Triple("Heavy Showers", Kind.RAIN, Kind.RAIN))
+        for (c in listOf(85, 86)) put(c, Triple("Snow Showers", Kind.SNOW, Kind.SNOW))
+        put(95, Triple("Thunderstorm", Kind.THUNDER, Kind.THUNDER))
+        for (c in listOf(96, 99)) put(c, Triple("Thunder & Hail", Kind.THUNDER, Kind.THUNDER))
     }
 
     @Test fun everyDocumentedCodeHasItsLabelAndItsIconByDayAndByNight() {
@@ -44,7 +44,7 @@ class WeatherCodesTest {
             assertEquals("kind $code by day", day, Weather.kind(code, true))
             assertEquals("kind $code by night", night, Weather.kind(code, false))
             // Only a clear sky is worded differently at night.
-            assertEquals("label $code by night", if (code == 0) "Dégagé" else label, Weather.label(code, false))
+            assertEquals("label $code by night", if (code == 0) "Clear" else label, Weather.label(code, false))
         }
     }
 
@@ -65,7 +65,7 @@ class WeatherCodesTest {
 
     @Test fun codesNobodyDocumentedAreUnknownButNeverBreakAScreen() {
         val unknown = (-5..200).filter { it !in table }
-        for (code in unknown) assertEquals("code $code", "Temps inconnu", Weather.label(code))
+        for (code in unknown) assertEquals("code $code", "Unknown Weather", Weather.label(code))
         // Far from every family the icon is a plain cloud.
         for (code in listOf(-1, 4, 10, 44, 46, 47, 49, 50, 68, 69, 70, 78, 79, 83, 84, 87, 90, 94, 100, 200, Int.MAX_VALUE, Int.MIN_VALUE)) {
             assertEquals("code $code", Kind.CLOUDY, Weather.kind(code, true))
@@ -123,8 +123,8 @@ class WeatherCodesTest {
     @Test fun aForecastWithNoDaysStillShowsTheCurrentWeather() {
         val f = Weather.parse(forecast(daily = """"daily":{"time":[],"weather_code":[],"temperature_2m_max":[],"temperature_2m_min":[]}"""))!!
         assertTrue(f.days.isEmpty())
-        assertEquals("14° · Couvert", Weather.summary(f, today))
-        assertEquals("14° · Couvert", Weather.now(f))
+        assertEquals("14° · Overcast", Weather.summary(f, today))
+        assertEquals("14° · Overcast", Weather.now(f))
         assertTrue(Weather.upcoming(f, today).isEmpty())
     }
 
@@ -148,12 +148,12 @@ class WeatherCodesTest {
         assertEquals(4, Weather.upcoming(f, today.minusDays(30)).size)
     }
 
-    @Test fun dayNamesAreFrenchAndCapitalised() {
-        // 22 October 2026 is a Thursday, so the 29th is the next one and is not "Demain".
+    @Test fun dayNamesAreEnglishAndCapitalised() {
+        // 22 October 2026 is a Thursday, so the 29th is the next one and is not "Tomorrow".
         val names = (22..29).map { Weather.dayName("2026-10-$it", today) }
-        assertEquals(listOf("Aujourd'hui", "Demain", "Samedi", "Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi"), names)
-        assertEquals("Vendredi", Weather.dayName("2026-10-30", today))
-        assertEquals("a day already past is named, not 'Hier'", "Mercredi", Weather.dayName("2026-10-21", today))
+        assertEquals(listOf("Today", "Tomorrow", "Saturday", "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday"), names)
+        assertEquals("Friday", Weather.dayName("2026-10-30", today))
+        assertEquals("a day already past is named, not 'Hier'", "Wednesday", Weather.dayName("2026-10-21", today))
     }
 
     @Test fun anUnreadableDateIsShownAsItIs() {
@@ -175,8 +175,8 @@ class WeatherCodesTest {
     }
 
     @Test fun aDayLineUsesTheDaytimeWordsAndBothTemperatures() {
-        assertEquals("Aujourd'hui · Ensoleillé · -2° / 7°", Weather.dayLine(Weather.Day("2026-10-22", 0, -2.0, 7.0), today))
-        assertEquals("bientôt · Temps inconnu · 0° / 0°", Weather.dayLine(Weather.Day("bientôt", 4, 0.0, 0.0), today))
+        assertEquals("Today · Sunny · -2° / 7°", Weather.dayLine(Weather.Day("2026-10-22", 0, -2.0, 7.0), today))
+        assertEquals("bientôt · Unknown Weather · 0° / 0°", Weather.dayLine(Weather.Day("bientôt", 4, 0.0, 0.0), today))
     }
 
     @Test fun placesWithoutNameOrCoordinatesAreSkipped() {
@@ -226,7 +226,7 @@ class WeatherCodesTest {
             "&current=temperature_2m,weather_code,is_day&daily=weather_code,temperature_2m_max,temperature_2m_min" +
             "&timezone=auto&forecast_days=5", Weather.forecastUrl(-33.86882, 151.20929))
         assertTrue(Weather.forecastUrl(0.0, 0.0).contains("latitude=0.0000&longitude=0.0000"))
-        assertEquals("https://geocoding-api.open-meteo.com/v1/search?name=a%2Bb%20c%26d&count=5&language=fr&format=json", Weather.searchUrl("a+b c&d"))
+        assertEquals("https://geocoding-api.open-meteo.com/v1/search?name=a%2Bb%20c%26d&count=5&language=en&format=json", Weather.searchUrl("a+b c&d"))
         assertTrue(Weather.searchUrl("").contains("name=&count=5"))
         assertTrue(Weather.searchUrl("Zoé").contains("name=Zo%C3%A9&"))
     }

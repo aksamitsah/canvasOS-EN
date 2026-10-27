@@ -1,4 +1,4 @@
-package com.getisolated.canvasos
+package com.aksamitsah.canvasos.en
 
 import android.content.BroadcastReceiver
 import android.content.Context
@@ -39,7 +39,7 @@ object Weather {
     /** An older forecast is not shown at all: a TV offline since yesterday shows no weather rather than yesterday's. */
     const val STALE_MS = 3 * 3600_000L
 
-    const val LOCATE_URL = "http://ip-api.com/json/?fields=status,city,lat,lon&lang=fr"
+    const val LOCATE_URL = "http://ip-api.com/json/?fields=status,city,lat,lon&lang=en"
 
     /** The drawings in res/drawable/ic_wx_*.xml. */
     enum class Kind { SUNNY, CLEAR_NIGHT, PARTLY_CLOUDY, PARTLY_CLOUDY_NIGHT, CLOUDY, FOG, RAIN, SNOW, THUNDER }
@@ -67,7 +67,7 @@ object Weather {
     private fun coord(v: Double) = String.format(Locale.US, "%.4f", v)
 
     fun searchUrl(name: String) = "https://geocoding-api.open-meteo.com/v1/search?name=" +
-        URLEncoder.encode(name.trim(), "UTF-8").replace("+", "%20") + "&count=5&language=fr&format=json"
+        URLEncoder.encode(name.trim(), "UTF-8").replace("+", "%20") + "&count=5&language=en&format=json"
 
     /** Open-Meteo's forecast answer, or null when it is not one. */
     fun parse(json: String): Forecast? = runCatching {
@@ -111,25 +111,25 @@ object Weather {
 
     /** The condition in a few French words, short enough for the Control Center's capsule. */
     fun label(code: Int, isDay: Boolean = true): String = when (code) {
-        0 -> if (isDay) "Ensoleillé" else "Dégagé"
-        1 -> "Peu nuageux"
-        2 -> "Nuageux"
-        3 -> "Couvert"
-        45, 48 -> "Brouillard"
-        51, 53, 55 -> "Bruine"
-        56, 57, 66, 67 -> "Pluie verglaçante"
-        61 -> "Pluie faible"
-        63 -> "Pluie"
-        65 -> "Forte pluie"
-        71 -> "Neige faible"
-        73, 77 -> "Neige"
-        75 -> "Forte neige"
-        80, 81 -> "Averses"
-        82 -> "Fortes averses"
-        85, 86 -> "Averses de neige"
-        95 -> "Orage"
-        96, 99 -> "Orage et grêle"
-        else -> "Temps inconnu"
+        0 -> if (isDay) "Sunny" else "Clear"
+        1 -> "Partly Cloudy"
+        2 -> "Cloudy"
+        3 -> "Overcast"
+        45, 48 -> "Fog"
+        51, 53, 55 -> "Drizzle"
+        56, 57, 66, 67 -> "Freezing Rain"
+        61 -> "Light Rain"
+        63 -> "Rain"
+        65 -> "Heavy Rain"
+        71 -> "Light Snow"
+        73, 77 -> "Snow"
+        75 -> "Heavy Snow"
+        80, 81 -> "Showers"
+        82 -> "Heavy Showers"
+        85, 86 -> "Snow Showers"
+        95 -> "Thunderstorm"
+        96, 99 -> "Thunder & Hail"
+        else -> "Unknown Weather"
     }
 
     fun kind(code: Int, isDay: Boolean = true): Kind = when (code) {
@@ -176,9 +176,9 @@ object Weather {
     fun dayName(date: String, today: LocalDate = LocalDate.now()): String {
         val d = runCatching { LocalDate.parse(date) }.getOrNull() ?: return date
         return when (d) {
-            today -> "Aujourd'hui"
-            today.plusDays(1) -> "Demain"
-            else -> d.dayOfWeek.getDisplayName(TextStyle.FULL, Locale.FRANCE).replaceFirstChar { it.titlecase(Locale.FRANCE) }
+            today -> "Today"
+            today.plusDays(1) -> "Tomorrow"
+            else -> d.dayOfWeek.getDisplayName(TextStyle.FULL, Locale.ENGLISH).replaceFirstChar { it.titlecase(Locale.ENGLISH) }
         }
     }
 
@@ -203,7 +203,7 @@ object Weather {
 
     /** The place as the screens show it: "Paris", "Paris (détecté)", or "" when there is none yet. */
     fun placeLabel(p: Prefs): String =
-        if (p.weatherPlace.isEmpty()) "" else p.weatherPlace + if (p.weatherAuto) " (détecté)" else ""
+        if (p.weatherPlace.isEmpty()) "" else p.weatherPlace + if (p.weatherAuto) " (estimated)" else ""
 
     // The cache is read every minute and on each Control Center opening; parsed once per new answer.
     @Volatile private var memo: Pair<String, Cached?>? = null

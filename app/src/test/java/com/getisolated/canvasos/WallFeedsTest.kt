@@ -1,4 +1,4 @@
-package com.getisolated.canvasos
+package com.aksamitsah.canvasos.en
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -42,7 +42,7 @@ class WallFeedsTest {
             "mime":"image/jpeg","extmetadata":{"ImageDescription":{"value":"Description: Komos Beach"},"LicenseShortName":{"value":"Public domain"}}}]},
           "43":{"title":"File:Oka River.jpg","imageinfo":[{"width":4836,"height":3016,"url":"https://upload.wikimedia.org/d.jpg","mime":"image/jpeg"}]}}}}"""
         val pics = WallFeeds.potd(json)
-        assertEquals(setOf("Komos Beach · Wikimedia Commons · Domaine public", "Oka River · Wikimedia Commons"), pics.map { it.caption }.toSet())
+        assertEquals(setOf("Komos Beach · Wikimedia Commons · Public Domain", "Oka River · Wikimedia Commons"), pics.map { it.caption }.toSet())
         assertEquals("without a thumbnail, the original", setOf("https://upload.wikimedia.org/c.jpg", "https://upload.wikimedia.org/d.jpg"),
             pics.map { it.url }.toSet())
     }
@@ -120,7 +120,7 @@ class WallFeedsTest {
             "artistDisplayName":"Jan van Goyen","objectDate":"1646","classification":"Paintings",
             "measurements":[{"elementName":"Overall","elementDescription":null,"elementMeasurements":{"Height":34.6,"Width":50.5}}]}"""
         assertEquals(FeedPic("https://images.metmuseum.org/CRDImages/ep/original/DP146495.jpg",
-            "View of Haarlem and the Haarlemmer Meer — Jan van Goyen (1646) · The Met · Domaine public", "met-436558"),
+            "View of Haarlem and the Haarlemmer Meer — Jan van Goyen (1646) · The Met · Public Domain", "met-436558"),
             WallFeeds.metObject(haarlem))
         val madonna = """{"objectID":435682,"isPublicDomain":true,"primaryImage":"https://images.metmuseum.org/CRDImages/ep/original/EP258.jpg",
             "title":"Madonna and Child","artistDisplayName":"Boccaccio Boccaccino","objectDate":"1506–1518",
@@ -129,7 +129,7 @@ class WallFeedsTest {
         assertNull("not public domain, though the search asked for it",
             WallFeeds.metObject("""{"objectID":438638,"isPublicDomain":false,"primaryImage":"","title":"Landscape"}"""))
         assertNull("no picture", WallFeeds.metObject("""{"objectID":1,"isPublicDomain":true,"primaryImage":"","title":"x"}"""))
-        assertEquals("no size: kept, the download decides", "Landscape · The Met · Domaine public", WallFeeds.metObject(
+        assertEquals("no size: kept, the download decides", "Landscape · The Met · Public Domain", WallFeeds.metObject(
             """{"objectID":2,"isPublicDomain":true,"primaryImage":"https://images.metmuseum.org/a.jpg","title":"Landscape","artistDisplayName":"","objectDate":""}""")?.caption)
     }
 
@@ -160,9 +160,9 @@ class WallFeedsTest {
         ],"config":{"iiif_url":"https://www.artic.edu/iiif/2","website_url":"http://www.artic.edu"}}"""
         assertEquals(listOf(
             FeedPic("https://www.artic.edu/iiif/2/3192ae4d-ffca-fe91-af12-2ca681f43e13/full/1686,/0/default.jpg",
-                "York Harbor, Coast of Maine — Martin Johnson Heade (1877) · Art Institute of Chicago · Domaine public", "aic-152747"),
+                "York Harbor, Coast of Maine — Martin Johnson Heade (1877) · Art Institute of Chicago · Public Domain", "aic-152747"),
             FeedPic("https://www.artic.edu/iiif/2/7951054b-f49a-6824-10ab-a3a301f39115/full/1686,/0/default.jpg",
-                "The Prairie on Fire — Alvan Fisher (1827) · Art Institute of Chicago · Domaine public", "aic-196282"),
+                "The Prairie on Fire — Alvan Fisher (1827) · Art Institute of Chicago · Public Domain", "aic-196282"),
         ), WallFeeds.artic(json))
     }
 

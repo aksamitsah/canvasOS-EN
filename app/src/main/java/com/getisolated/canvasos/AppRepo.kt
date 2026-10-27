@@ -1,4 +1,4 @@
-package com.getisolated.canvasos
+package com.aksamitsah.canvasos.en
 
 import android.content.ComponentName
 import android.content.Context
@@ -16,7 +16,7 @@ import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Drawable
 import android.util.LruCache
 import androidx.palette.graphics.Palette
-import com.getisolated.canvasos.tv.Input
+import com.aksamitsah.canvasos.en.tv.Input
 import org.json.JSONObject
 import java.io.File
 import java.text.Collator
@@ -141,7 +141,7 @@ class AppRepo(private val ctx: Context) {
         var order = prefs.order
         if (order.isEmpty()) order = Prefs.DEFAULT_ORDER
         val rank = order.withIndex().associate { it.value to it.index }
-        val collator = Collator.getInstance(Locale.FRANCE)
+        val collator = Collator.getInstance(Locale.ENGLISH)
         val folders = prefs.folderList()
         val inFolder = Folders.members(folders)
         val byKey = apps.associateBy { it.pkg }
@@ -383,7 +383,7 @@ class AppRepo(private val ctx: Context) {
         private const val CUSTOM_H = 450
 
         /** Sent to this app alone when a name, a picture or the hidden list changed elsewhere (the phone page). */
-        const val ACTION_TILE_CHANGED = "com.getisolated.canvasos.TILE_CHANGED"
+        const val ACTION_TILE_CHANGED = "com.aksamitsah.canvasos.en.TILE_CHANGED"
         const val EXTRA_PKG = "pkg"
 
         private val PACKAGE = Regex("[A-Za-z][A-Za-z0-9_]*(\\.[A-Za-z0-9_]+)+")

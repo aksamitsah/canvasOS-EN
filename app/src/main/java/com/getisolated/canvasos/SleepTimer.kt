@@ -1,4 +1,4 @@
-package com.getisolated.canvasos
+package com.aksamitsah.canvasos.en
 
 import android.app.AlarmManager
 import android.app.PendingIntent
@@ -72,7 +72,7 @@ object SleepTimer {
     fun span(ms: Long): String {
         val minutes = (ms + 59_999L) / 60_000L
         return when {
-            minutes < 1 -> "moins d'une minute"
+            minutes < 1 -> "less than a minute"
             minutes < 60 -> "$minutes min"
             minutes % 60 == 0L -> "${minutes / 60} h"
             else -> "${minutes / 60} h ${(minutes % 60).toString().padStart(2, '0')}"

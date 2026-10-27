@@ -1,6 +1,6 @@
-package com.getisolated.canvasos
+package com.aksamitsah.canvasos.en
 
-import com.getisolated.canvasos.ShelfFeeds.TvRow
+import com.aksamitsah.canvasos.en.ShelfFeeds.TvRow
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -24,8 +24,8 @@ class ShelfFeedsTest {
     @Test fun tmdbMergesMoviesAndSeriesByPopularity() {
         val items = ShelfFeeds.tmdb(movies, series)
         assertEquals(listOf("La Série", "Le Film", "Peu de votes", "Original Only"), items.map { it.title })
-        assertEquals("Série · 2024 · ★ 8,1", items[0].meta)
-        assertEquals("Film · 2025 · ★ 7,8", items[1].meta)
+        assertEquals("Series · 2024 · ★ 8.1", items[0].meta)
+        assertEquals("Film · 2025 · ★ 7.8", items[1].meta)
         assertEquals("a rating from three votes is left out, and so is an empty date", "Film", items[2].meta)
         assertEquals("https://image.tmdb.org/t/p/w1280/serie.jpg", items[0].image)
     }
@@ -59,7 +59,7 @@ class ShelfFeedsTest {
         val url = ShelfFeeds.discoverUrl("tv", "9|119")
         assertTrue(url.startsWith("https://api.themoviedb.org/3/discover/tv?"))
         assertTrue(url, "with_watch_providers=9%7C119" in url)
-        assertTrue("watch_region=FR" in url && "language=fr-FR" in url && "sort_by=popularity.desc" in url)
+        assertTrue("watch_region=FR" in url && "language=en-US" in url && "sort_by=popularity.desc" in url)
         val v3 = "0123456789abcdef0123456789abcdef"
         assertFalse(ShelfFeeds.isBearer(v3))
         assertEquals("$url&api_key=$v3", ShelfFeeds.withKey(url, v3))
@@ -87,10 +87,10 @@ class ShelfFeedsTest {
         )
         val items = ShelfFeeds.watchNext(rows)
         assertEquals(listOf("La Série", "Ancien"), items.map { it.title })
-        assertEquals("Saison 2 · Épisode 5 · Le retour · Il reste 23 min", items[0].meta)
+        assertEquals("Season 2 · Episode 5 · Le retour · Remaining: 23 min", items[0].meta)
         assertEquals("the wide still beats the portrait poster", "https://a/still.jpg", items[0].image)
-        assertEquals("Continuer à regarder", ShelfFeeds.watchNextLabel(rows))
-        assertEquals("Ma liste", ShelfFeeds.watchNextLabel(listOf(TvRow("A", watchNextType = 3), TvRow("B", watchNextType = 0, browsable = false))))
+        assertEquals("Continue Watching", ShelfFeeds.watchNextLabel(rows))
+        assertEquals("My List", ShelfFeeds.watchNextLabel(listOf(TvRow("A", watchNextType = 3), TvRow("B", watchNextType = 0, browsable = false))))
     }
 
     @Test fun metaFallsBackToDescriptionThenType() {

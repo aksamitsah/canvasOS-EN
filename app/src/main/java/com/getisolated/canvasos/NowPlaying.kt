@@ -1,4 +1,4 @@
-package com.getisolated.canvasos
+package com.aksamitsah.canvasos.en
 
 import android.content.Context
 import android.graphics.Bitmap
@@ -359,8 +359,8 @@ class NowPlaying private constructor(
         fun subtitle(hasTitle: Boolean, line: String?, app: String, playing: Boolean): String = when {
             line != null -> line
             hasTitle -> app
-            playing -> "En lecture"
-            else -> "En pause"
+            playing -> "Playing"
+            else -> "Paused"
         }
 
         /**

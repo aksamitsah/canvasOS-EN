@@ -1,4 +1,4 @@
-package com.getisolated.canvasos
+package com.aksamitsah.canvasos.en
 
 import org.json.JSONArray
 import org.json.JSONObject
@@ -40,7 +40,7 @@ object ShelfFeeds {
      */
     fun discoverUrl(kind: String, providers: String): String =
         "$TMDB_API/discover/$kind?watch_region=FR&with_watch_providers=${URLEncoder.encode(providers, "UTF-8")}" +
-            "&with_watch_monetization_types=flatrate&sort_by=popularity.desc&language=fr-FR&include_adult=false&page=1"
+            "&with_watch_monetization_types=flatrate&sort_by=popularity.desc&language=en-US&include_adult=false&page=1"
 
     /** Any cheap call that answers 401 to a bad key. */
     const val TMDB_CHECK = "$TMDB_API/authentication"
@@ -74,9 +74,9 @@ object ShelfFeeds {
             // A rating from a handful of votes says nothing.
             val rating = o.optDouble("vote_average", 0.0).takeIf { it > 0 && o.optInt("vote_count", 0) >= 10 }
             val meta = listOfNotNull(
-                if (tv) "Série" else "Film",
+                if (tv) "Series" else "Film",
                 year,
-                rating?.let { "★ " + String.format(Locale.FRANCE, "%.1f", it) },
+                rating?.let { "★ " + String.format(Locale.ENGLISH, "%.1f", it) },
             ).joinToString(" · ")
             Shelf.Item(title, meta, TMDB_IMAGE + backdrop) to o.optDouble("popularity", 0.0)
         }
@@ -135,8 +135,8 @@ object ShelfFeeds {
 
     /** "Ma liste" when the app only put titles to watch later there, "Continuer à regarder" otherwise. */
     fun watchNextLabel(rows: List<TvRow>): String =
-        if (rows.isNotEmpty() && rows.filter { it.browsable }.all { it.watchNextType == WATCHLIST }) "Ma liste"
-        else "Continuer à regarder"
+        if (rows.isNotEmpty() && rows.filter { it.browsable }.all { it.watchNextType == WATCHLIST }) "My List"
+        else "Continue Watching"
 
     /** A row as a shelf item, or null without a title or a picture. */
     fun item(r: TvRow, watchNext: Boolean): Shelf.Item? {
@@ -167,8 +167,8 @@ object ShelfFeeds {
         val parts = ArrayList<String>()
         val season = r.season?.trim()?.takeIf { it.isNotEmpty() }
         val episode = r.episode?.trim()?.takeIf { it.isNotEmpty() }
-        season?.let { parts += "Saison $it" }
-        episode?.let { parts += "Épisode $it" }
+        season?.let { parts += "Season $it" }
+        episode?.let { parts += "Episode $it" }
         r.episodeTitle?.trim()?.takeIf { it.isNotEmpty() && it != title }?.let { parts += it }
         if (watchNext) remaining(r.positionMs, r.durationMs)?.let { parts += it }
         if (parts.isEmpty()) oneLine(r.description)?.let { return it }
@@ -182,7 +182,7 @@ object ShelfFeeds {
 
     fun remaining(positionMs: Long, durationMs: Long): String? {
         if (positionMs <= 0 || durationMs <= 0 || positionMs >= durationMs) return null
-        return "Il reste " + length(durationMs - positionMs)
+        return "Remaining: " + length(durationMs - positionMs)
     }
 
     /** "23 min", "1 h 05", rounded up to the minute. */
@@ -193,18 +193,18 @@ object ShelfFeeds {
 
     fun typeLabel(type: Int): String? = when (type) {
         0 -> "Film"            // TYPE_MOVIE
-        1 -> "Série"           // TYPE_TV_SERIES
-        2 -> "Saison"          // TYPE_TV_SEASON
-        3 -> "Épisode"         // TYPE_TV_EPISODE
-        4 -> "Vidéo"           // TYPE_CLIP
-        5 -> "Événement"       // TYPE_EVENT
-        6 -> "Chaîne"          // TYPE_CHANNEL
-        7 -> "Morceau"         // TYPE_TRACK
+        1 -> "Series"           // TYPE_TV_SERIES
+        2 -> "Season"          // TYPE_TV_SEASON
+        3 -> "Episode"         // TYPE_TV_EPISODE
+        4 -> "Video"           // TYPE_CLIP
+        5 -> "Event"       // TYPE_EVENT
+        6 -> "Channel"          // TYPE_CHANNEL
+        7 -> "Track"         // TYPE_TRACK
         8 -> "Album"           // TYPE_ALBUM
-        9 -> "Artiste"         // TYPE_ARTIST
+        9 -> "Artist"         // TYPE_ARTIST
         10 -> "Playlist"       // TYPE_PLAYLIST
         11 -> "Radio"          // TYPE_STATION
-        12 -> "Jeu"            // TYPE_GAME
+        12 -> "Game"            // TYPE_GAME
         else -> null
     }
 

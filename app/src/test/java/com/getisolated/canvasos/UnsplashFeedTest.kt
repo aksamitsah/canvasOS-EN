@@ -1,4 +1,4 @@
-package com.getisolated.canvasos
+package com.aksamitsah.canvasos.en
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -21,7 +21,7 @@ class UnsplashFeedTest {
         val p = pics[0]
         assertEquals("us-abc123", p.id)
         assertTrue(p.url.startsWith("https://images.unsplash.com/photo-1?ixid=M3w&ixlib=rb&w=3840&fit=max"))
-        assertEquals("a lake at dawn · Photo de Jane Doe · Unsplash", p.caption)
+        assertEquals("a lake at dawn · Photo by Jane Doe · Unsplash", p.caption)
         assertEquals("https://api.unsplash.com/photos/abc123/download?ixid=M3w", p.track)
     }
 

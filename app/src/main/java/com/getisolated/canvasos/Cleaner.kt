@@ -1,4 +1,4 @@
-package com.getisolated.canvasos
+package com.aksamitsah.canvasos.en
 
 import android.app.ActivityManager
 import android.content.ComponentName
@@ -149,12 +149,12 @@ object Cleaner {
     ) {
         val freedMb get() = (afterMb - beforeMb).coerceAtLeast(0)
 
-        val freedText get() = "$freedMb Mo " + if (freedMb > 1) "libérés" else "libéré"
+        val freedText get() = "$freedMb MB " + if (freedMb > 1) "freed" else "freed"
 
         val closedText get() = when (closed.size) {
-            0 -> "aucune app fermée"
-            1 -> "1 app fermée"
-            else -> "${closed.size} apps fermées"
+            0 -> "no apps closed"
+            1 -> "1 app closed"
+            else -> "${closed.size} apps closed"
         }
 
         /**
@@ -162,9 +162,9 @@ object Cleaner {
          * only cached processes could go, and nothing tells which.
          */
         fun summary(sep: String = " · "): String {
-            if (!viaAdb) return "$freedText (cache uniquement)"
+            if (!viaAdb) return "$freedText (cache only)"
             val parts = mutableListOf(freedText, closedText)
-            if (spared.isNotEmpty()) parts += "${spared.size} en cours d'utilisation " + if (spared.size > 1) "épargnées" else "épargnée"
+            if (spared.isNotEmpty()) parts += "${spared.size} in use " + if (spared.size > 1) "kept" else "kept"
             return parts.joinToString(sep)
         }
     }
@@ -224,7 +224,7 @@ object Cleaner {
         Thread.sleep(1500)
         val r = Result(before, availMb(ctx), stopped, viaAdb, closed, spared)
         Log.i(TAG, "freed ${r.freedMb} MB, adb=$viaAdb, closed $closed, spared (in use) $spared")
-        prefs.lastClean = SimpleDateFormat("d MMM HH:mm", Locale.FRANCE).format(Date()) + ", " + r.summary(", ")
+        prefs.lastClean = SimpleDateFormat("d MMM HH:mm", Locale.ENGLISH).format(Date()) + ", " + r.summary(", ")
         prefs.lastCleanClosed = closed.joinToString(",")
         return r
     }

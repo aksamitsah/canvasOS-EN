@@ -1,4 +1,4 @@
-package com.getisolated.canvasos
+package com.aksamitsah.canvasos.en
 
 import android.content.ContextWrapper
 import android.content.SharedPreferences
@@ -104,7 +104,7 @@ class ProfilesTest {
     @Test fun lookups() {
         val list = listOf(main, kids, yass)
         assertEquals("k1", Profiles.byName(list, " enfants ")?.id)
-        assertEquals(Profiles.MAIN, Profiles.byName(list, "principal")?.id)
+        assertEquals(Profiles.MAIN, Profiles.byName(list, "main")?.id)
         assertNull(Profiles.byName(list, "Invité"))
         assertEquals("y1", Profiles.resolve(list, "y1"))
         assertEquals(Profiles.MAIN, Profiles.resolve(list, "gone"))
@@ -141,8 +141,8 @@ class ProfilesTest {
     }
 
     @Test fun everyProfileHasALetter() {
-        assertEquals("P", Profiles.letter(main))
-        assertEquals("P", Profiles.letter(Profile(Profiles.MAIN, "", 0, false)))
+        assertEquals("M", Profiles.letter(main))
+        assertEquals("M", Profiles.letter(Profile(Profiles.MAIN, "", 0, false)))
         assertEquals("E", Profiles.letter(kids))
         assertEquals("P", Profiles.letter(Profile("e1", "😀", 0, false)))
         assertEquals("P", Profiles.letter(Profiles.add(listOf(main), "n1", "  ").last()))

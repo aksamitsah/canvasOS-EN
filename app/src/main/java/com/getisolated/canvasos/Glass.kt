@@ -1,4 +1,4 @@
-package com.getisolated.canvasos
+package com.aksamitsah.canvasos.en
 
 import android.graphics.Bitmap
 import android.graphics.BitmapShader

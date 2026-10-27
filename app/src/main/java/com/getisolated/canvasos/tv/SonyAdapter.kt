@@ -1,4 +1,4 @@
-package com.getisolated.canvasos.tv
+package com.aksamitsah.canvasos.en.tv
 
 import android.content.Context
 import android.os.Build
@@ -40,7 +40,7 @@ class SonyAdapter(ctx: Context) : AndroidAdapter(ctx) {
 
     /** Sony reports the input being shown, so with Sony's inputs listed and none current, the TV is on the home screen. */
     override fun inputSummary(list: List<Input>) =
-        if (list.firstOrNull()?.uri?.startsWith(URI_PREFIX) == true) "Actuelle : accueil" else super.inputSummary(list)
+        if (list.firstOrNull()?.uri?.startsWith(URI_PREFIX) == true) "Current: Home" else super.inputSummary(list)
 
     private companion object {
         const val URI_PREFIX = "extInput:"

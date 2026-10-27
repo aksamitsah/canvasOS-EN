@@ -1,4 +1,4 @@
-package com.getisolated.canvasos
+package com.aksamitsah.canvasos.en
 
 import android.animation.ValueAnimator
 import android.content.Context
@@ -363,7 +363,7 @@ class Sheet(private val host: FrameLayout) {
         field = f
         col.addView(f, LinearLayout.LayoutParams(ctx.dp(420), ctx.dp(56)).apply { topMargin = ctx.dp(12); bottomMargin = ctx.dp(8) })
         button("OK") { done(f.text.toString()) }
-        button("Annuler") {}
+        button("Cancel") {}
         (scroll.layoutParams as FrameLayout.LayoutParams).apply {
             gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
             topMargin = ctx.dp(56 - SCROLL_PAD)

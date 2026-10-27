@@ -1,4 +1,4 @@
-package com.getisolated.canvasos.tv
+package com.aksamitsah.canvasos.en.tv
 
 import android.content.ComponentName
 import android.content.Context
@@ -19,7 +19,7 @@ class CoocaaAdapter(ctx: Context) : AndroidAdapter(ctx) {
     override fun matches() = isCoocaa() || pickerAvailable()
 
     override fun inputs() = super.inputs().ifEmpty {
-        if (pickerAvailable()) listOf(Input(URI_PREFIX, "Sources Coocaa", "", false)) else emptyList()
+        if (pickerAvailable()) listOf(Input(URI_PREFIX, "Coocaa Inputs", "", false)) else emptyList()
     }
 
     override fun setInput(i: Input) {
@@ -29,7 +29,7 @@ class CoocaaAdapter(ctx: Context) : AndroidAdapter(ctx) {
     }
 
     override fun inputSummary(list: List<Input>) =
-        if (list.firstOrNull()?.uri == URI_PREFIX) "Sélecteur de source Coocaa" else super.inputSummary(list)
+        if (list.firstOrNull()?.uri == URI_PREFIX) "Coocaa Input Selector" else super.inputSummary(list)
 
     /**
      * The launcher package alone isn't enough: an older firmware may lack the picker activity,

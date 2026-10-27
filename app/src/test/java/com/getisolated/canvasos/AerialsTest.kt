@@ -1,4 +1,4 @@
-package com.getisolated.canvasos
+package com.aksamitsah.canvasos.en
 
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
@@ -23,10 +23,10 @@ class AerialsTest {
     }
 
     @Test fun beforeTheFirstCaptionThereIsNoText() {
-        val a = aerial(5 to "Plus tard")
+        val a = aerial(5 to "Later")
         assertEquals("", a.captionAt(0))
         assertEquals("", a.captionAt(4))
-        assertEquals("Plus tard", a.captionAt(5))
+        assertEquals("Later", a.captionAt(5))
         assertEquals("", a.captionAt(-1))
     }
 

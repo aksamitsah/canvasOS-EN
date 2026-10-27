@@ -1,4 +1,4 @@
-package com.getisolated.canvasos
+package com.aksamitsah.canvasos.en
 
 import android.media.session.PlaybackState
 import org.junit.Assert.assertEquals
@@ -41,8 +41,8 @@ class NowPlayingTest {
         assertEquals("Daft Punk", NowPlaying.subtitle(true, "Daft Punk", "Spotify", true))
         assertEquals("Spotify", NowPlaying.subtitle(true, null, "Spotify", false))
         // Without a title the app's name is the title already.
-        assertEquals("En lecture", NowPlaying.subtitle(false, null, "Plex", true))
-        assertEquals("En pause", NowPlaying.subtitle(false, null, "Plex", false))
+        assertEquals("Playing", NowPlaying.subtitle(false, null, "Plex", true))
+        assertEquals("Paused", NowPlaying.subtitle(false, null, "Plex", false))
     }
 
     @Test fun timesReadLikeApples() {

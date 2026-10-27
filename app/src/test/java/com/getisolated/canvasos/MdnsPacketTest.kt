@@ -1,6 +1,6 @@
-package com.getisolated.canvasos
+package com.aksamitsah.canvasos.en
 
-import com.getisolated.canvasos.MdnsPacket.Question
+import com.aksamitsah.canvasos.en.MdnsPacket.Question
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull

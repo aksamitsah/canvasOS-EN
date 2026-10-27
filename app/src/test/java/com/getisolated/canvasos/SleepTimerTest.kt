@@ -1,4 +1,4 @@
-package com.getisolated.canvasos
+package com.aksamitsah.canvasos.en
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -22,8 +22,8 @@ class SleepTimerTest {
     }
 
     @Test fun anElapsedTimerReadsAsLessThanAMinute() {
-        assertEquals("moins d'une minute", SleepTimer.span(0))
-        assertEquals("moins d'une minute", SleepTimer.span(-5_000))
+        assertEquals("less than a minute", SleepTimer.span(0))
+        assertEquals("less than a minute", SleepTimer.span(-5_000))
     }
 
     @Test fun ssidLosesItsQuotesAndTheUnknownMarkers() {

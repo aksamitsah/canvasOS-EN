@@ -1,4 +1,4 @@
-package com.getisolated.canvasos
+package com.aksamitsah.canvasos.en
 
 import android.app.Notification
 import android.app.NotificationChannel
@@ -93,9 +93,9 @@ class KeeperService : Service() {
         val last = prefs.lastLanIp
         if (ip != last) {
             prefs.lastLanIp = ip
-            if (last.isNotEmpty() && prefs.phoneServer) Banners.notice(this, "Page téléphone : nouvelle adresse",
-                "Le téléviseur a changé d'adresse ($ip). canvasos.local marche toujours ; " +
-                    "sinon rescannez le QR code dans Réglages de l'accueil → Page téléphone.")
+            if (last.isNotEmpty() && prefs.phoneServer) Banners.notice(this, "Phone page: new address",
+                "The TV's address changed ($ip). canvasos.local still works; " +
+                    "otherwise scan the QR code again in Home Settings → Phone Page.")
         }
         worker.execute { Mdns.restart(applicationContext) }
     }
@@ -104,11 +104,11 @@ class KeeperService : Service() {
         super.onCreate()
         prefs = Prefs(this)
         val nm = getSystemService(NotificationManager::class.java)
-        nm.createNotificationChannel(NotificationChannel(CH, "Accueil en arrière-plan", NotificationManager.IMPORTANCE_MIN))
+        nm.createNotificationChannel(NotificationChannel(CH, "Home running in background", NotificationManager.IMPORTANCE_MIN))
         startForeground(1, Notification.Builder(this, CH)
             .setSmallIcon(R.drawable.ic_memory)
-            .setContentTitle("Accueil")
-            .setContentText("Libère la mémoire en veille")
+            .setContentTitle("Home")
+            .setContentText("Frees memory during sleep")
             .build())
         registerReceiver(screenOff, IntentFilter(Intent.ACTION_SCREEN_OFF))
         contentResolver.registerContentObserver(Settings.Global.getUriFor(Settings.Global.ADB_ENABLED), false, adbObserver)

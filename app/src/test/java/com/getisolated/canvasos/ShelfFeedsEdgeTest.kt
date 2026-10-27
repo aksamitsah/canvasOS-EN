@@ -1,6 +1,6 @@
-package com.getisolated.canvasos
+package com.aksamitsah.canvasos.en
 
-import com.getisolated.canvasos.ShelfFeeds.TvRow
+import com.aksamitsah.canvasos.en.ShelfFeeds.TvRow
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -74,12 +74,12 @@ class ShelfFeedsEdgeTest {
     @Test fun aRatingNeedsTenVotesAndAPositiveAverage() {
         fun meta(votes: Int, avg: String) = ShelfFeeds.tmdb(
             """{"results":[{"title":"T","backdrop_path":"/a.jpg","release_date":"2025-01-01","vote_average":$avg,"vote_count":$votes}]}""", null)[0].meta
-        assertEquals("Film · 2025 · ★ 7,0", meta(10, "7.0"))
+        assertEquals("Film · 2025 · ★ 7.0", meta(10, "7.0"))
         assertEquals("Film · 2025", meta(9, "7.0"))
         assertEquals("Film · 2025", meta(1000, "0"))
         assertEquals("Film · 2025", meta(1000, "0.0"))
-        assertEquals("Film · 2025 · ★ 10,0", meta(10, "10"))
-        assertEquals("the comma is French and the rounding is to one decimal", "Film · 2025 · ★ 6,7", meta(50, "6.666"))
+        assertEquals("Film · 2025 · ★ 10.0", meta(10, "10"))
+        assertEquals("the comma is French and the rounding is to one decimal", "Film · 2025 · ★ 6.7", meta(50, "6.666"))
     }
 
     @Test fun theYearNeedsFourDigits() {
@@ -98,8 +98,8 @@ class ShelfFeedsEdgeTest {
           {"title":"Un titre de film","backdrop_path":"/u.jpg","popularity":9}]}"""
         val items = ShelfFeeds.tmdb(null, series)
         assertEquals(listOf("La Série", "Seulement l'original"), items.map { it.title })
-        assertEquals("Série · 2024", items[0].meta)
-        assertEquals("Série", items[1].meta)
+        assertEquals("Series · 2024", items[0].meta)
+        assertEquals("Series", items[1].meta)
     }
 
     @Test fun theSameBackdropIsShownOnce() {
@@ -182,9 +182,9 @@ class ShelfFeedsEdgeTest {
     }
 
     @Test fun whatIsLeftNeedsAPositionInsideTheDuration() {
-        assertEquals("Il reste 23 min", ShelfFeeds.remaining(20 * 60_000L, 43 * 60_000L))
-        assertEquals("Il reste 1 min", ShelfFeeds.remaining(43 * 60_000L - 1, 43 * 60_000L))
-        assertEquals("Il reste 1 h 30", ShelfFeeds.remaining(30 * 60_000L, 120 * 60_000L))
+        assertEquals("Remaining: 23 min", ShelfFeeds.remaining(20 * 60_000L, 43 * 60_000L))
+        assertEquals("Remaining: 1 min", ShelfFeeds.remaining(43 * 60_000L - 1, 43 * 60_000L))
+        assertEquals("Remaining: 1 h 30", ShelfFeeds.remaining(30 * 60_000L, 120 * 60_000L))
         assertNull("not started", ShelfFeeds.remaining(0, 43 * 60_000L))
         assertNull(ShelfFeeds.remaining(-1, 43 * 60_000L))
         assertNull("no duration", ShelfFeeds.remaining(10, 0))
@@ -198,9 +198,9 @@ class ShelfFeedsEdgeTest {
         assertTrue(words.toString(), words.all { !it.isNullOrBlank() })
         assertEquals("every type has its own word", 13, words.toSet().size)
         assertEquals("Film", ShelfFeeds.typeLabel(0))
-        assertEquals("Série", ShelfFeeds.typeLabel(1))
-        assertEquals("Épisode", ShelfFeeds.typeLabel(3))
-        assertEquals("Jeu", ShelfFeeds.typeLabel(12))
+        assertEquals("Series", ShelfFeeds.typeLabel(1))
+        assertEquals("Episode", ShelfFeeds.typeLabel(3))
+        assertEquals("Game", ShelfFeeds.typeLabel(12))
         for (t in listOf(-1, 13, 14, 99, Int.MAX_VALUE, Int.MIN_VALUE)) assertNull(t.toString(), ShelfFeeds.typeLabel(t))
     }
 
@@ -219,27 +219,27 @@ class ShelfFeedsEdgeTest {
     }
 
     @Test fun aDescriptionOnlyStandsInWhenThereIsNothingBetter() {
-        assertEquals("Saison 1 · Épisode 2", ShelfFeeds.meta(TvRow("X", season = "1", episode = "2", description = "Résumé"), watchNext = false))
+        assertEquals("Season 1 · Episode 2", ShelfFeeds.meta(TvRow("X", season = "1", episode = "2", description = "Résumé"), watchNext = false))
         assertEquals("Résumé", ShelfFeeds.meta(TvRow("X", season = " ", episode = "", description = "Résumé"), watchNext = false))
         assertEquals("Film", ShelfFeeds.meta(TvRow("X", type = 0, description = "   "), watchNext = false))
         assertEquals("", ShelfFeeds.meta(TvRow("X", description = "\n\t "), watchNext = false))
     }
 
     @Test fun anEpisodeTitleThatRepeatsTheShowTitleIsLeftOut() {
-        assertEquals("Saison 3", ShelfFeeds.meta(TvRow("La Série", episodeTitle = "La Série", season = "3"), watchNext = false))
-        assertEquals("Saison 3 · Pilote", ShelfFeeds.meta(TvRow("La Série", episodeTitle = " Pilote ", season = "3"), watchNext = false))
+        assertEquals("Season 3", ShelfFeeds.meta(TvRow("La Série", episodeTitle = "La Série", season = "3"), watchNext = false))
+        assertEquals("Season 3 · Pilote", ShelfFeeds.meta(TvRow("La Série", episodeTitle = " Pilote ", season = "3"), watchNext = false))
     }
 
     @Test fun theTimeLeftOnlyShowsInWatchNext() {
         val r = TvRow("X", episode = "4", positionMs = 10 * 60_000L, durationMs = 50 * 60_000L)
-        assertEquals("Épisode 4 · Il reste 40 min", ShelfFeeds.meta(r, watchNext = true))
-        assertEquals("Épisode 4", ShelfFeeds.meta(r, watchNext = false))
+        assertEquals("Episode 4 · Remaining: 40 min", ShelfFeeds.meta(r, watchNext = true))
+        assertEquals("Episode 4", ShelfFeeds.meta(r, watchNext = false))
     }
 
     @Test fun typeYearAndLengthFillInForAnAppThatSaysNothingElse() {
         assertEquals("Film · 2024 · 1 h 52", ShelfFeeds.meta(TvRow("X", type = 0, releaseDate = "2024-05-01", durationMs = 112 * 60_000L), watchNext = false))
-        assertEquals("Série · 2020", ShelfFeeds.meta(TvRow("X", type = 1, releaseDate = "2020"), watchNext = false))
-        assertEquals("under a minute is not worth a word", "Vidéo", ShelfFeeds.meta(TvRow("X", type = 4, durationMs = 59_999), watchNext = false))
+        assertEquals("Series · 2020", ShelfFeeds.meta(TvRow("X", type = 1, releaseDate = "2020"), watchNext = false))
+        assertEquals("under a minute is not worth a word", "Video", ShelfFeeds.meta(TvRow("X", type = 4, durationMs = 59_999), watchNext = false))
         assertEquals("1 min", ShelfFeeds.meta(TvRow("X", durationMs = 60_000), watchNext = false))
         assertEquals("", ShelfFeeds.meta(TvRow("X", type = 99, releaseDate = "bientôt"), watchNext = false))
     }
@@ -281,18 +281,18 @@ class ShelfFeedsEdgeTest {
 
     @Test fun watchNextKeepsTwoEpisodesOfTheSameShow() {
         val rows = listOf(
-            TvRow("Série", season = "1", episode = "1", thumbnail = "https://a/1.jpg", engagedAt = 2),
-            TvRow("Série", season = "1", episode = "2", thumbnail = "https://a/2.jpg", engagedAt = 1),
+            TvRow("Series", season = "1", episode = "1", thumbnail = "https://a/1.jpg", engagedAt = 2),
+            TvRow("Series", season = "1", episode = "2", thumbnail = "https://a/2.jpg", engagedAt = 1),
         )
-        assertEquals(listOf("Saison 1 · Épisode 1", "Saison 1 · Épisode 2"), ShelfFeeds.watchNext(rows).map { it.meta })
+        assertEquals(listOf("Season 1 · Episode 1", "Season 1 · Episode 2"), ShelfFeeds.watchNext(rows).map { it.meta })
     }
 
     @Test fun theWatchNextLabelNeedsEveryVisibleRowToBeAWatchlistEntry() {
-        assertEquals("Continuer à regarder", ShelfFeeds.watchNextLabel(emptyList()))
-        assertEquals("Ma liste", ShelfFeeds.watchNextLabel(listOf(TvRow("A", watchNextType = 3))))
-        assertEquals("Continuer à regarder", ShelfFeeds.watchNextLabel(listOf(TvRow("A", watchNextType = 3), TvRow("B", watchNextType = 0))))
-        assertEquals("Continuer à regarder", ShelfFeeds.watchNextLabel(listOf(TvRow("A", watchNextType = -1))))
-        assertEquals("rows the user hid do not count", "Ma liste",
+        assertEquals("Continue Watching", ShelfFeeds.watchNextLabel(emptyList()))
+        assertEquals("My List", ShelfFeeds.watchNextLabel(listOf(TvRow("A", watchNextType = 3))))
+        assertEquals("Continue Watching", ShelfFeeds.watchNextLabel(listOf(TvRow("A", watchNextType = 3), TvRow("B", watchNextType = 0))))
+        assertEquals("Continue Watching", ShelfFeeds.watchNextLabel(listOf(TvRow("A", watchNextType = -1))))
+        assertEquals("rows the user hid do not count", "My List",
             ShelfFeeds.watchNextLabel(listOf(TvRow("A", watchNextType = 3), TvRow("B", watchNextType = 1, browsable = false))))
     }
 }

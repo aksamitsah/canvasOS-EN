@@ -1,4 +1,4 @@
-package com.getisolated.canvasos
+package com.aksamitsah.canvasos.en
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -255,7 +255,7 @@ class PrefsTest {
     @Test fun theDefaultKeepListHoldsOnlyPackageNames() {
         assertTrue(Prefs.DEFAULT_KEEP.isNotEmpty())
         Prefs.DEFAULT_KEEP.forEach { assertTrue(it, it.matches(Regex("[a-z][A-Za-z0-9_]*(\\.[A-Za-z0-9_]+)+"))) }
-        assertFalse("canvasOS itself is never listed: Cleaner adds it", "com.getisolated.canvasos" in Prefs.DEFAULT_KEEP)
+        assertFalse("canvasOS itself is never listed: Cleaner adds it", "com.aksamitsah.canvasos.en" in Prefs.DEFAULT_KEEP)
     }
 
     @Test fun styleConstantsAreDistinctWithinEachSetting() {

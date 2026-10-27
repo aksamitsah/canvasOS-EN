@@ -1,4 +1,4 @@
-package com.getisolated.canvasos
+package com.aksamitsah.canvasos.en
 
 import android.content.Intent
 import android.graphics.Bitmap
@@ -28,9 +28,9 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
-import com.getisolated.canvasos.tv.Input
-import com.getisolated.canvasos.tv.Level
-import com.getisolated.canvasos.tv.TvControls
+import com.aksamitsah.canvasos.en.tv.Input
+import com.aksamitsah.canvasos.en.tv.Level
+import com.aksamitsah.canvasos.en.tv.TvControls
 import java.util.concurrent.Executors
 import kotlin.math.roundToInt
 
@@ -261,10 +261,10 @@ class ControlCenter(private val home: HomeActivity, private val host: FrameLayou
         private set
 
     init {
-        brightness = Slider(R.drawable.ic_sun, "Luminosité") { v -> tv.setBrightness(v) }
+        brightness = Slider(R.drawable.ic_sun, "Brightness") { v -> tv.setBrightness(v) }
         idByView[brightness] = CcLayout.BRIGHTNESS
         // The player's looks share its place; their keys are handled by playerKey.
-        nowLine = GlassButton("Lecture", R.drawable.ic_music, Shape.CAPSULE) { togglePlay() }
+        nowLine = GlassButton("Playback", R.drawable.ic_music, Shape.CAPSULE) { togglePlay() }
         // Its type at iOS's proportions of the capsule ([NowPlaying.capsuleArt]), smaller than the other capsules'.
         NowPlaying.capsuleArt(cell).let { a ->
             nowLine.title.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, a.titlePx)
@@ -734,7 +734,7 @@ class ControlCenter(private val home: HomeActivity, private val host: FrameLayou
         init {
             isFocusable = true
             isClickable = true
-            contentDescription = "Lecture : rien en cours"
+            contentDescription = "Playback: nothing playing"
             addView(note, LayoutParams(ctx.dp(22), ctx.dp(22), Gravity.CENTER))
             setOnClickListener { Motion.bump(this, 1, 0) }
             setOnFocusChangeListener { _, on ->
@@ -754,7 +754,7 @@ class ControlCenter(private val home: HomeActivity, private val host: FrameLayou
         private val lit = rounded(Color.argb(235, 255, 255, 255), cell / 2f)
 
         init {
-            text = "Page vide"
+            text = "Empty Page"
             textSize = 12.5f
             typeface = Fonts.inter(ctx, 600)
             gravity = Gravity.CENTER
@@ -1122,14 +1122,14 @@ class ControlCenter(private val home: HomeActivity, private val host: FrameLayou
     private fun updateNetwork() {
         val m = networkModule ?: return
         m.title.put((if (Net.isWired(ctx)) "Ethernet" else "Wi-Fi") + (Net.ssid(ctx)?.let { " · $it" } ?: ""))
-        m.sub.put(if (!Net.isConnected(ctx)) "Déconnecté" else Net.lanAddress(ctx) ?: "Connecté")
+        m.sub.put(if (!Net.isConnected(ctx)) "Disconnected" else Net.lanAddress(ctx) ?: "Connected")
         m.sub.visibility = View.VISIBLE
     }
 
     /** The Réglages capsule (2 × 1) says when an update is waiting; the round button has no room to. */
     private fun updateSettings() {
         val m = settingsModule ?: return
-        val t = Updater.pending(prefs)?.let { "canvasOS $it disponible" }.orEmpty()
+        val t = Updater.pending(prefs)?.let { "canvasOS $it available" }.orEmpty()
         m.sub.put(t)
         m.sub.visibility = if (t.isEmpty()) View.GONE else View.VISIBLE
     }
@@ -1145,8 +1145,8 @@ class ControlCenter(private val home: HomeActivity, private val host: FrameLayou
         val narrow = builtAt[CcLayout.INPUT]?.w == 2
         val t = when {
             !inputsRead -> ""
-            none -> "Aucune entrée"
-            narrow -> inputCurrent ?: inputs.singleOrNull()?.name ?: "${inputs.size} entrées"
+            none -> "No inputs"
+            narrow -> inputCurrent ?: inputs.singleOrNull()?.name ?: "${inputs.size} inputs"
             else -> inputCurrent ?: inputSummary
         }
         m.sub.put(t)
@@ -1256,33 +1256,33 @@ class ControlCenter(private val home: HomeActivity, private val host: FrameLayou
         val shape = shapeOf(s)
         val narrow = shape == Shape.CAPSULE && s.w == 2
         return when (id) {
-            CcLayout.POWER -> GlassButton("Éteindre", R.drawable.ic_power, shape, narrow = narrow) {
-                confirm("Éteindre", "Le téléviseur s'éteint complètement. Rallumez-le avec le bouton marche/arrêt de la télécommande.") { Cleaner.shutdown(ctx) }
+            CcLayout.POWER -> GlassButton("Shut Down", R.drawable.ic_power, shape, narrow = narrow) {
+                confirm("Shut Down", "The TV shuts down completely. Turn it on again with the remote's power button.") { Cleaner.shutdown(ctx) }
             }
-            CcLayout.NETWORK -> GlassButton("Réseau", R.drawable.ic_wifi, shape, accent = Color.rgb(48, 222, 239), narrow = narrow) {
+            CcLayout.NETWORK -> GlassButton("Network", R.drawable.ic_wifi, shape, accent = Color.rgb(48, 222, 239), narrow = narrow) {
                 close()
                 runCatching { ctx.startActivity(tv.wifiIntent()) }
             }.also { networkModule = it }
-            CcLayout.SLEEP -> GlassButton("Veille", R.drawable.ic_moon, shape, narrow = narrow) { needAdb { close(); sleepSheet() } }
+            CcLayout.SLEEP -> GlassButton("Sleep", R.drawable.ic_moon, shape, narrow = narrow) { needAdb { close(); sleepSheet() } }
                 .also { sleepModule = it }
-            CcLayout.MEMORY -> GlassButton("Libérer la mémoire", R.drawable.ic_memory, shape, narrow = narrow, wrap = true) { cleanNow() }
-            CcLayout.PHOTO -> GlassButton("Photo suivante", R.drawable.ic_photo, shape, narrow = narrow, wrap = true) {
+            CcLayout.MEMORY -> GlassButton("Free Memory", R.drawable.ic_memory, shape, narrow = narrow, wrap = true) { cleanNow() }
+            CcLayout.PHOTO -> GlassButton("Next Photo", R.drawable.ic_photo, shape, narrow = narrow, wrap = true) {
                 // Only the outcome: "Photo suivante…" would be one toast too many for a quick change.
                 ctx.nextWallpaper { if (it.isNotEmpty() && !it.endsWith("…")) toast(it) }
             }
-            CcLayout.FRAME -> GlassButton("Cadre photo", R.drawable.ic_screensaver, shape, narrow = narrow, wrap = true) {
+            CcLayout.FRAME -> GlassButton("Photo Frame", R.drawable.ic_screensaver, shape, narrow = narrow, wrap = true) {
                 close()
                 ctx.openFrame()
             }
-            CcLayout.SETTINGS -> GlassButton("Réglages", R.drawable.ic_gear, shape, narrow = narrow) {
+            CcLayout.SETTINGS -> GlassButton("Settings", R.drawable.ic_gear, shape, narrow = narrow) {
                 close()
                 ctx.startActivity(Intent(ctx, SettingsActivity::class.java))
             }.also { settingsModule = it }
             CcLayout.BRIGHTNESS -> brightness
-            CcLayout.INPUT -> GlassButton("Source", R.drawable.ic_input, shape, narrow = narrow) {
+            CcLayout.INPUT -> GlassButton("Input", R.drawable.ic_input, shape, narrow = narrow) {
                 if (inputs.isEmpty()) views[CcLayout.INPUT]?.let { v -> Motion.bump(v, 1, 0) } else pickInput()
             }.also { inputModule = it }
-            CcLayout.WEATHER -> GlassButton("Météo", R.drawable.ic_wx_partly_cloudy, shape, narrow = narrow) { weatherPressed() }.also { m ->
+            CcLayout.WEATHER -> GlassButton("Weather", R.drawable.ic_wx_partly_cloudy, shape, narrow = narrow) { weatherPressed() }.also { m ->
                 weatherModule = m
                 weatherDays = if (shape != Shape.CARD) emptyList() else List(3) { DayCell() }.onEach {
                     m.extra.addView(it, LinearLayout.LayoutParams(0, -2, 1f))
@@ -1485,7 +1485,7 @@ class ControlCenter(private val home: HomeActivity, private val host: FrameLayou
         editHint()
     }
 
-    private fun editHint() = toast("OK sur une commande pour la déplacer, changer sa taille ou la retirer. Retour pour terminer.", long = true)
+    private fun editHint() = toast("Press OK on a control to move, resize or remove it. Back to finish.", long = true)
 
     private fun endEdit() {
         if (moving != null) cancelMove()
@@ -1514,17 +1514,17 @@ class ControlCenter(private val home: HomeActivity, private val host: FrameLayou
     }
 
     private fun nameOf(id: String) = when (id) {
-        CcLayout.POWER -> "Éteindre"
-        CcLayout.SLEEP -> "Veille"
-        CcLayout.NETWORK -> "Réseau"
-        CcLayout.MEMORY -> "Libérer la mémoire"
-        CcLayout.PHOTO -> "Photo suivante"
-        CcLayout.FRAME -> "Cadre photo"
-        CcLayout.SETTINGS -> "Réglages"
-        CcLayout.BRIGHTNESS -> "Luminosité"
-        CcLayout.INPUT -> "Source"
-        CcLayout.PLAYER -> "Lecteur"
-        CcLayout.WEATHER -> "Météo"
+        CcLayout.POWER -> "Shut Down"
+        CcLayout.SLEEP -> "Sleep"
+        CcLayout.NETWORK -> "Network"
+        CcLayout.MEMORY -> "Free Memory"
+        CcLayout.PHOTO -> "Next Photo"
+        CcLayout.FRAME -> "Photo Frame"
+        CcLayout.SETTINGS -> "Settings"
+        CcLayout.BRIGHTNESS -> "Brightness"
+        CcLayout.INPUT -> "Input"
+        CcLayout.PLAYER -> "Player"
+        CcLayout.WEATHER -> "Weather"
         CcLayout.BLUETOOTH -> "Bluetooth"
         else -> id
     }
@@ -1536,27 +1536,27 @@ class ControlCenter(private val home: HomeActivity, private val host: FrameLayou
         if (id == "") { pageSheet(page); return }
         val (p, item) = layout.find(id) ?: return
         val sheet = Sheet(host).title(nameOf(id)).message("Page ${p + 1} · ${sizeName(item.size)}")
-        sheet.button("Déplacer") { startMove(id) }
-        CcLayout.nextSize(id, item.size)?.let { next -> sheet.button("Taille : ${sizeName(next)}") { resize(id, next) } }
-        sheet.button("Retirer") { removeWidget(id) }
+        sheet.button("Move") { startMove(id) }
+        CcLayout.nextSize(id, item.size)?.let { next -> sheet.button("Size: ${sizeName(next)}") { resize(id, next) } }
+        sheet.button("Remove") { removeWidget(id) }
         layoutButtons(sheet, p)
         home.showSheet(sheet)
     }
 
     /** An empty page's sheet in edit mode. */
     private fun pageSheet(p: Int) {
-        val sheet = Sheet(host).title("Page vide").message("Page ${p + 1} : ajoutez-y une commande, ou supprimez-la.")
-        if (layout.pages.size > 1) sheet.button("Supprimer cette page") { removePage(p) }
+        val sheet = Sheet(host).title("Empty Page").message("Page ${p + 1}: add a control or delete this page.")
+        if (layout.pages.size > 1) sheet.button("Delete This Page") { removePage(p) }
         layoutButtons(sheet, p)
         home.showSheet(sheet)
     }
 
     private fun layoutButtons(sheet: Sheet, p: Int) {
-        if (layout.unplaced.isNotEmpty()) sheet.button("Ajouter une commande…") { addSheet(p) }
-        if (layout.pages.size < CcLayout.MAX_PAGES) sheet.button("Ajouter une page") { addPage() }
-        sheet.button("Réinitialiser le panneau") { resetSheet() }
-        sheet.button("Terminer") { endEdit() }
-        sheet.button("Annuler") {}
+        if (layout.unplaced.isNotEmpty()) sheet.button("Add a Control…") { addSheet(p) }
+        if (layout.pages.size < CcLayout.MAX_PAGES) sheet.button("Add a Page") { addPage() }
+        sheet.button("Reset Layout") { resetSheet() }
+        sheet.button("Done") { endEdit() }
+        sheet.button("Cancel") {}
     }
 
     /** [l] becomes the layout, saved at once, and the grid follows. */
@@ -1614,7 +1614,7 @@ class ControlCenter(private val home: HomeActivity, private val host: FrameLayou
         val l = CcLayout.move(layout, m.id, m.at.page, m.at.x, m.at.y)
         if (l == null) {
             v?.let { Motion.bump(it, 0, 1) }
-            toast("Une autre commande occupe cette place.")
+            toast("Another control occupies this space.")
             return
         }
         moving = null
@@ -1646,7 +1646,7 @@ class ControlCenter(private val home: HomeActivity, private val host: FrameLayou
         val l = CcLayout.resize(layout, id, size)
         if (l == null) {
             host.postDelayed({ slotOf(id)?.let { Motion.bump(it, 1, 0) } }, 200)
-            toast("Pas assez de place ici pour cette taille : déplacez d'abord la commande.", long = true)
+            toast("Not enough room for this size here: move the control first.", long = true)
             return
         }
         focusedId = id
@@ -1656,7 +1656,7 @@ class ControlCenter(private val home: HomeActivity, private val host: FrameLayou
     private fun removeWidget(id: String) {
         val (p, item) = layout.find(id) ?: return
         val l = CcLayout.remove(layout, id)
-        if (l == null) { toast("Le Centre de contrôle garde au moins une commande."); return }
+        if (l == null) { toast("Control Center must keep at least one control."); return }
         val next = CcLayout.nearest(l.pages[p], item)
         focusedId = next?.id ?: ""
         focusedPage = p
@@ -1665,16 +1665,16 @@ class ControlCenter(private val home: HomeActivity, private val host: FrameLayou
 
     /** The controls not placed; the chosen one takes the first free place that fits ([CcLayout.add]). */
     private fun addSheet(p: Int) {
-        val sheet = Sheet(host).title("Ajouter une commande")
-            .message("Elle prend la première place libre de cette page, sinon d'une autre page, sinon d'une nouvelle page.")
+        val sheet = Sheet(host).title("Add a Control")
+            .message("Uses the first free space on this page, then another page, then a new page.")
         for (id in layout.unplaced) sheet.button(nameOf(id)) { add(id, p) }
-        sheet.button("Annuler") {}
+        sheet.button("Cancel") {}
         home.showSheet(sheet)
     }
 
     private fun add(id: String, p: Int) {
         val r = CcLayout.add(layout, id, p)
-        if (r == null) { toast("Plus de place : retirez une commande ou réduisez-en une.", long = true); return }
+        if (r == null) { toast("No room left: remove or shrink a control.", long = true); return }
         focusedId = id
         save(r.first)
     }
@@ -1695,9 +1695,9 @@ class ControlCenter(private val home: HomeActivity, private val host: FrameLayou
     }
 
     private fun resetSheet() {
-        home.showSheet(Sheet(host).title("Réinitialiser le Centre de contrôle ?")
-            .message("Les commandes reprennent leur place et leur taille d'origine, sur deux pages.")
-            .button("Réinitialiser") {
+        home.showSheet(Sheet(host).title("Reset Control Center?")
+            .message("Controls return to their original positions and sizes across two pages.")
+            .button("Reset") {
                 prefs.resetCcLayout()
                 val l = prefs.ccLayout
                 layout = l
@@ -1706,26 +1706,26 @@ class ControlCenter(private val home: HomeActivity, private val host: FrameLayou
                 focusedPage = 0
                 applyLayout()
             }
-            .button("Annuler") {})
+            .button("Cancel") {})
     }
 
     private fun pickInput() {
         if (inputs.isEmpty()) return
         // The list replaces the panel instead of stacking on top of it.
         close()
-        val sheet = Sheet(host).title("Source").message(null)
+        val sheet = Sheet(host).title("Input").message(null)
         for (i in inputs) sheet.button(i.name, R.drawable.ic_input) {
             io.execute { tv.setInput(i) }
         }
-        sheet.button("Afficher sur l'accueil…") { pinInputs() }
-        sheet.button("Annuler") {}
+        sheet.button("Show on Home…") { pinInputs() }
+        sheet.button("Cancel") {}
         home.showSheet(sheet)
     }
 
     /** Inputs shown as tiles on the home grid; one press there switches to them. */
     private fun pinInputs() {
-        val sheet = Sheet(host).title("Afficher sur l'accueil")
-            .message("Chaque source cochée devient une icône sur l'accueil : une pression suffit pour y basculer.")
+        val sheet = Sheet(host).title("Show on Home")
+            .message("Each selected input becomes a Home icon: press once to switch to it.")
         for (i in inputs) {
             val on = home.isPinned(i)
             sheet.button(if (on) "✓  ${i.name}" else i.name, R.drawable.ic_input) { home.pinInput(i, !on) }
@@ -1745,12 +1745,12 @@ class ControlCenter(private val home: HomeActivity, private val host: FrameLayou
         val f = if (on) Weather.cached(ctx) else null
         val place = prefs.weatherPlace
         // Unchanged text and glyph are left alone, so reopening does not relayout and redraw the glass.
-        m.title.put(if (place.isEmpty() || !on) "Météo" else "Météo · $place")
+        m.title.put(if (place.isEmpty() || !on) "Weather" else "Weather · $place")
         m.sub.put(when {
-            !on -> "Météo désactivée"
+            !on -> "Weather is off"
             f != null -> Weather.summary(f)
-            !Net.isConnected(ctx) -> "Hors connexion"
-            else -> "Pas encore de prévisions"
+            !Net.isConnected(ctx) -> "Offline"
+            else -> "No forecast yet"
         })
         m.sub.visibility = View.VISIBLE
         m.idle = f == null
@@ -1771,8 +1771,8 @@ class ControlCenter(private val home: HomeActivity, private val host: FrameLayou
 
     /** "Sam.", a day's short name in French, for the 4 × 2 Météo card. */
     private fun shortDay(date: String): String = runCatching {
-        java.time.LocalDate.parse(date).dayOfWeek.getDisplayName(java.time.format.TextStyle.SHORT, java.util.Locale.FRANCE)
-            .replaceFirstChar { it.titlecase(java.util.Locale.FRANCE) }
+        java.time.LocalDate.parse(date).dayOfWeek.getDisplayName(java.time.format.TextStyle.SHORT, java.util.Locale.ENGLISH)
+            .replaceFirstChar { it.titlecase(java.util.Locale.ENGLISH) }
     }.getOrDefault(date)
 
     /** OK on Météo: the forecast; while off, the settings page where it is switched on; offline, a bump. */
@@ -1789,12 +1789,12 @@ class ControlCenter(private val home: HomeActivity, private val host: FrameLayou
         val f = Weather.cached(ctx)
         close()
         val place = prefs.weatherPlace
-        val sheet = Sheet(host).title(if (place.isEmpty()) "Météo" else "Météo à $place")
+        val sheet = Sheet(host).title(if (place.isEmpty()) "Weather" else "Weather in $place")
         // Open-Meteo's data is CC BY 4.0: credited wherever the forecast is shown in full.
-        val credit = "Prévisions : Open-Meteo.com"
-        val where = if (prefs.weatherAuto) "\nLieu détecté d'après l'adresse IP du téléviseur ; choisissez une autre ville depuis la page téléphone (onglet Réglages)." else ""
+        val credit = "Forecast: Open-Meteo.com"
+        val where = if (prefs.weatherAuto) "\nLocation estimated from the TV's IP address; choose another city from the phone page (Settings tab)." else ""
         if (f == null) {
-            sheet.message("Les prévisions s'afficheront ici dès que le téléviseur les aura reçues ; il lui faut pour cela une connexion à Internet.\n$credit")
+            sheet.message("The forecast will appear here once the TV receives it; an Internet connection is required.\n$credit")
         } else {
             sheet.message(credit + where)
             Weather.upcoming(f).take(5).forEach { sheet.line(Weather.dayLine(it)) }
@@ -1834,9 +1834,9 @@ class ControlCenter(private val home: HomeActivity, private val host: FrameLayou
         val state = btState
         val text = btPending ?: when (state) {
             // No adapter (or none found yet): the control stays, idle, rather than leave a hole.
-            Bluetooth.State.NONE -> "Indisponible"
-            Bluetooth.State.NEEDS_PERMISSION -> "Autorisation requise"
-            Bluetooth.State.OFF -> "Désactivé"
+            Bluetooth.State.NONE -> "Unavailable"
+            Bluetooth.State.NEEDS_PERMISSION -> "Permission required"
+            Bluetooth.State.OFF -> "Off"
             else -> Bluetooth.summary(btDevices)
         }
         // Unchanged text is left alone, so the 2 s ticker does not relayout and redraw the glass.
@@ -2357,7 +2357,7 @@ class ControlCenter(private val home: HomeActivity, private val host: FrameLayou
             gravity = Gravity.CENTER_VERTICAL
             isFocusable = true
             isClickable = true
-            contentDescription = "Lecture"
+            contentDescription = "Playback"
             val pad = ctx.dp(10)
             setPadding(pad, pad, ctx.dp(12), pad)
             addView(art, LayoutParams(ctx.dp(84), ctx.dp(84)))
@@ -2432,7 +2432,7 @@ class ControlCenter(private val home: HomeActivity, private val host: FrameLayou
             id = View.generateViewId()
             isFocusable = true
             isClickable = true
-            contentDescription = "Ouvrir l'app"
+            contentDescription = "Open App"
             setOnFocusChangeListener { _, on ->
                 tweenScale(if (on) 1.06f else 1f, if (on) 260 else 200, if (on) Motion.spring else Motion.ease)
                 if (!on) hold.release(this)
@@ -2490,9 +2490,9 @@ class ControlCenter(private val home: HomeActivity, private val host: FrameLayou
         private val timeline = Bar(ctx.dp(5).toFloat(), ctx.dp(9).toFloat())
         private val times = Times(11f)
         // Focus rings of glyph / 2 + 9 dp: 42 and 46 dp across, inside their 44 and 48 dp boxes.
-        private val rew = RoundGlyph(R.drawable.ic_fast_rewind, 24, "Retour")
-        val play = RoundGlyph(R.drawable.ic_pause, 28, "Lecture ou pause")
-        private val fwd = RoundGlyph(R.drawable.ic_fast_forward, 24, "Suivant")
+        private val rew = RoundGlyph(R.drawable.ic_fast_rewind, 24, "Back")
+        val play = RoundGlyph(R.drawable.ic_pause, 28, "Play or Pause")
+        private val fwd = RoundGlyph(R.drawable.ic_fast_forward, 24, "Next")
         /** Where OK on the timeline would seek to, in ms; below 0 without a cursor. */
         private var cursor = -1L
         private var shownArt: Bitmap? = null
@@ -2548,7 +2548,7 @@ class ControlCenter(private val home: HomeActivity, private val host: FrameLayou
         fun bind(n: NowPlaying) {
             title.text = n.title
             artist.text = n.sub
-            art.contentDescription = "Ouvrir ${n.title}"
+            art.contentDescription = "Open ${n.title}"
             if (!artSet || shownArt !== n.artLarge) {
                 artSet = true
                 shownArt = n.artLarge
@@ -2701,10 +2701,10 @@ class ControlCenter(private val home: HomeActivity, private val host: FrameLayou
     /** Android's dialog was refused or never appeared (some firmwares skip it): the same permission can come through local adb. */
     private fun bluetoothDenied() {
         close()
-        home.showSheet(Sheet(host).title("Bluetooth non autorisé")
-            .message("canvasOS a besoin de l'autorisation « Appareils à proximité » pour afficher vos appareils Bluetooth et en connecter un. Elle ne sert à rien d'autre : le téléviseur ne cherche aucun appareil.")
-            .button("Autoriser avec le débogage local") { needAdb { grantBluetooth() } }
-            .button("Annuler") {})
+        home.showSheet(Sheet(host).title("Bluetooth permission required")
+            .message("canvasOS needs the Nearby Devices permission to show your paired Bluetooth devices and connect one. It is used for nothing else: the TV does not scan for devices.")
+            .button("Allow Using Local Debugging") { needAdb { grantBluetooth() } }
+            .button("Cancel") {})
     }
 
     private fun grantBluetooth() {
@@ -2724,18 +2724,18 @@ class ControlCenter(private val home: HomeActivity, private val host: FrameLayou
         val shown = devices.take(BT_SHEET_MAX)
         val sheet = Sheet(host).title("Bluetooth")
         sheet.message(when {
-            btState == Bluetooth.State.OFF -> "Le Bluetooth du téléviseur est désactivé. Activez-le dans les réglages du téléviseur."
-            devices.isEmpty() -> "Aucun appareil associé. Associez-en un depuis les réglages Bluetooth du téléviseur."
-            devices.any { it.kind == Bluetooth.Kind.CONTROLLER && !it.connected } -> "Allumez la manette : elle se reconnecte seule."
+            btState == Bluetooth.State.OFF -> "The TV's Bluetooth is off. Turn it on in TV settings."
+            devices.isEmpty() -> "No paired devices. Pair one in the TV's Bluetooth settings."
+            devices.any { it.kind == Bluetooth.Kind.CONTROLLER && !it.connected } -> "Turn on the controller: it reconnects automatically."
             else -> null
         })
         for (d in shown.filter { it.kind == Bluetooth.Kind.AUDIO }) {
             sheet.button(Bluetooth.status(d), R.drawable.ic_bluetooth) { toggleBluetooth(d) }
         }
         for (d in shown.filter { it.kind != Bluetooth.Kind.AUDIO }) sheet.line(Bluetooth.status(d))
-        if (devices.size > shown.size) sheet.line("… et ${devices.size - shown.size} autres appareils associés")
-        sheet.button("Associer un appareil…") { pairBluetooth() }
-        sheet.button("Annuler") {}
+        if (devices.size > shown.size) sheet.line("… and ${devices.size - shown.size} other paired devices")
+        sheet.button("Pair a Device…") { pairBluetooth() }
+        sheet.button("Cancel") {}
         home.showSheet(sheet)
     }
 
@@ -2750,7 +2750,7 @@ class ControlCenter(private val home: HomeActivity, private val host: FrameLayou
      */
     private fun toggleBluetooth(d: Bluetooth.Device) {
         val connecting = !d.connected
-        btPending = if (connecting) "Connexion…" else "Déconnexion…"
+        btPending = if (connecting) "Connecting…" else "Disconnecting…"
         btBusy = true
         updateBluetooth()
         bt.execute {
@@ -2784,9 +2784,9 @@ class ControlCenter(private val home: HomeActivity, private val host: FrameLayou
     /** The firmware keeps its Bluetooth connect and disconnect from apps: the TV's own settings can still do it. */
     private fun bluetoothUnavailable(d: Bluetooth.Device, connecting: Boolean) {
         if (!home.hasWindowFocus()) return
-        home.showSheet(Sheet(host).title(if (connecting) "Connexion impossible" else "Déconnexion impossible")
-            .message("Ce téléviseur ne laisse pas canvasOS ${if (connecting) "connecter" else "déconnecter"} « ${d.label} ». Faites-le depuis les réglages Bluetooth du téléviseur.")
-            .button("Réglages Bluetooth") { pairBluetooth() }
+        home.showSheet(Sheet(host).title(if (connecting) "Could not connect" else "Could not disconnect")
+            .message("This TV does not let canvasOS ${if (connecting) "connect" else "disconnect"} “${d.label}”. Use the TV's Bluetooth settings.")
+            .button("Bluetooth Settings") { pairBluetooth() }
             .button("OK") {})
     }
 
@@ -2794,7 +2794,7 @@ class ControlCenter(private val home: HomeActivity, private val host: FrameLayou
     private fun updateSleep() {
         val left = SleepTimer.remainingMs(ctx)
         val sub = (sleepModule ?: return).sub
-        val text = if (left > 0) "Dans " + SleepTimer.span(left) else ""
+        val text = if (left > 0) "In " + SleepTimer.span(left) else ""
         // Polled every 2 s: an unchanged subtitle must not relayout and redraw the glass.
         if (sub.text.toString() != text) sub.text = text
         sub.visibility = if (left > 0) View.VISIBLE else View.GONE
@@ -2803,17 +2803,17 @@ class ControlCenter(private val home: HomeActivity, private val host: FrameLayou
     /** The Veille capsule: sleep now, or after a delay. Behind [needAdb], as the sleep key is sent through local adb. */
     private fun sleepSheet() {
         val left = SleepTimer.remainingMs(ctx)
-        val sheet = Sheet(host).title("Veille").message(null)
-        sheet.button("Maintenant") {
+        val sheet = Sheet(host).title("Sleep").message(null)
+        sheet.button("Now") {
             // Going to sleep by hand ends the timer: it would otherwise put the TV back to sleep after the next wake.
             stopSleepTimer(announce = false)
             Cleaner.sleep(ctx)
         }
         for (minutes in listOf(15, 30, 60, 90)) {
-            sheet.button("Dans " + SleepTimer.span(minutes * 60_000L)) { startSleepTimer(minutes) }
+            sheet.button("In " + SleepTimer.span(minutes * 60_000L)) { startSleepTimer(minutes) }
         }
-        if (left > 0) sheet.button("Annuler le minuteur (reste ${SleepTimer.span(left)})") { stopSleepTimer() }
-        sheet.button("Annuler") {}
+        if (left > 0) sheet.button("Cancel Timer (${SleepTimer.span(left)} left)") { stopSleepTimer() }
+        sheet.button("Cancel") {}
         home.showSheet(sheet)
     }
 
@@ -2821,14 +2821,14 @@ class ControlCenter(private val home: HomeActivity, private val host: FrameLayou
         SleepTimer.schedule(ctx, minutes)
         armSleepWarning()
         updateSleep()
-        Toast.makeText(ctx, "Veille dans " + SleepTimer.span(minutes * 60_000L), Toast.LENGTH_SHORT).show()
+        Toast.makeText(ctx, "Sleep in " + SleepTimer.span(minutes * 60_000L), Toast.LENGTH_SHORT).show()
     }
 
     private fun stopSleepTimer(announce: Boolean = true) {
         SleepTimer.cancel(ctx)
         host.removeCallbacks(sleepWarning)
         updateSleep()
-        if (announce) Toast.makeText(ctx, "Minuteur de veille annulé", Toast.LENGTH_SHORT).show()
+        if (announce) Toast.makeText(ctx, "Sleep timer cancelled", Toast.LENGTH_SHORT).show()
     }
 
     /** Schedules the one-minute warning for the timer in force; nothing when there is none. */
@@ -2843,9 +2843,9 @@ class ControlCenter(private val home: HomeActivity, private val host: FrameLayou
         val left = SleepTimer.remainingMs(ctx)
         if (destroyed || left <= 0 || !home.hasWindowFocus()) return
         // Cancelling comes first: a press by mistake then keeps the TV on instead of switching it off.
-        val sheet = Sheet(host).title("Veille dans une minute")
-            .message("Le téléviseur va se mettre en veille. Annulez le minuteur pour continuer.")
-            .button("Annuler le minuteur") { stopSleepTimer() }
+        val sheet = Sheet(host).title("Sleeping in one minute")
+            .message("The TV is about to sleep. Cancel the timer to keep watching.")
+            .button("Cancel Timer") { stopSleepTimer() }
             .button("OK") {}
         home.showSheet(sheet)
         // The sheet must not wait around for the next wake-up once the TV has gone to sleep.
@@ -2859,7 +2859,7 @@ class ControlCenter(private val home: HomeActivity, private val host: FrameLayou
     fun cleanMemory() = cleanNow()
 
     private fun cleanNow() {
-        toast("Libération de la mémoire…")
+        toast("Freeing memory…")
         Thread {
             val r = Cleaner.clean(ctx.applicationContext)
             host.post {
@@ -2870,16 +2870,16 @@ class ControlCenter(private val home: HomeActivity, private val host: FrameLayou
     }
 
     private fun needAdb(action: () -> Unit) {
-        if (prefs.adbAuthorized) action() else home.showSheet(Sheet(host).title("Autoriser le débogage local")
-            .message("Appuyez sur Commencer : le téléviseur affiche « Autoriser le débogage ? ». Cochez « Toujours autoriser », puis choisissez « Autoriser ».")
-            .button("Commencer") { home.authorizeAdb() }
-            .button("Annuler") {})
+        if (prefs.adbAuthorized) action() else home.showSheet(Sheet(host).title("Allow Local Debugging")
+            .message("Press Start: the TV shows “Allow debugging?”. Select “Always allow”, then “Allow”.")
+            .button("Start") { home.authorizeAdb() }
+            .button("Cancel") {})
     }
 
     private fun confirm(title: String, msg: String, action: () -> Unit) = needAdb {
         home.showSheet(Sheet(host).title("$title ?").message(msg)
             .button(title) { action() }
-            .button("Annuler") {})
+            .button("Cancel") {})
     }
 
     private companion object {

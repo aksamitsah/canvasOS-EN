@@ -1,7 +1,7 @@
-package com.getisolated.canvasos
+package com.aksamitsah.canvasos.en
 
-import com.getisolated.canvasos.Bluetooth.Device
-import com.getisolated.canvasos.Bluetooth.Kind
+import com.aksamitsah.canvasos.en.Bluetooth.Device
+import com.aksamitsah.canvasos.en.Bluetooth.Kind
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -39,10 +39,10 @@ class BluetoothTest {
     }
 
     @Test fun nounsNameWhatTheClassSays() {
-        assertEquals("Casque", Bluetooth.nounOf(0x0418, Kind.AUDIO))
-        assertEquals("Enceinte", Bluetooth.nounOf(0x0414, Kind.AUDIO))
+        assertEquals("Headphones", Bluetooth.nounOf(0x0418, Kind.AUDIO))
+        assertEquals("Speaker", Bluetooth.nounOf(0x0414, Kind.AUDIO))
         assertNull(Bluetooth.nounOf(0x0428, Kind.AUDIO))
-        assertEquals("Manette", Bluetooth.nounOf(0x0508, Kind.CONTROLLER))
+        assertEquals("Controller", Bluetooth.nounOf(0x0508, Kind.CONTROLLER))
         assertNull(Bluetooth.nounOf(0x0540, Kind.REMOTE))
     }
 
@@ -57,35 +57,35 @@ class BluetoothTest {
         Device("00:11:22:33:44:55", name, kind, connected, battery, noun)
 
     @Test fun oneConnectedDeviceIsNamedWithItsBattery() {
-        assertEquals("Casque WH-1000XM4 · connecté · 80 %",
-            Bluetooth.summary(listOf(device("WH-1000XM4", true, 80, "Casque"), device("JBL Flip", false))))
+        assertEquals("Headphones WH-1000XM4 · connected · 80 %",
+            Bluetooth.summary(listOf(device("WH-1000XM4", true, 80, "Headphones"), device("JBL Flip", false))))
     }
 
     @Test fun batteryIsLeftOutWhenTheDeviceDoesNotReportIt() {
-        assertEquals("WH-1000XM4 · connecté", Bluetooth.summary(listOf(device("WH-1000XM4", true))))
+        assertEquals("WH-1000XM4 · connected", Bluetooth.summary(listOf(device("WH-1000XM4", true))))
     }
 
     @Test fun nounIsNotRepeatedWhenTheNameHasIt() {
-        assertEquals("Casque Bluetooth", device("Casque Bluetooth", true, noun = "Casque").label)
-        assertEquals("Manette Pro", device("Pro", true, noun = "Manette", kind = Kind.CONTROLLER).label)
+        assertEquals("Headphones Bluetooth", device("Headphones Bluetooth", true, noun = "Headphones").label)
+        assertEquals("Controller Pro", device("Pro", true, noun = "Controller", kind = Kind.CONTROLLER).label)
     }
 
     @Test fun severalConnectedDevicesAreCounted() {
-        assertEquals("2 appareils connectés", Bluetooth.summary(listOf(device("A", true), device("B", true, 50), device("C", false))))
+        assertEquals("2 devices connected", Bluetooth.summary(listOf(device("A", true), device("B", true, 50), device("C", false))))
     }
 
     @Test fun noConnectedDeviceSaysSo() {
-        assertEquals("Aucun appareil connecté", Bluetooth.summary(emptyList()))
-        assertEquals("Aucun appareil connecté", Bluetooth.summary(listOf(device("A", false))))
+        assertEquals("No devices connected", Bluetooth.summary(emptyList()))
+        assertEquals("No devices connected", Bluetooth.summary(listOf(device("A", false))))
     }
 
     @Test fun sheetLinesShowTheStateAndOnlyConnectedDevicesShowBattery() {
-        assertEquals("JBL Flip · déconnecté", Bluetooth.status(device("JBL Flip", false, 40)))
-        assertEquals("Manette Pro · connecté · 5 %", Bluetooth.status(device("Pro", true, 5, "Manette", Kind.CONTROLLER)))
+        assertEquals("JBL Flip · disconnected", Bluetooth.status(device("JBL Flip", false, 40)))
+        assertEquals("Controller Pro · connected · 5 %", Bluetooth.status(device("Pro", true, 5, "Controller", Kind.CONTROLLER)))
     }
 
     @Test fun longNamesAreCutShort() {
-        val line = Bluetooth.status(device("Enceinte Bluetooth Salon Etage Parents", true))
-        assertEquals("Enceinte Bluetooth Salon… · connecté", line)
+        val line = Bluetooth.status(device("Speaker Bluetooth Salon Etage Parents", true))
+        assertEquals("Speaker Bluetooth Salon E… · connected", line)
     }
 }

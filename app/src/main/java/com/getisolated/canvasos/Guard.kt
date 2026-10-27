@@ -1,4 +1,4 @@
-package com.getisolated.canvasos
+package com.aksamitsah.canvasos.en
 
 import android.Manifest
 import android.accessibilityservice.AccessibilityService
@@ -21,8 +21,8 @@ import android.service.notification.StatusBarNotification
 import android.util.Log
 import android.view.KeyEvent
 import android.view.accessibility.AccessibilityEvent
-import com.getisolated.canvasos.tv.TclAdapter
-import com.getisolated.canvasos.tv.XiaomiAdapter
+import com.aksamitsah.canvasos.en.tv.TclAdapter
+import com.aksamitsah.canvasos.en.tv.XiaomiAdapter
 
 /**
  * Keeping canvasOS the home screen on firmwares that pin Home to their own launcher, without
@@ -417,7 +417,7 @@ class RevivalListener : NotificationListenerService() {
 
 /**
  * Options set from a computer over adb:
- *   adb shell am broadcast -a com.getisolated.canvasos.CONFIG -n com.getisolated.canvasos/.ConfigReceiver --ez guard true
+ *   adb shell am broadcast -a com.aksamitsah.canvasos.en.CONFIG -n com.aksamitsah.canvasos.en/.ConfigReceiver --ez guard true
  *   ... --ez keep_adb true
  * The manifest requires the sender to hold WRITE_SECURE_SETTINGS, which the adb shell has and
  * ordinary apps cannot get.

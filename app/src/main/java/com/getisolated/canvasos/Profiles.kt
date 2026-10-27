@@ -1,4 +1,4 @@
-package com.getisolated.canvasos
+package com.aksamitsah.canvasos.en
 
 import android.content.Context
 import android.content.Intent
@@ -37,8 +37,8 @@ data class Profile(val id: String, val name: String, val color: Int, val restric
 object Profiles {
     const val MAIN = "main"
     /** How the main profile is called until it is given a name. */
-    const val MAIN_NAME = "Principal"
-    const val DEFAULT_NAME = "Profil"
+    const val MAIN_NAME = "Main"
+    const val DEFAULT_NAME = "Profile"
     const val MAX_NAME = 30
     /** The main store ([Prefs]); another profile's grid is in "tvhome-<id>". */
     const val STORE = "tvhome"
@@ -52,7 +52,7 @@ object Profiles {
      * deeper so a white letter reads on them, and a gold rather than a yellow for the same reason.
      */
     val COLORS = listOf(0xFF2F7CF6, 0xFF34B356, 0xFFF5821F, 0xFFE8483B, 0xFF9F5AD8, 0xFFD6A01D).map { it.toInt() }
-    val COLOR_NAMES = listOf("Bleu", "Vert", "Orange", "Rouge", "Violet", "Jaune")
+    val COLOR_NAMES = listOf("Blue", "Green", "Orange", "Red", "Violet", "Yellow")
 
     /** App storage (and Android/data/…/files, for pictures pushed over adb) folder of the profile photos, `<id>.jpg`. */
     const val AVATARS_DIR = "avatars"
@@ -372,9 +372,9 @@ class PinSheets(private val host: FrameLayout, private val prefs: Prefs, private
     fun ask(title: String, tries: Int = 0, ok: () -> Unit) {
         if (!prefs.hasPin) { ok(); return }
         val left = Profiles.MAX_TRIES - tries
-        val msg = if (tries == 0) "Saisissez le code PIN."
-            else "Code incorrect. " + if (left > 1) "Encore $left essais." else "Dernier essai."
-        show(Sheet(host).title(title).message(msg).input("", "Code PIN", pinInput, Profiles.PIN_MAX) { pin ->
+        val msg = if (tries == 0) "Enter the PIN."
+            else "Incorrect PIN. " + if (left > 1) "$left attempts left." else "Last attempt."
+        show(Sheet(host).title(title).message(msg).input("", "PIN", pinInput, Profiles.PIN_MAX) { pin ->
             when {
                 prefs.checkPin(pin) -> ok()
                 tries + 1 < Profiles.MAX_TRIES -> ask(title, tries + 1, ok)
@@ -384,12 +384,12 @@ class PinSheets(private val host: FrameLayout, private val prefs: Prefs, private
 
     /** Asks for a new PIN, then for it again, and saves it; [done] runs once it is saved. */
     fun choose(title: String, message: String? = null, done: () -> Unit = {}) {
-        val intro = message ?: "De ${Profiles.PIN_MIN} à ${Profiles.PIN_MAX} chiffres."
-        show(Sheet(host).title(title).message(intro).input("", "Nouveau code", pinInput, Profiles.PIN_MAX) { pin ->
-            if (!Profiles.validPin(pin)) return@input choose(title, "Le code doit compter de ${Profiles.PIN_MIN} à ${Profiles.PIN_MAX} chiffres.", done)
-            show(Sheet(host).title("Confirmer le code").message("Saisissez le même code une seconde fois.")
-                .input("", "Code PIN", pinInput, Profiles.PIN_MAX) { again ->
-                    if (again != pin) return@input choose(title, "Les deux codes étaient différents. Recommencez.", done)
+        val intro = message ?: "${Profiles.PIN_MIN} to ${Profiles.PIN_MAX} digits."
+        show(Sheet(host).title(title).message(intro).input("", "New PIN", pinInput, Profiles.PIN_MAX) { pin ->
+            if (!Profiles.validPin(pin)) return@input choose(title, "The PIN must contain ${Profiles.PIN_MIN} to ${Profiles.PIN_MAX} digits.", done)
+            show(Sheet(host).title("Confirm PIN").message("Enter the same PIN again.")
+                .input("", "PIN", pinInput, Profiles.PIN_MAX) { again ->
+                    if (again != pin) return@input choose(title, "The PINs did not match. Try again.", done)
                     prefs.setPin(pin)
                     done()
                 })

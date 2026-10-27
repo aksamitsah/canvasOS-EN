@@ -1,4 +1,4 @@
-package com.getisolated.canvasos
+package com.aksamitsah.canvasos.en
 
 import android.app.Activity
 import android.graphics.Bitmap
@@ -46,8 +46,8 @@ class WallpaperActivity : Activity() {
         val left = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             clipChildren = false
-            addView(text(30f, bold = true).apply { text = "Fond d'écran" })
-            addView(text(15f, Color.argb(160, 255, 255, 255)).apply { text = "Choisissez le fond de l'écran d'accueil ; le cadre photo utilise la même source." },
+            addView(text(30f, bold = true).apply { text = "Wallpaper" })
+            addView(text(15f, Color.argb(160, 255, 255, 255)).apply { text = "Choose the Home wallpaper; the photo frame uses the same source." },
                 LinearLayout.LayoutParams(-2, -2).apply { topMargin = dp(8); bottomMargin = dp(22) })
             addView(grid)
         }
@@ -60,9 +60,9 @@ class WallpaperActivity : Activity() {
         byName = text(12f, Color.argb(110, 255, 255, 255)).apply { visibility = View.GONE }
         val right = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            addView(text(20f, bold = true).apply { text = "Depuis un téléphone" })
+            addView(text(20f, bold = true).apply { text = "From a phone" })
             addView(text(15f, Color.argb(190, 255, 255, 255)).apply {
-                text = "Sur le même Wi-Fi, scannez le code avec l'appareil photo du téléphone : importez des photos ou ajoutez des liens d'images (une image, une API d'images aléatoires, une page ou un JSON qui liste des images). Le téléviseur les récupère chaque jour. La même page sert aussi de télécommande."
+                text = "On the same Wi-Fi, scan the code with your phone's camera: upload photos or add image links (an image, a random-image API, a page or JSON listing images). The TV fetches them daily. The same page also works as a remote."
                 setLineSpacing(0f, 1.25f)
             }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(10); bottomMargin = dp(18) })
             addView(qr, LinearLayout.LayoutParams(dp(220), dp(220)))
@@ -82,7 +82,7 @@ class WallpaperActivity : Activity() {
 
     override fun onStart() {
         super.onStart()
-        address.text = "Démarrage…"
+        address.text = "Starting…"
         io.execute {
             // Usually already running (KeeperService); the address is read again, Wi-Fi may have changed.
             PhoneServer.start(this)
@@ -93,7 +93,7 @@ class WallpaperActivity : Activity() {
             val off = if (url == null) PhoneServer.unavailable(this) else null
             main.post {
                 address.text = url ?: off
-                byName.text = host?.let { "Aussi : $it (iPhone et Android récents)" }
+                byName.text = host?.let { "Also: $it (recent iPhones and Android phones)" }
                 byName.visibility = if (host != null) View.VISIBLE else View.GONE
                 qr.setImageBitmap(bmp)
             }
@@ -142,10 +142,10 @@ class WallpaperActivity : Activity() {
             val label = Wallpapers.label(s) + if (s == Wallpapers.MINE && files.isNotEmpty()) " · ${files.size}" else ""
             val empty = when {
                 files.isNotEmpty() -> null
-                s == Wallpapers.MINE -> "Scannez pour importer"
-                s == Wallpapers.CUSTOM -> "Scannez pour ajouter un lien"
-                s == Wallpapers.UNSPLASH && prefs.unsplashKey.isEmpty() -> "Clé Unsplash : scannez"
-                else -> "Téléchargé à la sélection"
+                s == Wallpapers.MINE -> "Scan to upload"
+                s == Wallpapers.CUSTOM -> "Scan to add a link"
+                s == Wallpapers.UNSPLASH && prefs.unsplashKey.isEmpty() -> "Unsplash key: scan"
+                else -> "Downloaded when selected"
             }
             main.post { cards[s]?.apply { image.setImageBitmap(bmp); this.label.text = label; emptyText(empty) } }
         }
@@ -157,12 +157,12 @@ class WallpaperActivity : Activity() {
 
     private fun pick(key: String) {
         if (key == Wallpapers.UNSPLASH && prefs.unsplashKey.isEmpty()) {
-            Toast.makeText(this, "Unsplash demande une clé gratuite : scannez le code QR à droite et collez-la dans l'onglet Réglages", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, "Unsplash requires a free key: scan the QR code on the right and paste it into the Settings tab", Toast.LENGTH_LONG).show()
             return
         }
         if (key == Wallpapers.MINE || key == Wallpapers.CUSTOM) {
             if (Wallpapers(this, key).files().isEmpty()) {
-                Toast.makeText(this, if (key == Wallpapers.MINE) "Aucune photo pour l'instant : scannez le code QR à droite avec un téléphone pour en importer" else "Aucun lien pour l'instant : scannez le code QR à droite avec un téléphone pour en ajouter", Toast.LENGTH_LONG).show()
+                Toast.makeText(this, if (key == Wallpapers.MINE) "No photos yet: scan the QR code on the right with a phone to upload some" else "No links yet: scan the QR code on the right with a phone to add one", Toast.LENGTH_LONG).show()
                 return
             }
         }

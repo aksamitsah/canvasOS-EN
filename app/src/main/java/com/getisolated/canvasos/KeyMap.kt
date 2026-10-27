@@ -1,4 +1,4 @@
-package com.getisolated.canvasos
+package com.aksamitsah.canvasos.en
 
 import android.view.KeyEvent
 
@@ -32,19 +32,19 @@ object KeyMap {
 
     /** The fixed actions, in the order the settings list them, with their names. */
     val ACTIONS: List<Pair<String, String>> = listOf(
-        CONTROL_CENTER to "Centre de contrôle",
-        PLAY_PAUSE to "Lecture / pause",
-        NEXT to "Piste suivante",
-        PREVIOUS to "Piste précédente",
-        OPEN_PLAYING to "Ouvrir l'app qui lit",
-        LYRICS to "Paroles",
-        NEXT_PHOTO to "Photo suivante",
-        PHOTO_FRAME to "Cadre photo",
-        SLEEP_TIMER to "Minuteur de veille",
-        CLEAN to "Libérer la mémoire",
-        HOME_SETTINGS to "Réglages de l'accueil",
-        TV_SETTINGS to "Réglages du téléviseur",
-        PROFILES to "Liste des profils",
+        CONTROL_CENTER to "Control Center",
+        PLAY_PAUSE to "Play / Pause",
+        NEXT to "Next Track",
+        PREVIOUS to "Previous Track",
+        OPEN_PLAYING to "Open Playing App",
+        LYRICS to "Lyrics",
+        NEXT_PHOTO to "Next Photo",
+        PHOTO_FRAME to "Photo Frame",
+        SLEEP_TIMER to "Sleep Timer",
+        CLEAN to "Free Memory",
+        HOME_SETTINGS to "Home Settings",
+        TV_SETTINGS to "TV Settings",
+        PROFILES to "Profile List",
     )
 
     class Binding(val code: Int, val long: Boolean, val action: String) {
@@ -83,28 +83,28 @@ object KeyMap {
      * screen already uses can only be held, and those whose hold is used neither.
      */
     fun reserved(code: Int, long: Boolean): String? = when {
-        code in TV_KEYS -> "Cette touche est réservée au téléviseur."
-        code in NAV_KEYS -> if (long) "L'appui long sur cette touche sert déjà sur l'accueil." else "Cette touche sert déjà sur l'accueil."
-        code in HOME_KEYS && !long -> "Cette touche sert déjà sur l'accueil : maintenez-la pour l'associer à un appui long."
+        code in TV_KEYS -> "This button is reserved for the TV."
+        code in NAV_KEYS -> if (long) "Holding this button already has a Home function." else "This button already has a Home function."
+        code in HOME_KEYS && !long -> "This button already has a Home function: hold it to assign a long press."
         else -> null
     }
 
     /** The name of [action], the app's or the input's from [named] for "app:" and "input:" (their id when unknown). */
     fun label(action: String, named: (String) -> String? = { null }): String = when {
-        action.startsWith(APP) -> "Ouvrir " + (named(action) ?: action.removePrefix(APP))
-        action.startsWith(INPUT) -> "Source " + (named(action) ?: "HDMI")
+        action.startsWith(APP) -> "Open " + (named(action) ?: action.removePrefix(APP))
+        action.startsWith(INPUT) -> "Input " + (named(action) ?: "HDMI")
         else -> ACTIONS.firstOrNull { it.first == action }?.second ?: action
     }
 
     /** The key's name for the list ("Touche rouge", "Touche 1", "Info"), with " (appui long)" when held. */
     fun keyName(code: Int, long: Boolean): String {
         val base = KEY_NAMES[code] ?: when (code) {
-            in KeyEvent.KEYCODE_0..KeyEvent.KEYCODE_9 -> "Touche ${code - KeyEvent.KEYCODE_0}"
-            in KeyEvent.KEYCODE_A..KeyEvent.KEYCODE_Z -> "Touche ${('A' + (code - KeyEvent.KEYCODE_A))}"
+            in KeyEvent.KEYCODE_0..KeyEvent.KEYCODE_9 -> "Button ${code - KeyEvent.KEYCODE_0}"
+            in KeyEvent.KEYCODE_A..KeyEvent.KEYCODE_Z -> "Button ${('A' + (code - KeyEvent.KEYCODE_A))}"
             else -> runCatching { KeyEvent.keyCodeToString(code).removePrefix("KEYCODE_").replace('_', ' ').lowercase().replaceFirstChar { it.uppercase() } }
-                .getOrDefault("Touche $code")
+                .getOrDefault("Button $code")
         }
-        return if (long) "$base (appui long)" else base
+        return if (long) "$base (long press)" else base
     }
 
     /** One line per binding, for the CONFIG answer: "Touche rouge=lyrics; Touche 1 (appui long)=app:com.x". */
@@ -124,35 +124,35 @@ object KeyMap {
     private val HOME_KEYS = setOf(KeyEvent.KEYCODE_BACK, KeyEvent.KEYCODE_MENU)
 
     private val KEY_NAMES = mapOf(
-        KeyEvent.KEYCODE_PROG_RED to "Touche rouge",
-        KeyEvent.KEYCODE_PROG_GREEN to "Touche verte",
-        KeyEvent.KEYCODE_PROG_YELLOW to "Touche jaune",
-        KeyEvent.KEYCODE_PROG_BLUE to "Touche bleue",
-        KeyEvent.KEYCODE_BACK to "Retour",
+        KeyEvent.KEYCODE_PROG_RED to "Red Button",
+        KeyEvent.KEYCODE_PROG_GREEN to "Green Button",
+        KeyEvent.KEYCODE_PROG_YELLOW to "Yellow Button",
+        KeyEvent.KEYCODE_PROG_BLUE to "Blue Button",
+        KeyEvent.KEYCODE_BACK to "Back",
         KeyEvent.KEYCODE_MENU to "Menu",
         KeyEvent.KEYCODE_INFO to "Info",
         KeyEvent.KEYCODE_GUIDE to "Guide",
-        KeyEvent.KEYCODE_SETTINGS to "Réglages",
-        KeyEvent.KEYCODE_PROFILE_SWITCH to "Profil",
+        KeyEvent.KEYCODE_SETTINGS to "Settings",
+        KeyEvent.KEYCODE_PROFILE_SWITCH to "Profile",
         KeyEvent.KEYCODE_ALL_APPS to "Apps",
         KeyEvent.KEYCODE_NOTIFICATION to "Notifications",
-        KeyEvent.KEYCODE_TV_INPUT to "Source",
-        KeyEvent.KEYCODE_BOOKMARK to "Favoris",
+        KeyEvent.KEYCODE_TV_INPUT to "Input",
+        KeyEvent.KEYCODE_BOOKMARK to "Favorites",
         KeyEvent.KEYCODE_CAPTIONS to "Sous-titres",
-        KeyEvent.KEYCODE_CHANNEL_UP to "Chaîne +",
-        KeyEvent.KEYCODE_CHANNEL_DOWN to "Chaîne −",
+        KeyEvent.KEYCODE_CHANNEL_UP to "Channel +",
+        KeyEvent.KEYCODE_CHANNEL_DOWN to "Channel −",
         KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE to "Lecture/pause",
-        KeyEvent.KEYCODE_MEDIA_PLAY to "Lecture",
+        KeyEvent.KEYCODE_MEDIA_PLAY to "Playback",
         KeyEvent.KEYCODE_MEDIA_PAUSE to "Pause",
         KeyEvent.KEYCODE_MEDIA_STOP to "Stop",
-        KeyEvent.KEYCODE_MEDIA_NEXT to "Suivant",
-        KeyEvent.KEYCODE_MEDIA_PREVIOUS to "Précédent",
-        KeyEvent.KEYCODE_MEDIA_FAST_FORWARD to "Avance rapide",
-        KeyEvent.KEYCODE_MEDIA_REWIND to "Retour rapide",
-        KeyEvent.KEYCODE_MEDIA_RECORD to "Enregistrer",
+        KeyEvent.KEYCODE_MEDIA_NEXT to "Next",
+        KeyEvent.KEYCODE_MEDIA_PREVIOUS to "Previous",
+        KeyEvent.KEYCODE_MEDIA_FAST_FORWARD to "Fast Forward",
+        KeyEvent.KEYCODE_MEDIA_REWIND to "Rewind",
+        KeyEvent.KEYCODE_MEDIA_RECORD to "Save",
         KeyEvent.KEYCODE_TV to "TV",
         KeyEvent.KEYCODE_DVR to "DVR",
-        KeyEvent.KEYCODE_LAST_CHANNEL to "Dernière chaîne",
+        KeyEvent.KEYCODE_LAST_CHANNEL to "Last Channel",
     )
 }
 

@@ -1,4 +1,4 @@
-package com.getisolated.canvasos
+package com.aksamitsah.canvasos.en
 
 import android.content.Context
 import android.graphics.Color
@@ -159,10 +159,10 @@ class LyricsView(ctx: Context, private val io: Executor) : FrameLayout(ctx) {
         lines = emptyList()
         current = -1
         val msg = when {
-            loading -> "Paroles…"
-            r == null -> "Paroles indisponibles : LRCLIB est injoignable"
+            loading -> "Lyrics…"
+            r == null -> "Lyrics unavailable: cannot reach LRCLIB"
             r.instrumental -> "Instrumental"
-            !r.synced -> "Pas de paroles synchronisées pour ce titre"
+            !r.synced -> "No synced lyrics for this track"
             else -> null
         }
         status.text = msg ?: ""

@@ -1,4 +1,4 @@
-package com.getisolated.canvasos.tv
+package com.aksamitsah.canvasos.en.tv
 
 import android.content.Context
 import android.content.Intent
@@ -110,7 +110,7 @@ open class AndroidAdapter(protected val ctx: Context) : TvAdapter {
     }
 
     override fun inputSummary(list: List<Input>) =
-        if (list.isEmpty()) "Sources illisibles" else if (list.size == 1) "1 entrée HDMI" else "${list.size} entrées HDMI"
+        if (list.isEmpty()) "Cannot Read Inputs" else if (list.size == 1) "1 HDMI input" else "${list.size} HDMI inputs"
 
     override fun settingsIntent() = Intent(Settings.ACTION_SETTINGS)
 

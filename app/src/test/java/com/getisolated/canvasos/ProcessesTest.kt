@@ -1,4 +1,4 @@
-package com.getisolated.canvasos
+package com.aksamitsah.canvasos.en
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -106,13 +106,13 @@ class ProcessesTest {
         assertTrue(Processes.parseProcessNames("ps: Unknown option 'A'").isEmpty())
     }
 
-    @Test fun summaryReadsLikeFrench() {
+    @Test fun summaryReadsInEnglish() {
         val r = Cleaner.Result(100, 412, 30, true, listOf("a.b", "c.d", "e.f", "g.h"), listOf("i.j", "k.l"))
-        assertEquals("312 Mo libérés · 4 apps fermées · 2 en cours d'utilisation épargnées", r.summary())
-        assertEquals("312 Mo libérés, 4 apps fermées, 2 en cours d'utilisation épargnées", r.summary(", "))
-        assertEquals("1 Mo libéré · 1 app fermée · 1 en cours d'utilisation épargnée",
+        assertEquals("312 MB freed · 4 apps closed · 2 in use kept", r.summary())
+        assertEquals("312 MB freed, 4 apps closed, 2 in use kept", r.summary(", "))
+        assertEquals("1 MB freed · 1 app closed · 1 in use kept",
             Cleaner.Result(100, 101, 1, true, listOf("a.b"), listOf("c.d")).summary())
-        assertEquals("0 Mo libéré · aucune app fermée", Cleaner.Result(200, 150, 0, true).summary())
-        assertEquals("312 Mo libérés (cache uniquement)", Cleaner.Result(100, 412, 0, false).summary())
+        assertEquals("0 MB freed · no apps closed", Cleaner.Result(200, 150, 0, true).summary())
+        assertEquals("312 MB freed (cache only)", Cleaner.Result(100, 412, 0, false).summary())
     }
 }

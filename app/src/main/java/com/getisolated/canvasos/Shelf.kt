@@ -1,4 +1,4 @@
-package com.getisolated.canvasos
+package com.aksamitsah.canvasos.en
 
 import android.content.Context
 import android.content.pm.PackageManager
@@ -63,8 +63,8 @@ object Shelf {
     private class Web(val name: String, val fetch: () -> List<Item>)
 
     private val web = mapOf(
-        "com.xiaodianshi.tv.yst" to Web("Bilibili · Tendances", ::bilibili),
-        "com.douyu.xl.douyutv" to Web("Douyu · En direct", ::douyu),
+        "com.xiaodianshi.tv.yst" to Web("Bilibili · Trending", ::bilibili),
+        "com.douyu.xl.douyutv" to Web("Douyu · Live", ::douyu),
     )
 
     /** An answer kept until [until] (elapsed-independent wall time); a null content means "nothing here". */
@@ -302,7 +302,7 @@ object Shelf {
             }
         }
         // TMDB's terms ask for its credit, and JustWatch's for the availability data behind with_watch_providers.
-        return items.takeIf { it.isNotEmpty() }?.let { Content("${service.name} · Tendances (TMDB, JustWatch)", it) }
+        return items.takeIf { it.isNotEmpty() }?.let { Content("${service.name} · Trending (TMDB, JustWatch)", it) }
     }
 
     // ------------------------------------------------------------------ pictures
@@ -429,7 +429,7 @@ object Shelf {
         return (0 until list.length()).map { list.getJSONObject(it) }.map { v ->
             Item(
                 v.optString("title"),
-                "${v.getJSONObject("owner").optString("name")} · ${count(v.getJSONObject("stat").optLong("view"))} vues",
+                "${v.getJSONObject("owner").optString("name")} · ${count(v.getJSONObject("stat").optLong("view"))} views",
                 v.optString("pic").replace("http://", "https://") + "@1280w_720h_1c.jpg",
             )
         }
@@ -444,7 +444,7 @@ object Shelf {
             .map { r ->
                 Item(
                     r.optString("rn"),
-                    "${r.optString("nn")} · ${r.optString("c2name")} · popularité ${count(r.optLong("ol"))}",
+                    "${r.optString("nn")} · ${r.optString("c2name")} · popularity ${count(r.optLong("ol"))}",
                     // "/dy4" is the 1280×720 JPEG rendition of the AVIF cover.
                     r.optString("rs16").substringBeforeLast('/') + "/dy4",
                 )

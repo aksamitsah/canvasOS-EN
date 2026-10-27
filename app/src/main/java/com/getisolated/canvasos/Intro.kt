@@ -1,4 +1,4 @@
-package com.getisolated.canvasos
+package com.aksamitsah.canvasos.en
 
 import android.content.Context
 import android.graphics.Bitmap
@@ -33,7 +33,7 @@ import kotlin.math.sin
  *
  * The film is the chosen brand's ([Brand], shipped in the APK) unless the user picked a video of their
  * own, uploaded from the phone page (Réglages → Animation de démarrage) or pushed over adb to
- * Android/data/com.getisolated.canvasos/files/intro.mp4, or the canvasOS name instead of any video.
+ * Android/data/com.aksamitsah.canvasos.en/files/intro.mp4, or the canvasOS name instead of any video.
  */
 class Intro(
     private val ctx: Context,
@@ -343,7 +343,7 @@ class Intro(
     }
 
     companion object {
-        const val EXTRA_PREVIEW = "com.getisolated.canvasos.INTRO_PREVIEW"
+        const val EXTRA_PREVIEW = "com.aksamitsah.canvasos.en.INTRO_PREVIEW"
         const val FILE = "intro.mp4"
 
         /** The uploaded video (app storage), else one pushed over adb (Android/data/…/files). */

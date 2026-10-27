@@ -1,4 +1,4 @@
-package com.getisolated.canvasos
+package com.aksamitsah.canvasos.en
 
 import org.json.JSONException
 import org.junit.Assert.assertEquals
@@ -231,10 +231,10 @@ class WallFeedsEdgeTest {
     }
 
     @Test fun metCreditsTitleArtistAndDateAsTheyExist() {
-        assertEquals("Paysage · The Met · Domaine public", WallFeeds.metObject(met(null))!!.caption)
-        assertEquals("Paysage — Corot · The Met · Domaine public", WallFeeds.metObject(met(null, artist = "Corot"))!!.caption)
-        assertEquals("Paysage — (1840) · The Met · Domaine public", WallFeeds.metObject(met(null, date = "1840"))!!.caption)
-        assertEquals("Paysage — Corot (1840) · The Met · Domaine public", WallFeeds.metObject(met(null, artist = "Corot", date = "1840"))!!.caption)
+        assertEquals("Paysage · The Met · Public Domain", WallFeeds.metObject(met(null))!!.caption)
+        assertEquals("Paysage — Corot · The Met · Public Domain", WallFeeds.metObject(met(null, artist = "Corot"))!!.caption)
+        assertEquals("Paysage — (1840) · The Met · Public Domain", WallFeeds.metObject(met(null, date = "1840"))!!.caption)
+        assertEquals("Paysage — Corot (1840) · The Met · Public Domain", WallFeeds.metObject(met(null, artist = "Corot", date = "1840"))!!.caption)
         assertEquals("met-9", WallFeeds.metObject(met(null))!!.id)
     }
 
@@ -290,10 +290,10 @@ class WallFeedsEdgeTest {
 
     @Test fun articArtistComesFromTheShortFieldThenTheFirstLineOfTheLongOne() {
         fun caption(fields: String) = WallFeeds.artic(artic("""{"id":1,"title":"T","image_id":"a",$fields}""")).single().caption
-        assertEquals("T — Monet · Art Institute of Chicago · Domaine public", caption(""""artist_title":"Monet","artist_display":"Claude Monet (French, 1840-1926)""""))
-        assertEquals("T — Claude Monet · Art Institute of Chicago · Domaine public", caption(""""artist_title":null,"artist_display":"Claude Monet (French, 1840-1926)""""))
-        assertEquals("T — Claude Monet · Art Institute of Chicago · Domaine public", caption(""""artist_display":"Claude Monet\nFrench, 1840-1926""""))
-        assertEquals("T · Art Institute of Chicago · Domaine public", caption(""""artist_display":"""""))
+        assertEquals("T — Monet · Art Institute of Chicago · Public Domain", caption(""""artist_title":"Monet","artist_display":"Claude Monet (French, 1840-1926)""""))
+        assertEquals("T — Claude Monet · Art Institute of Chicago · Public Domain", caption(""""artist_title":null,"artist_display":"Claude Monet (French, 1840-1926)""""))
+        assertEquals("T — Claude Monet · Art Institute of Chicago · Public Domain", caption(""""artist_display":"Claude Monet\nFrench, 1840-1926""""))
+        assertEquals("T · Art Institute of Chicago · Public Domain", caption(""""artist_display":"""""))
     }
 
     // ---- Wallhaven, cats, dogs ----

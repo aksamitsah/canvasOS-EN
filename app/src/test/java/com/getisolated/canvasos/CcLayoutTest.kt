@@ -1,9 +1,9 @@
-package com.getisolated.canvasos
+package com.aksamitsah.canvasos.en
 
-import com.getisolated.canvasos.CcLayout.Item
-import com.getisolated.canvasos.CcLayout.Layout
-import com.getisolated.canvasos.CcLayout.Pos
-import com.getisolated.canvasos.CcLayout.Size
+import com.aksamitsah.canvasos.en.CcLayout.Item
+import com.aksamitsah.canvasos.en.CcLayout.Layout
+import com.aksamitsah.canvasos.en.CcLayout.Pos
+import com.aksamitsah.canvasos.en.CcLayout.Size
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull

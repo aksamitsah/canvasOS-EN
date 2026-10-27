@@ -51,15 +51,15 @@ if (releaseKey == null) {
 }
 
 android {
-    namespace = "com.getisolated.canvasos"
+    namespace = "com.aksamitsah.canvasos.en"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.getisolated.canvasos"
+        applicationId = "com.aksamitsah.canvasos.en"
         minSdk = 28
         targetSdk = 31
-        versionCode = 13
-        versionName = "1.2.0"
+        versionCode = 14
+        versionName = "1.2.1"
     }
 
     // standard declares itself a home screen. guard does not: TCL's package verifier refuses any

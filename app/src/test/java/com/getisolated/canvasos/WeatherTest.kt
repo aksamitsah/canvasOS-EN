@@ -1,4 +1,4 @@
-package com.getisolated.canvasos
+package com.aksamitsah.canvasos.en
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -32,15 +32,15 @@ class WeatherTest {
     @Test fun linesAsTheScreensShowThem() {
         val f = Weather.parse(forecast)!!
         assertEquals("14°", Weather.degrees(f.temp))
-        assertEquals("14° · Couvert", Weather.now(f))
-        assertEquals("14° · Couvert · 9° / 15°", Weather.summary(f, today))
+        assertEquals("14° · Overcast", Weather.now(f))
+        assertEquals("14° · Overcast · 9° / 15°", Weather.summary(f, today))
         val lines = Weather.upcoming(f, today).map { Weather.dayLine(it, today) }
         assertEquals(listOf(
-            "Aujourd'hui · Averses · 9° / 15°",
-            "Demain · Averses · 10° / 14°",
-            "Samedi · Averses · 9° / 15°",
-            "Dimanche · Pluie faible · 10° / 17°",
-            "Lundi · Pluie faible · 9° / 16°",
+            "Today · Showers · 9° / 15°",
+            "Tomorrow · Showers · 10° / 14°",
+            "Saturday · Showers · 9° / 15°",
+            "Sunday · Light Rain · 10° / 17°",
+            "Monday · Light Rain · 9° / 16°",
         ), lines)
     }
 
@@ -48,8 +48,8 @@ class WeatherTest {
         val f = Weather.parse(forecast)!!
         val tomorrow = today.plusDays(1)
         assertEquals(4, Weather.upcoming(f, tomorrow).size)
-        assertEquals("14° · Couvert · 10° / 14°", Weather.summary(f, tomorrow))
-        assertEquals("Aujourd'hui", Weather.dayName("2026-10-23", tomorrow))
+        assertEquals("14° · Overcast · 10° / 14°", Weather.summary(f, tomorrow))
+        assertEquals("Today", Weather.dayName("2026-10-23", tomorrow))
     }
 
     @Test fun missingDaysAndBrokenAnswersAreDropped() {
@@ -66,25 +66,25 @@ class WeatherTest {
     }
 
     @Test fun codesMapToLabelsAndIcons() {
-        assertEquals("Ensoleillé", Weather.label(0, true))
-        assertEquals("Dégagé", Weather.label(0, false))
+        assertEquals("Sunny", Weather.label(0, true))
+        assertEquals("Clear", Weather.label(0, false))
         assertEquals(Weather.Kind.SUNNY, Weather.kind(0, true))
         assertEquals(Weather.Kind.CLEAR_NIGHT, Weather.kind(0, false))
         assertEquals(Weather.Kind.PARTLY_CLOUDY, Weather.kind(2, true))
         assertEquals(Weather.Kind.PARTLY_CLOUDY_NIGHT, Weather.kind(1, false))
         assertEquals(Weather.Kind.CLOUDY, Weather.kind(3, false))
-        assertEquals("Brouillard", Weather.label(48))
+        assertEquals("Fog", Weather.label(48))
         assertEquals(Weather.Kind.FOG, Weather.kind(45))
         assertEquals(Weather.Kind.RAIN, Weather.kind(55))
         assertEquals(Weather.Kind.RAIN, Weather.kind(81))
-        assertEquals("Neige", Weather.label(73))
+        assertEquals("Snow", Weather.label(73))
         assertEquals(Weather.Kind.SNOW, Weather.kind(86))
-        assertEquals("Orage", Weather.label(95))
+        assertEquals("Thunderstorm", Weather.label(95))
         assertEquals(Weather.Kind.THUNDER, Weather.kind(99))
         assertEquals(Weather.Kind.CLOUDY, Weather.kind(42))
         // Every code Open-Meteo documents has a label of its own.
         val documented = listOf(0, 1, 2, 3, 45, 48, 51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 71, 73, 75, 77, 80, 81, 82, 85, 86, 95, 96, 99)
-        assertTrue(documented.none { Weather.label(it) == "Temps inconnu" })
+        assertTrue(documented.none { Weather.label(it) == "Unknown Weather" })
     }
 
     @Test fun findsPlacesWithWhatTellsThemApart() {
@@ -106,14 +106,14 @@ class WeatherTest {
     @Test fun urlsUseDotsWhateverTheLocale() {
         val saved = Locale.getDefault()
         try {
-            Locale.setDefault(Locale.FRANCE)
+            Locale.setDefault(Locale.ENGLISH)
             assertEquals("https://api.open-meteo.com/v1/forecast?latitude=48.8534&longitude=-2.3488" +
                 "&current=temperature_2m,weather_code,is_day&daily=weather_code,temperature_2m_max,temperature_2m_min" +
                 "&timezone=auto&forecast_days=5", Weather.forecastUrl(48.85341, -2.3488))
         } finally {
             Locale.setDefault(saved)
         }
-        assertEquals("https://geocoding-api.open-meteo.com/v1/search?name=Saint-%C3%89tienne%20du%20Rouvray&count=5&language=fr&format=json",
+        assertEquals("https://geocoding-api.open-meteo.com/v1/search?name=Saint-%C3%89tienne%20du%20Rouvray&count=5&language=en&format=json",
             Weather.searchUrl(" Saint-Étienne du Rouvray "))
     }
 
